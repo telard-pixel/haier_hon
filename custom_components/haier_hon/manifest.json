@@ -1,0 +1,11 @@
+{
+  "domain": "haier_hon",
+  "name": "Haier hOn (Extended)",
+  "codeowners": ["@telard-pixel"],
+  "config_flow": true,
+  "documentation": "https://github.com/telard-pixel/haier-hon-custom",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/telard-pixel/haier-hon-custom/issues",
+  "requirements": [],
+  "version": "1.0.0"
+}
