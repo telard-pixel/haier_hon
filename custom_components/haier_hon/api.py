@@ -12,19 +12,26 @@ class HonApiClient:
         self._password = password
         self._hon = None
 
-async def get_devices(self):
-        """Esegue il login (se necessario) e recupera tutti i dispositivi."""
+    async def get_devices(self):
+        """Esegue il login (se necessario) e mappa i dispositivi reali di pyhOn."""
         try:
             if self._hon is None:
+                _LOGGER.info("Inizializzazione della sessione pyhOn per %s...", self._username)
                 # Inizializza la libreria pyhOn ed effettua il login ai server Haier
-                self._hon = await Hon(self._username, self._password)
+                self._hon = Hon(self._username, self._password)
                 await self._hon.setup()
 
             appliances = []
+            
+            # Nella v0.17.5, self._hon.appliances contiene la lista degli oggetti reali
             for appliance in self._hon.appliances:
-                # Costruiamo la struttura dati che si aspettano climate.py e sensor.py
+                appliance_id = appliance.info.get("applianceId")
+                if not appliance_id:
+                    continue
+                    
+                # Mappiamo i dati estraendoli direttamente dall'oggetto pyhOn
                 appliance_data = {
-                    "applianceId": appliance.info.get("applianceId"),
+                    "applianceId": appliance_id,
                     "shadow": {
                         "parameters": {
                             "onOffStatus": {"value": int(appliance.get("onOffStatus", 0))},
@@ -40,5 +47,22 @@ async def get_devices(self):
                 
             return appliances
         except Exception as err:
-            _LOGGER.error("Errore nel recupero dei dispositivi hOn reali: %s", err)
+            _LOGGER.error("Errore critico nel recupero dei dispositivi hOn: %s", err)
+            raise err
+
+    async def set_device_status(self, appliance_id, parameters: dict):
+        """Invia i comandi impostando i parametri direttamente sull'oggetto pyhOn."""
+        try:
+            if self._hon is None:
+                return False
+                
+            for appliance in self._hon.appliances:
+                if appliance.info.get("applianceId") == appliance_id:
+                    # pyhOn gestisce l'invio aggiornando i singoli parametri dell'oggetto
+                    for key, value in parameters.items():
+                        await appliance.set_parameter(key, value)
+                    return True
+            return False
+        except Exception as err:
+            _LOGGER.error("Impossibile inviare il comando al dispositivo %s: %s", appliance_id, err)
             raise err
