@@ -7,6 +7,7 @@ from homeassistant.components.sensor import SensorEntity, SensorDeviceClass, Sen
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.const import UnitOfEnergy, UnitOfVolume, UnitOfTime, UnitOfTemperature
 
 from .base_entity import HonBaseEntity
 from .const import (
@@ -42,118 +43,30 @@ async def async_setup_entry(
         app_type = data.get("type", "")
 
         if app_type == APPLIANCE_AC:
-            entities += [
-                HonNumericSensor(
-                    coordinator, appliance_id,
-                    attr_key=AC_ATTR_COMPRESSOR_FREQ,
-                    name="Frequenza Compressore",
-                    unique_suffix="compressor_freq",
-                    unit="Hz",
-                    device_class=SensorDeviceClass.FREQUENCY if hasattr(SensorDeviceClass, "FREQUENCY") else None,
-                    state_class=SensorStateClass.MEASUREMENT,
-                ),
-                HonNumericSensor(
-                    coordinator, appliance_id,
-                    attr_key=AC_ATTR_CURRENT_TEMP,
-                    name="Temperatura Interna",
-                    unique_suffix="temp_indoor",
-                    unit="°C",
-                    device_class=SensorDeviceClass.TEMPERATURE,
-                    state_class=SensorStateClass.MEASUREMENT,
-                ),
-                HonNumericSensor(
-                    coordinator, appliance_id,
-                    attr_key=AC_ATTR_OUTDOOR_TEMP,
-                    name="Temperatura Esterna",
-                    unique_suffix="temp_outdoor",
-                    unit="°C",
-                    device_class=SensorDeviceClass.TEMPERATURE,
-                    state_class=SensorStateClass.MEASUREMENT,
-                ),
-                HonNumericSensor(
-                    coordinator, appliance_id,
-                    attr_key=AC_ATTR_HUMIDITY_INDOOR,
-                    name="Umidità Interna",
-                    unique_suffix="humidity_indoor",
-                    unit="%",
-                    device_class=SensorDeviceClass.HUMIDITY,
-                    state_class=SensorStateClass.MEASUREMENT,
-                ),
-                HonNumericSensor(
-                    coordinator, appliance_id,
-                    attr_key=AC_ATTR_TOTAL_ENERGY,
-                    name="Energia Totale",
-                    unique_suffix="total_energy",
-                    unit="kWh",
-                    device_class=SensorDeviceClass.ENERGY,
-                    state_class=SensorStateClass.TOTAL_INCREASING,
-                ),
-            ]
+            entities.extend([
+                HonNumericSensor(coordinator, appliance_id, AC_ATTR_CURRENT_TEMP, "Temperatura Interna", "temp_indoor", UnitOfTemperature.CELSIUS, SensorDeviceClass.TEMPERATURE, SensorStateClass.MEASUREMENT),
+                HonNumericSensor(coordinator, appliance_id, AC_ATTR_OUTDOOR_TEMP, "Temperatura Esterna", "temp_outdoor", UnitOfTemperature.CELSIUS, SensorDeviceClass.TEMPERATURE, SensorStateClass.MEASUREMENT),
+                HonNumericSensor(coordinator, appliance_id, AC_ATTR_HUMIDITY_INDOOR, "Umidità Interna", "humidity_indoor", "%", SensorDeviceClass.HUMIDITY, SensorStateClass.MEASUREMENT),
+                HonNumericSensor(coordinator, appliance_id, AC_ATTR_COMPRESSOR_FREQ, "Frequenza Compressore", "compressor_freq", "Hz", None, SensorStateClass.MEASUREMENT),
+                HonNumericSensor(coordinator, appliance_id, AC_ATTR_TOTAL_ENERGY, "Energia Totale Condizionatore", "total_energy", UnitOfEnergy.KILO_WATT_HOUR, SensorDeviceClass.ENERGY, SensorStateClass.TOTAL_INCREASING),
+            ])
 
         elif app_type in APPLIANCE_WASH_GROUP:
-            entities += [
+            entities.extend([
                 HonWMStateSensor(coordinator, appliance_id),
-                HonNumericSensor(
-                    coordinator, appliance_id,
-                    attr_key=WM_ATTR_REMAINING,
-                    name="Tempo Rimanente",
-                    unique_suffix="remaining",
-                    unit="min",
-                    device_class=SensorDeviceClass.DURATION if hasattr(SensorDeviceClass, "DURATION") else None,
-                    state_class=SensorStateClass.MEASUREMENT,
-                ),
-                HonNumericSensor(
-                    coordinator, appliance_id,
-                    attr_key=WM_ATTR_TOTAL_WASH,
-                    name="Cicli Totali",
-                    unique_suffix="total_wash",
-                    unit=None,
-                    device_class=None,
-                    state_class=SensorStateClass.TOTAL_INCREASING,
-                ),
-                HonNumericSensor(
-                    coordinator, appliance_id,
-                    attr_key=WM_ATTR_TOTAL_WATER,
-                    name="Acqua Totale",
-                    unique_suffix="total_water",
-                    unit="L",
-                    device_class=SensorDeviceClass.WATER if hasattr(SensorDeviceClass, "WATER") else None,
-                    state_class=SensorStateClass.TOTAL_INCREASING,
-                ),
-                HonNumericSensor(
-                    coordinator, appliance_id,
-                    attr_key=WM_ATTR_TOTAL_ENERGY,
-                    name="Energia Totale",
-                    unique_suffix="total_energy_wm",
-                    unit="kWh",
-                    device_class=SensorDeviceClass.ENERGY,
-                    state_class=SensorStateClass.TOTAL_INCREASING,
-                ),
-                HonNumericSensor(
-                    coordinator, appliance_id,
-                    attr_key=WM_ATTR_CURRENT_ENERGY,
-                    name="Energia Ciclo",
-                    unique_suffix="current_energy",
-                    unit="kWh",
-                    device_class=SensorDeviceClass.ENERGY,
-                    state_class=SensorStateClass.TOTAL,
-                ),
-                HonNumericSensor(
-                    coordinator, appliance_id,
-                    attr_key=WM_ATTR_CURRENT_WATER,
-                    name="Acqua Ciclo",
-                    unique_suffix="current_water",
-                    unit="L",
-                    device_class=SensorDeviceClass.WATER if hasattr(SensorDeviceClass, "WATER") else None,
-                    state_class=SensorStateClass.TOTAL,
-                ),
-            ]
+                HonNumericSensor(coordinator, appliance_id, WM_ATTR_REMAINING, "Tempo Rimanente", "remaining_time", UnitOfTime.MINUTES, SensorDeviceClass.DURATION, None),
+                HonNumericSensor(coordinator, appliance_id, WM_ATTR_TOTAL_WASH, "Cicli Totali", "total_washes", None, None, SensorStateClass.TOTAL_INCREASING),
+                HonNumericSensor(coordinator, appliance_id, WM_ATTR_TOTAL_WATER, "Acqua Totale Consumata", "total_water", UnitOfVolume.LITERS, SensorDeviceClass.WATER, SensorStateClass.TOTAL_INCREASING),
+                HonNumericSensor(coordinator, appliance_id, WM_ATTR_TOTAL_ENERGY, "Energia Totale Consumata", "total_energy", UnitOfEnergy.KILO_WATT_HOUR, SensorDeviceClass.ENERGY, SensorStateClass.TOTAL_INCREASING),
+                HonNumericSensor(coordinator, appliance_id, WM_ATTR_CURRENT_ENERGY, "Consumo Energetico Attuale", "current_energy", UnitOfEnergy.KILO_WATT_HOUR, SensorDeviceClass.ENERGY, SensorStateClass.TOTAL),
+                HonNumericSensor(coordinator, appliance_id, WM_ATTR_CURRENT_WATER, "Consumo Acqua Attuale", "current_water", UnitOfVolume.LITERS, SensorDeviceClass.WATER, SensorStateClass.TOTAL),
+            ])
 
     async_add_entities(entities)
 
 
 class HonNumericSensor(HonBaseEntity, SensorEntity):
-    """Sensore generico numerico per un attributo di un appliance hOn."""
+    """Sensore generico per attributi numerici (compatibile con statistiche HA)."""
 
     def __init__(
         self,
@@ -197,8 +110,6 @@ class HonWMStateSensor(HonBaseEntity, SensorEntity):
         self._attr_icon = "mdi:washing-machine"
 
     @property
-    def native_value(self) -> str | None:
-        val = self._get_attr(WM_ATTR_STATUS)
-        if val is None:
-            return None
-        return WM_STATE_MAP.get(str(val), f"Stato {val}")
+    def native_value(self) -> str:
+        status_code = str(self._get_attr(WM_ATTR_STATUS))
+        return WM_STATE_MAP.get(status_code, f"Sconosciuto ({status_code})")
