@@ -143,6 +143,32 @@ class HonClient:
         if self._hon_loop is None or not self._hon_loop.is_running():
             self._start_hon_loop()
 
+        # ── Patch BABYCARE (bug pyhOn enum) ──────────────────────────────────
+        # pyhOn crasha su load_commands() dell'asciugatrice TD perché il valore
+        # "BABYCARE" è nell'elenco dei valori ammessi ma il confronto stringa
+        # fallisce per un bug interno di HonParameterEnum.value setter.
+        # Patch: se il valore è già nella lista _values, lo accetta comunque.
+        try:
+            from pyhon.parameter.enum import HonParameterEnum as _HonEnum
+            _orig_setter = _HonEnum.value.fset
+
+            def _patched_setter(instance, value):
+                try:
+                    _orig_setter(instance, value)
+                except ValueError:
+                    # Accetta il valore se è già presente nella lista (confronto case-sensitive)
+                    if value in instance._values:
+                        instance._value = value
+                        _LOGGER.debug("Patch enum BABYCARE applicata per valore: %s", value)
+                    else:
+                        raise
+
+            _HonEnum.value = property(_HonEnum.value.fget, _patched_setter, _HonEnum.value.fdel)
+            _LOGGER.debug("Patch HonParameterEnum applicata")
+        except Exception as patch_err:
+            _LOGGER.warning("Impossibile applicare la patch HonParameterEnum: %s", patch_err)
+        # ─────────────────────────────────────────────────────────────────────
+
         self._hon_instance = Hon(email=self._email, password=self._password)
         _LOGGER.debug("Istanza Hon creata")
 

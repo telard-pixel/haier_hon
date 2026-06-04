@@ -136,7 +136,7 @@ async def async_setup_entry(
                     unique_suffix="current_energy",
                     unit="kWh",
                     device_class=SensorDeviceClass.ENERGY,
-                    state_class=SensorStateClass.MEASUREMENT,
+                    state_class=SensorStateClass.TOTAL,
                 ),
                 HonNumericSensor(
                     coordinator, appliance_id,
@@ -145,7 +145,7 @@ async def async_setup_entry(
                     unique_suffix="current_water",
                     unit="L",
                     device_class=SensorDeviceClass.WATER if hasattr(SensorDeviceClass, "WATER") else None,
-                    state_class=SensorStateClass.MEASUREMENT,
+                    state_class=SensorStateClass.TOTAL,
                 ),
             ]
 
