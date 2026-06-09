@@ -29,8 +29,11 @@ AC_ATTR_OUTDOOR_TEMP     = "tempOutdoor"
 AC_ATTR_HUMIDITY_INDOOR  = "humidityIndoor"          # Umidità ambiente (lettura sensore)
 AC_ATTR_HUMIDITY_SEL     = "settings.humiditySel"   # Umidità target (setpoint utente)
 AC_ATTR_FAN_SPEED    = "settings.windSpeed"
-AC_ATTR_SWING_V      = "settings.windDirectionVertical"
-AC_ATTR_SWING_H      = "settings.windDirectionHorizontal"
+# DISABILITATO: AC_ATTR_SWING_V e AC_ATTR_SWING_H causano errore in pyhOn quando AC è OFF
+# pyhOn tenta di sincronizzare windDirectionVertical=0 che non è permesso (valori ammessi: 2,4,5,6,7,8)
+# Issue: https://github.com/telard-pixel/haier_hon/issues/XX
+# AC_ATTR_SWING_V      = "settings.windDirectionVertical"
+# AC_ATTR_SWING_H      = "settings.windDirectionHorizontal"
 AC_ATTR_ON_OFF       = "settings.onOffStatus"
 # ecoMode esiste solo in startProgram (NON in settings) — confermato da diagnostics
 AC_ATTR_ECO          = "startProgram.ecoMode"
