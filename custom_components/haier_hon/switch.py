@@ -1,4 +1,4 @@
-"""Switch per Haier hOn - accensione e pausa lavatrice/asciugatrice."""
+"""Switch per Haier hOn - pausa lavatrice/asciugatrice."""
 from __future__ import annotations
 
 import logging
@@ -27,7 +27,6 @@ async def async_setup_entry(
     entities = []
     for appliance_id, data in coordinator.data.items():
         if data.get("type") in APPLIANCE_WASH_GROUP:
-            entities.append(HonWashingMachineSwitch(coordinator, appliance_id, client))
             appliance = data.get("appliance")
             if appliance and hasattr(appliance, "commands"):
                 cmds = appliance.commands if isinstance(appliance.commands, dict) else {}
@@ -35,74 +34,6 @@ async def async_setup_entry(
                     entities.append(HonWashingMachinePauseSwitch(coordinator, appliance_id, client))
             _LOGGER.info("Aggiunto switch: %s", data.get("name"))
     async_add_entities(entities)
-
-
-class HonWashingMachineSwitch(HonBaseEntity, SwitchEntity):
-    """Switch per alimentazione lavatrice (on/off)."""
-
-    _attr_icon = "mdi:power"
-
-    def __init__(self, coordinator, appliance_id: str, client=None) -> None:
-        super().__init__(coordinator, appliance_id, client)
-        device_name = self._appliance_data.get("name", "Lavatrice")
-        self._attr_unique_id = f"{appliance_id}_power"
-        self._attr_name = f"{device_name} - Alimentazione"
-
-    @property
-    def is_on(self) -> bool:
-        val = self._get_attr(WM_ATTR_STATUS, "0")
-        return str(val) != "0"
-
-    async def async_turn_on(self, **kwargs) -> None:
-        appliance = self._appliance
-        client = self._hon_client
-        if not appliance or not client:
-            raise HomeAssistantError("Switch ON: appliance o client non disponibile")
-        try:
-            def _do():
-                async def _inner():
-                    commands = appliance.commands if isinstance(appliance.commands, dict) else {}
-                    command = commands.get("startProgram")
-                    if not command:
-                        raise RuntimeError(
-                            f"Comando 'startProgram' non trovato. Disponibili: {list(commands.keys())}"
-                        )
-                    await command.send()
-                client.run_command_sync(_inner())
-
-            await self.hass.async_add_executor_job(_do)
-            _LOGGER.info("Switch ON: startProgram inviato")
-            await self._async_request_command_refresh()
-        except Exception as err:
-            _LOGGER.error("Switch ON: Errore: %s", err, exc_info=True)
-            raise HomeAssistantError(f"Switch ON: errore comando: {err}") from err
-
-    async def async_turn_off(self, **kwargs) -> None:
-        appliance = self._appliance
-        client = self._hon_client
-        if not appliance or not client:
-            raise HomeAssistantError("Switch OFF: appliance o client non disponibile")
-        try:
-            def _do():
-                async def _inner():
-                    commands = appliance.commands if isinstance(appliance.commands, dict) else {}
-                    command = commands.get("stopProgram")
-                    if not command:
-                        raise RuntimeError(
-                            f"Comando 'stopProgram' non trovato. Disponibili: {list(commands.keys())}"
-                        )
-                    if hasattr(command, "parameters") and "onOffStatus" in command.parameters:
-                        command.parameters["onOffStatus"].value = "0"
-                    await command.send()
-                client.run_command_sync(_inner())
-
-            await self.hass.async_add_executor_job(_do)
-            _LOGGER.info("Switch OFF: stopProgram inviato")
-            await self._async_request_command_refresh()
-        except Exception as err:
-            _LOGGER.error("Switch OFF: Errore: %s", err, exc_info=True)
-            raise HomeAssistantError(f"Switch OFF: errore comando: {err}") from err
-
 
 class HonWashingMachinePauseSwitch(HonBaseEntity, SwitchEntity):
     """Switch per mettere in pausa / riprendere il programma lavatrice."""

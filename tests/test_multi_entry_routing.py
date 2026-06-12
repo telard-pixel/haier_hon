@@ -88,12 +88,12 @@ def _install_homeassistant_stubs() -> None:
     update_coordinator.UpdateFailed = getattr(update_coordinator, "UpdateFailed", UpdateFailed)
 
     components = _ensure_module("homeassistant.components")
-    switch = _ensure_module("homeassistant.components.switch")
+    button = _ensure_module("homeassistant.components.button")
 
-    class SwitchEntity:
+    class ButtonEntity:
         pass
 
-    switch.SwitchEntity = getattr(switch, "SwitchEntity", SwitchEntity)
+    button.ButtonEntity = getattr(button, "ButtonEntity", ButtonEntity)
 
     homeassistant.config_entries = config_entries
     homeassistant.core = core
@@ -103,7 +103,7 @@ def _install_homeassistant_stubs() -> None:
     helpers.entity_platform = entity_platform
     helpers.update_coordinator = update_coordinator
     homeassistant.components = components
-    components.switch = switch
+    components.button = button
 
 
 _install_homeassistant_stubs()
@@ -154,9 +154,9 @@ class FakeEntry:
 
 
 class MultiEntryRoutingTest(unittest.IsolatedAsyncioTestCase):
-    async def test_switch_command_uses_client_from_own_config_entry(self) -> None:
+    async def test_start_button_uses_client_from_own_config_entry(self) -> None:
         from custom_components.haier_hon.const import DOMAIN
-        from custom_components.haier_hon import switch
+        from custom_components.haier_hon import button
 
         client_a = FakeClient()
         client_b = FakeClient()
@@ -193,11 +193,11 @@ class MultiEntryRoutingTest(unittest.IsolatedAsyncioTestCase):
                 entity.hass = hass
             added_entities.extend(entities)
 
-        await switch.async_setup_entry(hass, FakeEntry("entry-b"), add_entities)
+        await button.async_setup_entry(hass, FakeEntry("entry-b"), add_entities)
         self.assertEqual(1, len(added_entities))
         self.assertEqual({(DOMAIN, "washer-b")}, added_entities[0].device_info["identifiers"])
 
-        await added_entities[0].async_turn_on()
+        await added_entities[0].async_press()
 
         self.assertEqual(0, client_a.calls)
         self.assertEqual(1, client_b.calls)

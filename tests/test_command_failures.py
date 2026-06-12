@@ -94,12 +94,16 @@ def _install_homeassistant_stubs() -> None:
     update_coordinator.UpdateFailed = getattr(update_coordinator, "UpdateFailed", UpdateFailed)
 
     components = _ensure_module("homeassistant.components")
+    button_module = _ensure_module("homeassistant.components.button")
     switch_module = _ensure_module("homeassistant.components.switch")
     select_module = _ensure_module("homeassistant.components.select")
     climate_module = _ensure_module("homeassistant.components.climate")
     climate_const = _ensure_module("homeassistant.components.climate.const")
 
     class SwitchEntity:
+        pass
+
+    class ButtonEntity:
         pass
 
     class SelectEntity:
@@ -122,6 +126,7 @@ def _install_homeassistant_stubs() -> None:
         HEAT = "heat"
         FAN_ONLY = "fan_only"
 
+    button_module.ButtonEntity = getattr(button_module, "ButtonEntity", ButtonEntity)
     switch_module.SwitchEntity = getattr(switch_module, "SwitchEntity", SwitchEntity)
     select_module.SelectEntity = getattr(select_module, "SelectEntity", SelectEntity)
     climate_module.ClimateEntity = getattr(climate_module, "ClimateEntity", ClimateEntity)
@@ -138,6 +143,7 @@ def _install_homeassistant_stubs() -> None:
     helpers.entity = entity
     helpers.entity_platform = entity_platform
     helpers.update_coordinator = update_coordinator
+    components.button = button_module
     components.switch = switch_module
     components.select = select_module
     components.climate = climate_module
@@ -186,6 +192,9 @@ class FakeCoordinator:
 
 
 class FakeHass:
+    def __init__(self, data: dict | None = None) -> None:
+        self.data = data or {}
+
     async def async_add_executor_job(self, func, *args):
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             return executor.submit(func, *args).result(timeout=5)
@@ -246,14 +255,45 @@ class RecordingCommand:
         self.send_calls += 1
 
 
+class FakeEntry:
+    def __init__(self, entry_id: str = "entry-1") -> None:
+        self.entry_id = entry_id
+
+
 class CommandFailureTest(unittest.IsolatedAsyncioTestCase):
     def _attach(self, entity) -> None:
         entity.hass = FakeHass()
 
-    async def test_switch_command_failure_raises_service_error(self) -> None:
+    async def test_switch_pause_command_failure_raises_service_error(self) -> None:
         from homeassistant.exceptions import HomeAssistantError
 
-        from custom_components.haier_hon.switch import HonWashingMachineSwitch
+        from custom_components.haier_hon.switch import HonWashingMachinePauseSwitch
+
+        command = FailingCommand()
+        coordinator = FakeCoordinator(
+            {
+                "washer-1": {
+                    "type": "WM",
+                    "name": "Washer",
+                    "appliance": types.SimpleNamespace(commands={"pauseProgram": command}),
+                    "attributes": {},
+                    "settings": {},
+                }
+            }
+        )
+        entity = HonWashingMachinePauseSwitch(coordinator, "washer-1", FakeClient())
+        self._attach(entity)
+
+        with self.assertRaisesRegex(HomeAssistantError, "device rejected command"):
+            await entity.async_turn_on()
+
+        self.assertEqual(1, command.send_calls)
+        self.assertEqual(0, coordinator.refreshes)
+
+    async def test_start_button_command_failure_raises_service_error(self) -> None:
+        from homeassistant.exceptions import HomeAssistantError
+
+        from custom_components.haier_hon.button import HonProgramCommandButton
 
         command = FailingCommand()
         coordinator = FakeCoordinator(
@@ -267,11 +307,19 @@ class CommandFailureTest(unittest.IsolatedAsyncioTestCase):
                 }
             }
         )
-        entity = HonWashingMachineSwitch(coordinator, "washer-1", FakeClient())
+        entity = HonProgramCommandButton(
+            coordinator,
+            "washer-1",
+            FakeClient(),
+            command_name="startProgram",
+            unique_suffix="start_program",
+            name_suffix="Avvia programma",
+            icon="mdi:play-circle",
+        )
         self._attach(entity)
 
         with self.assertRaisesRegex(HomeAssistantError, "device rejected command"):
-            await entity.async_turn_on()
+            await entity.async_press()
 
         self.assertEqual(1, command.send_calls)
         self.assertEqual(0, coordinator.refreshes)
@@ -289,7 +337,7 @@ class CommandFailureTest(unittest.IsolatedAsyncioTestCase):
                 "washer-1": {
                     "type": "WM",
                     "name": "Washer",
-                    "appliance": types.SimpleNamespace(commands={"startProgram": command}),
+                    "appliance": types.SimpleNamespace(commands={"settings": command}),
                     "attributes": {},
                     "settings": {},
                 }
@@ -299,7 +347,7 @@ class CommandFailureTest(unittest.IsolatedAsyncioTestCase):
         self._attach(entity)
 
         with self.assertRaisesRegex(HomeAssistantError, "device rejected command"):
-            await entity.async_select_option("Sintetici")
+            await entity.async_select_option("Cotone")
 
         self.assertEqual(1, command.send_calls)
         self.assertEqual(0, coordinator.refreshes)
@@ -330,10 +378,40 @@ class CommandFailureTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(1, command.send_calls)
         self.assertEqual(0, coordinator.refreshes)
 
-    async def test_switch_refresh_failure_after_send_raises_service_error(self) -> None:
+    async def test_switch_pause_refresh_failure_after_send_raises_service_error(self) -> None:
         from homeassistant.exceptions import HomeAssistantError
 
-        from custom_components.haier_hon.switch import HonWashingMachineSwitch
+        from custom_components.haier_hon.switch import HonWashingMachinePauseSwitch
+
+        command = RecordingCommand()
+        coordinator = FakeCoordinator(
+            {
+                "washer-1": {
+                    "type": "WM",
+                    "name": "Washer",
+                    "appliance": types.SimpleNamespace(commands={"pauseProgram": command}),
+                    "attributes": {},
+                    "settings": {},
+                }
+            },
+            refresh_failure=RuntimeError("refresh failed after command"),
+            request_refresh_skips=True,
+        )
+        entity = HonWashingMachinePauseSwitch(coordinator, "washer-1", FakeClient())
+        self._attach(entity)
+
+        with self.assertRaisesRegex(HomeAssistantError, "refresh failed after command"):
+            await entity.async_turn_on()
+
+        self.assertEqual(1, command.send_calls)
+        self.assertEqual(1, coordinator.refreshes)
+        self.assertEqual(1, coordinator.direct_refreshes)
+        self.assertEqual(0, coordinator.request_refreshes)
+
+    async def test_start_button_refresh_failure_after_send_raises_service_error(self) -> None:
+        from homeassistant.exceptions import HomeAssistantError
+
+        from custom_components.haier_hon.button import HonProgramCommandButton
 
         command = RecordingCommand()
         coordinator = FakeCoordinator(
@@ -349,11 +427,19 @@ class CommandFailureTest(unittest.IsolatedAsyncioTestCase):
             refresh_failure=RuntimeError("refresh failed after command"),
             request_refresh_skips=True,
         )
-        entity = HonWashingMachineSwitch(coordinator, "washer-1", FakeClient())
+        entity = HonProgramCommandButton(
+            coordinator,
+            "washer-1",
+            FakeClient(),
+            command_name="startProgram",
+            unique_suffix="start_program",
+            name_suffix="Avvia programma",
+            icon="mdi:play-circle",
+        )
         self._attach(entity)
 
         with self.assertRaisesRegex(HomeAssistantError, "refresh failed after command"):
-            await entity.async_turn_on()
+            await entity.async_press()
 
         self.assertEqual(1, command.send_calls)
         self.assertEqual(1, coordinator.refreshes)
@@ -371,7 +457,7 @@ class CommandFailureTest(unittest.IsolatedAsyncioTestCase):
                 "washer-1": {
                     "type": "WM",
                     "name": "Washer",
-                    "appliance": types.SimpleNamespace(commands={"startProgram": command}),
+                    "appliance": types.SimpleNamespace(commands={"settings": command}),
                     "attributes": {},
                     "settings": {},
                 }
@@ -383,12 +469,119 @@ class CommandFailureTest(unittest.IsolatedAsyncioTestCase):
         self._attach(entity)
 
         with self.assertRaisesRegex(HomeAssistantError, "refresh failed after command"):
-            await entity.async_select_option("Sintetici")
+            await entity.async_select_option("Cotone")
 
         self.assertEqual(1, command.send_calls)
         self.assertEqual(1, coordinator.refreshes)
         self.assertEqual(1, coordinator.direct_refreshes)
         self.assertEqual(0, coordinator.request_refreshes)
+
+    async def test_button_setup_exposes_start_stop_as_explicit_buttons(self) -> None:
+        from custom_components.haier_hon.const import DOMAIN
+        from custom_components.haier_hon import button
+
+        start = RecordingCommand()
+        stop = RecordingCommand({"onOffStatus": Param("1")})
+        coordinator = FakeCoordinator(
+            {
+                "washer-1": {
+                    "type": "WM",
+                    "name": "Washer",
+                    "appliance": types.SimpleNamespace(
+                        commands={"startProgram": start, "stopProgram": stop}
+                    ),
+                    "attributes": {},
+                    "settings": {},
+                }
+            }
+        )
+        hass = FakeHass({DOMAIN: {"entry-1": {"coordinator": coordinator, "client": FakeClient()}}})
+        added_entities = []
+
+        await button.async_setup_entry(hass, FakeEntry(), added_entities.extend)
+
+        self.assertEqual(["Washer - Avvia programma", "Washer - Ferma programma"], [
+            entity._attr_name for entity in added_entities
+        ])
+
+    async def test_switch_setup_does_not_expose_start_stop_power_switch(self) -> None:
+        from custom_components.haier_hon.const import DOMAIN
+        from custom_components.haier_hon import switch
+
+        coordinator = FakeCoordinator(
+            {
+                "washer-1": {
+                    "type": "WM",
+                    "name": "Washer",
+                    "appliance": types.SimpleNamespace(
+                        commands={"startProgram": RecordingCommand(), "stopProgram": RecordingCommand()}
+                    ),
+                    "attributes": {},
+                    "settings": {},
+                }
+            }
+        )
+        hass = FakeHass({DOMAIN: {"entry-1": {"coordinator": coordinator, "client": FakeClient()}}})
+        added_entities = []
+
+        await switch.async_setup_entry(hass, FakeEntry(), added_entities.extend)
+
+        self.assertEqual([], added_entities)
+
+    async def test_select_setup_skips_start_program_only_appliance(self) -> None:
+        from custom_components.haier_hon.const import DOMAIN
+        from custom_components.haier_hon import select
+
+        coordinator = FakeCoordinator(
+            {
+                "washer-1": {
+                    "type": "WM",
+                    "name": "Washer",
+                    "appliance": types.SimpleNamespace(
+                        commands={
+                            "startProgram": RecordingCommand(
+                                {"program": Param(values={"1": "Cotone"})}
+                            )
+                        }
+                    ),
+                    "attributes": {},
+                    "settings": {},
+                }
+            }
+        )
+        hass = FakeHass({DOMAIN: {"entry-1": {"coordinator": coordinator, "client": FakeClient()}}})
+        added_entities = []
+
+        await select.async_setup_entry(hass, FakeEntry(), added_entities.extend)
+
+        self.assertEqual([], added_entities)
+
+    async def test_select_option_uses_safe_program_command_not_start_program(self) -> None:
+        from custom_components.haier_hon.select import HonProgramSelect
+
+        start = RecordingCommand({"program": Param(values={"1": "Cotone"})})
+        settings = RecordingCommand({"program": Param(values={"1": "Cotone"})})
+        coordinator = FakeCoordinator(
+            {
+                "washer-1": {
+                    "type": "WM",
+                    "name": "Washer",
+                    "appliance": types.SimpleNamespace(
+                        commands={"startProgram": start, "settings": settings}
+                    ),
+                    "attributes": {},
+                    "settings": {},
+                }
+            }
+        )
+        entity = HonProgramSelect(coordinator, "washer-1", FakeClient())
+        self._attach(entity)
+
+        await entity.async_select_option("Cotone")
+
+        self.assertEqual(0, start.send_calls)
+        self.assertEqual(1, settings.send_calls)
+        self.assertEqual("1", settings.parameters["program"].value)
 
     async def test_climate_refresh_failure_after_send_raises_service_error(self) -> None:
         from homeassistant.exceptions import HomeAssistantError

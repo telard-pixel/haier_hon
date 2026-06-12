@@ -476,6 +476,60 @@ class ConfigFlowLifecycleTest(unittest.IsolatedAsyncioTestCase):
 
 
 class SetupEntryLifecycleTest(unittest.IsolatedAsyncioTestCase):
+    async def test_setup_entry_forwards_button_platform(self) -> None:
+        integration = importlib.import_module("custom_components.haier_hon")
+        hon_client_module = importlib.import_module("custom_components.haier_hon.hon_client")
+
+        class FakeConfigEntries:
+            def __init__(self) -> None:
+                self.forwarded_platforms = None
+
+            async def async_forward_entry_setups(self, entry, platforms) -> None:
+                self.forwarded_platforms = list(platforms)
+
+        class FakeHass:
+            def __init__(self) -> None:
+                self.data = {}
+                self.config_entries = FakeConfigEntries()
+
+            async def async_add_executor_job(self, func, *args):
+                return func(*args)
+
+        class FakeEntry:
+            entry_id = "entry-1"
+            data = {"email": "user@example.com", "password": "secret"}
+
+        class FakeClient:
+            def __init__(self, email: str, password: str) -> None:
+                pass
+
+            def setup_sync(self) -> None:
+                return None
+
+            async def async_get_appliances_data(self) -> dict:
+                return {}
+
+            async def async_close(self) -> None:
+                return None
+
+        class SuccessfulCoordinator:
+            def __init__(self, *args, **kwargs) -> None:
+                pass
+
+            async def async_config_entry_first_refresh(self) -> None:
+                return None
+
+        hass = FakeHass()
+
+        with (
+            patch.object(hon_client_module, "HonClient", FakeClient),
+            patch.object(integration, "DataUpdateCoordinator", SuccessfulCoordinator),
+        ):
+            self.assertTrue(await integration.async_setup_entry(hass, FakeEntry()))
+
+        self.assertEqual(list(integration.PLATFORMS), hass.config_entries.forwarded_platforms)
+        self.assertIn("button", hass.config_entries.forwarded_platforms)
+
     async def test_setup_entry_closes_client_when_setup_is_cancelled(self) -> None:
         integration = importlib.import_module("custom_components.haier_hon")
         hon_client_module = importlib.import_module("custom_components.haier_hon.hon_client")
