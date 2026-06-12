@@ -6,6 +6,7 @@ import logging
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .base_entity import HonBaseEntity
@@ -29,11 +30,13 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     # FIX: accesso coerente alla struttura hass.data[DOMAIN][entry_id]["coordinator"]
-    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+    entry_data = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry_data["coordinator"]
+    client = entry_data["client"]
     entities = []
     for appliance_id, data in coordinator.data.items():
         if data.get("type") in APPLIANCE_WASH_GROUP:
-            entities.append(HonProgramSelect(coordinator, appliance_id))
+            entities.append(HonProgramSelect(coordinator, appliance_id, client))
             _LOGGER.info("Aggiunto select programma: %s", data.get("name"))
     async_add_entities(entities)
 
@@ -43,8 +46,8 @@ class HonProgramSelect(HonBaseEntity, SelectEntity):
 
     _attr_icon = "mdi:format-list-bulleted"
 
-    def __init__(self, coordinator, appliance_id: str) -> None:
-        super().__init__(coordinator, appliance_id)
+    def __init__(self, coordinator, appliance_id: str, client=None) -> None:
+        super().__init__(coordinator, appliance_id, client)
         device_name = self._appliance_data.get("name", "Lavatrice")
         self._attr_unique_id = f"{appliance_id}_program"
         self._attr_name = f"{device_name} - Programma"
@@ -109,13 +112,11 @@ class HonProgramSelect(HonBaseEntity, SelectEntity):
     async def async_select_option(self, option: str) -> None:
         code = self._program_reverse.get(option)
         if code is None:
-            _LOGGER.error("Select: Programma '%s' non trovato nella mappa", option)
-            return
+            raise HomeAssistantError(f"Select: programma '{option}' non trovato nella mappa")
         appliance = self._appliance
         client = self._hon_client
         if not appliance or not client:
-            _LOGGER.error("Select: appliance o client non disponibile")
-            return
+            raise HomeAssistantError("Select: appliance o client non disponibile")
         try:
             def _do():
                 async def _inner():
@@ -142,6 +143,9 @@ class HonProgramSelect(HonBaseEntity, SelectEntity):
 
             await self.hass.async_add_executor_job(_do)
             _LOGGER.info("Select: programma '%s' (code=%s) inviato", option, code)
-            await self.coordinator.async_request_refresh()
+            await self._async_request_command_refresh()
         except Exception as err:
             _LOGGER.error("Select: errore selezione programma '%s': %s", option, err, exc_info=True)
+            raise HomeAssistantError(
+                f"Select: errore selezione programma '{option}': {err}"
+            ) from err
