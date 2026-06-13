@@ -45,8 +45,22 @@ def _get_type(appliance) -> str:
 
 
 def _get_attributes(appliance) -> dict:
-    """Estrae gli attributi dal device, cercando in attributes e settings."""
+    """Estrae gli attributi dal device, cercando in statistics, attributes e settings."""
     attributes = {}
+
+    # I contatori di consumo (totalElectricityUsed, totalWaterUsed,
+    # totalWashCycle, currentElectricityUsed, currentWaterUsed, ...) vivono nel
+    # container pyhOn `statistics`, popolato da load_statistics() ma finora MAI
+    # esposto ai sensori. Lo uniamo per primo, così attributi real-time e
+    # settings vincono in caso di chiavi in conflitto.
+    stats = getattr(appliance, "statistics", None)
+    if isinstance(stats, dict):
+        attributes.update(stats)
+    elif stats is not None:
+        try:
+            attributes.update(dict(stats))
+        except Exception as err:
+            _LOGGER.debug("Errore lettura statistics: %s", err)
 
     raw = getattr(appliance, "attributes", {})
     if isinstance(raw, dict):

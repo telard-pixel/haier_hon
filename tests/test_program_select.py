@@ -407,5 +407,56 @@ class LegacyPowerCleanupTest(unittest.TestCase):
         self.assertEqual(["switch.washer_alimentazione"], registry.removed)
 
 
+class GetAttributesStatisticsTest(unittest.TestCase):
+    def test_statistics_are_merged_into_attributes(self) -> None:
+        from custom_components.haier_hon.hon_client import _get_attributes
+
+        appliance = types.SimpleNamespace(
+            attributes={"parameters": {"machMode": "1"}, "lastConnEvent": "x"},
+            settings={"tempSel": "40"},
+            statistics={
+                "totalElectricityUsed": "123.4",
+                "totalWaterUsed": "5000",
+                "totalWashCycle": "42",
+            },
+        )
+
+        attrs = _get_attributes(appliance)
+
+        # I contatori di consumo dal container statistics ora sono visibili.
+        self.assertEqual("123.4", attrs["totalElectricityUsed"])
+        self.assertEqual("5000", attrs["totalWaterUsed"])
+        self.assertEqual("42", attrs["totalWashCycle"])
+        # Attributi real-time e settings continuano a funzionare.
+        self.assertEqual("1", attrs["machMode"])
+        self.assertEqual("40", attrs["tempSel"])
+
+    def test_realtime_attributes_win_over_statistics_on_conflict(self) -> None:
+        from custom_components.haier_hon.hon_client import _get_attributes
+
+        appliance = types.SimpleNamespace(
+            attributes={"parameters": {"totalElectricityUsed": "999"}},
+            settings={},
+            statistics={"totalElectricityUsed": "1"},
+        )
+
+        attrs = _get_attributes(appliance)
+
+        # In caso di chiave in conflitto vince il valore real-time, non statistics.
+        self.assertEqual("999", attrs["totalElectricityUsed"])
+
+    def test_missing_statistics_is_tolerated(self) -> None:
+        from custom_components.haier_hon.hon_client import _get_attributes
+
+        appliance = types.SimpleNamespace(
+            attributes={"parameters": {"machMode": "2"}},
+            settings={},
+        )
+
+        attrs = _get_attributes(appliance)
+
+        self.assertEqual("2", attrs["machMode"])
+
+
 if __name__ == "__main__":
     unittest.main()
