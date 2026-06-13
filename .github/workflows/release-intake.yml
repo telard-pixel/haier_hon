@@ -1,0 +1,88 @@
+name: Release Intake
+
+on:
+  push:
+    tags:
+      - "*"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-intake-${{ github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN || github.token }}
+  GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN || github.token }}
+
+jobs:
+  open-release-pr:
+    name: open-release-pr
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_BOT_TOKEN || github.token }}
+
+      - name: Validate tag and open PR
+        shell: bash
+        run: |
+          set -euo pipefail
+          source .github/scripts/release-policy.sh
+
+          TAG="${GITHUB_REF_NAME}"
+
+          if ! is_release_tag "${TAG}"; then
+            echo "::error::Invalid release tag '${TAG}'. Allowed formats are vX.Y.Z and vX.Y.Z-beta."
+            delete_remote_tag "${TAG}"
+            exit 1
+          fi
+
+          git fetch --force origin dev main "refs/tags/${TAG}:refs/tags/${TAG}"
+
+          TAG_SHA="$(git rev-list -n 1 "${TAG}")"
+          DEV_SHA="$(git rev-parse origin/dev)"
+          MAIN_SHA="$(git rev-parse origin/main)"
+
+          assert_manifest_matches_tag "${TAG_SHA}" "${TAG}"
+
+          if [[ "${TAG_SHA}" == "${MAIN_SHA}" && "${DEV_SHA}" == "${MAIN_SHA}" ]]; then
+            notice "Tag ${TAG} already points at the synchronized main/dev release commit."
+            exit 0
+          fi
+
+          if [[ "${TAG_SHA}" != "${DEV_SHA}" ]]; then
+            echo "::error::Tag ${TAG} must point to HEAD of dev (${DEV_SHA}), but points to ${TAG_SHA}."
+            delete_remote_tag "${TAG}"
+            exit 1
+          fi
+
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            die "Release ${TAG} already exists."
+          fi
+
+          OPEN_PR="$(gh pr list --base main --head dev --state open --json number --jq '.[0].number // ""')"
+          if [[ -n "${OPEN_PR}" ]]; then
+            die "An open dev -> main PR already exists (#${OPEN_PR}). Close or merge it before pushing a new release tag."
+          fi
+
+          BODY="$(cat <<EOF
+          Automated release PR for \`${TAG}\`.
+
+          <!-- release-tag: ${TAG} -->
+          <!-- release-source-sha: ${TAG_SHA} -->
+
+          Merge this PR with squash only. The post-merge workflow will move \`dev\` to the squash commit, recreate \`${TAG}\` on that commit, and publish the release.
+          EOF
+          )"
+
+          gh pr create \
+            --base main \
+            --head dev \
+            --title "Release ${TAG}" \
+            --body "${BODY}"
