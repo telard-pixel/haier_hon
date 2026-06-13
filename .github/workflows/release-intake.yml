@@ -48,8 +48,10 @@ jobs:
           TAG_SHA="$(git rev-list -n 1 "${TAG}")"
           DEV_SHA="$(git rev-parse origin/dev)"
           MAIN_SHA="$(git rev-parse origin/main)"
+          RELEASE_VERSION="$(version_from_tag "${TAG}")"
+          CURRENT_VERSION="$(manifest_version_at_ref "${TAG_SHA}")"
 
-          if [[ "${TAG_SHA}" == "${MAIN_SHA}" && "${DEV_SHA}" == "${MAIN_SHA}" ]]; then
+          if [[ "${TAG_SHA}" == "${MAIN_SHA}" && "${DEV_SHA}" == "${MAIN_SHA}" && "${CURRENT_VERSION}" == "${RELEASE_VERSION}" ]]; then
             notice "Tag ${TAG} already points at the synchronized main/dev release commit."
             exit 0
           fi
@@ -78,9 +80,6 @@ jobs:
 
             die "An open dev -> main PR already exists (#${OPEN_PR}). Close or merge it before pushing a new release tag."
           fi
-
-          RELEASE_VERSION="$(version_from_tag "${TAG}")"
-          CURRENT_VERSION="$(manifest_version_at_ref "${TAG_SHA}")"
 
           if [[ "${CURRENT_VERSION}" != "${RELEASE_VERSION}" ]]; then
             notice "Updating manifest.json from ${CURRENT_VERSION} to ${RELEASE_VERSION} for ${TAG}."
