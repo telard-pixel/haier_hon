@@ -7,6 +7,8 @@ import logging
 import threading
 from typing import Any
 
+from .debug_utils import debug_key_sample
+
 _LOGGER = logging.getLogger(__name__)
 
 _SERIAL_ATTRS = ("serial_number", "serialNumber", "mac_address", "macAddress", "code")
@@ -17,7 +19,6 @@ _CONSUMPTION_ATTRS = (
     "currentWaterUsed",
     "totalWashCycle",
 )
-_DEBUG_KEY_SAMPLE_LIMIT = 80
 
 
 def _debug_container_to_dict(container, label: str) -> dict:
@@ -42,13 +43,6 @@ def _debug_extract_value(value):
     if hasattr(value, "value"):
         return value.value
     return value
-
-
-def _debug_key_sample(values: dict) -> list[str]:
-    keys = sorted(str(key) for key in values.keys())
-    if len(keys) <= _DEBUG_KEY_SAMPLE_LIMIT:
-        return keys
-    return keys[:_DEBUG_KEY_SAMPLE_LIMIT] + [f"... (+{len(keys) - _DEBUG_KEY_SAMPLE_LIMIT})"]
 
 
 def _debug_consumption_values(values: dict) -> dict[str, Any]:
@@ -82,14 +76,14 @@ def _debug_appliance_consumption(stage: str, appliance, attributes: dict | None 
         getattr(appliance, "unique_id", None) or _get_serial(appliance) or "<no-id>",
         type(getattr(appliance, "statistics", None)).__name__,
         len(stats),
-        _debug_key_sample(stats),
+        debug_key_sample(stats),
         _debug_consumption_values(stats),
         len(raw_attrs),
-        _debug_key_sample(raw_attrs),
+        debug_key_sample(raw_attrs),
         len(settings),
-        _debug_key_sample(settings),
+        debug_key_sample(settings),
         len(merged_attrs),
-        _debug_key_sample(merged_attrs),
+        debug_key_sample(merged_attrs),
         _debug_consumption_values(merged_attrs),
         callable(getattr(appliance, "load_statistics", None)),
         callable(getattr(appliance, "update", None)),

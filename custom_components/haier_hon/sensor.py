@@ -45,7 +45,10 @@ def _debug_key_sample(values: dict) -> list[str]:
     keys = sorted(str(key) for key in values.keys())
     if len(keys) <= _DEBUG_KEY_SAMPLE_LIMIT:
         return keys
-    return keys[:_DEBUG_KEY_SAMPLE_LIMIT] + [f"... (+{len(keys) - _DEBUG_KEY_SAMPLE_LIMIT})"]
+    return [
+        *keys[:_DEBUG_KEY_SAMPLE_LIMIT],
+        f"... (+{len(keys) - _DEBUG_KEY_SAMPLE_LIMIT})",
+    ]
 
 
 def _debug_value(value):

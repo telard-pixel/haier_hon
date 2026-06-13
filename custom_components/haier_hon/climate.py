@@ -26,22 +26,9 @@ from .const import (
     AC_ATTR_OUTDOOR_TEMP,
     AC_ATTR_FAN_SPEED,
 )
+from .debug_utils import command_names, param_snapshot
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def _command_names(appliance) -> list[str]:
-    commands = getattr(appliance, "commands", None)
-    return sorted(commands.keys()) if isinstance(commands, dict) else []
-
-
-def _param_snapshot(params) -> dict:
-    if not isinstance(params, dict):
-        return {"<non-dict>": type(params).__name__}
-    return {
-        str(name): getattr(param, "value", None)
-        for name, param in params.items()
-    }
 
 
 async def async_setup_entry(
@@ -59,7 +46,7 @@ async def async_setup_entry(
             data.get("name"),
             aid,
             data.get("type"),
-            _command_names(appliance),
+            command_names(appliance),
             len(data.get("attributes", {})) if isinstance(data.get("attributes"), dict) else 0,
         )
         if data.get("type") == APPLIANCE_AC:
@@ -263,12 +250,14 @@ class HaierClimateEntity(HonBaseEntity, ClimateEntity):
                 if command is None:
                     raise RuntimeError("Comando 'settings' non trovato sul dispositivo AC")
                 command_params = getattr(command, "parameters", {})
-                _LOGGER.debug(
-                    "Climate debug: settings command disponibile commands=%s params_prima=%s requested=%s",
-                    sorted(commands.keys()),
-                    _param_snapshot(command_params),
-                    params,
-                )
+                if _LOGGER.isEnabledFor(logging.DEBUG):
+                    _LOGGER.debug(
+                        "Climate debug: settings command disponibile commands=%s "
+                        "params_prima=%s requested=%s",
+                        sorted(commands.keys()),
+                        param_snapshot(command_params),
+                        params,
+                    )
                 missing_params = [key for key in params if key not in command_params]
                 if missing_params:
                     raise RuntimeError(
@@ -298,10 +287,11 @@ class HaierClimateEntity(HonBaseEntity, ClimateEntity):
                                 key, rollback_err,
                             )
                     raise
-                _LOGGER.debug(
-                    "Climate debug: invio settings params_finali=%s",
-                    _param_snapshot(command_params),
-                )
+                if _LOGGER.isEnabledFor(logging.DEBUG):
+                    _LOGGER.debug(
+                        "Climate debug: invio settings params_finali=%s",
+                        param_snapshot(command_params),
+                    )
                 await command.send()
                 _LOGGER.debug("Climate debug: settings send completato")
 

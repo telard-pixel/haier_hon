@@ -93,7 +93,7 @@ async def async_get_config_entry_diagnostics(
 
     return {
         "entry": {
-            "title": entry.title,
+            "title": _redact_title(entry.title),
             "data": {
                 "email": _redact_email(entry.data.get("email")),
                 "password": "***",

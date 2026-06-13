@@ -56,12 +56,12 @@ async def async_setup_entry(
                 if "pauseProgram" in cmds and "resumeProgram" in cmds:
                     _LOGGER.debug("Switch debug: creo switch pausa per id=%s", appliance_id)
                     entities.append(HonWashingMachinePauseSwitch(coordinator, appliance_id, client))
+                    _LOGGER.info("Aggiunto switch: %s", data.get("name"))
                 else:
                     _LOGGER.debug(
                         "Switch debug: switch pausa non creato per id=%s; pause/resume mancanti",
                         appliance_id,
                     )
-            _LOGGER.info("Aggiunto switch: %s", data.get("name"))
         else:
             _LOGGER.debug("Switch debug: appliance id=%s ignorato, type=%s", appliance_id, app_type)
     async_add_entities(entities)

@@ -16,28 +16,9 @@ from .const import (
     PROGRAM_PARAM_NAMES,
     PROGRAM_PENDING_STORE,
 )
+from .debug_utils import command_names, param_snapshot
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def _command_names(appliance) -> list[str]:
-    commands = getattr(appliance, "commands", None)
-    return sorted(commands.keys()) if isinstance(commands, dict) else []
-
-
-def _param_snapshot(params) -> dict:
-    if not isinstance(params, dict):
-        return {"<non-dict>": type(params).__name__}
-    snapshot = {}
-    for name, param in params.items():
-        snapshot[str(name)] = {
-            "value": getattr(param, "value", None),
-            "has_values": hasattr(param, "values"),
-            "values_count": len(getattr(param, "values", {}) or {})
-            if isinstance(getattr(param, "values", None), dict)
-            else None,
-        }
-    return snapshot
 
 
 async def async_setup_entry(
@@ -57,7 +38,7 @@ async def async_setup_entry(
             data.get("name"),
             appliance_id,
             app_type,
-            _command_names(data.get("appliance")),
+            command_names(data.get("appliance")),
         )
         if app_type not in APPLIANCE_WASH_GROUP:
             _LOGGER.debug("Button debug: appliance id=%s ignorato, type=%s", appliance_id, app_type)
@@ -146,7 +127,7 @@ class HonProgramCommandButton(HonBaseEntity, ButtonEntity):
             self._appliance_id,
             pending_program,
             dict(store),
-            _command_names(appliance),
+            command_names(appliance),
         )
         try:
             def _do():
@@ -160,11 +141,12 @@ class HonProgramCommandButton(HonBaseEntity, ButtonEntity):
                             f"Disponibili: {list(commands.keys())}"
                         )
                     params = getattr(command, "parameters", {})
-                    _LOGGER.debug(
-                        "Button debug: prima command '%s' params=%s",
-                        self._command_name,
-                        _param_snapshot(params),
-                    )
+                    if _LOGGER.isEnabledFor(logging.DEBUG):
+                        _LOGGER.debug(
+                            "Button debug: prima command '%s' params=%s",
+                            self._command_name,
+                            param_snapshot(params),
+                        )
                     if pending_program is not None:
                         # Fail-safe: se non riusciamo ad attaccare il programma
                         # scelto a startProgram, NON avviamo (eviteremmo di far
@@ -209,11 +191,12 @@ class HonProgramCommandButton(HonBaseEntity, ButtonEntity):
                                 name,
                                 self._command_name,
                             )
-                    _LOGGER.debug(
-                        "Button debug: invio command '%s' params_finali=%s",
-                        self._command_name,
-                        _param_snapshot(params),
-                    )
+                    if _LOGGER.isEnabledFor(logging.DEBUG):
+                        _LOGGER.debug(
+                            "Button debug: invio command '%s' params_finali=%s",
+                            self._command_name,
+                            param_snapshot(params),
+                        )
                     await command.send()
                     _LOGGER.debug("Button debug: command '%s' send completato", self._command_name)
 

@@ -8,16 +8,9 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
+from .debug_utils import debug_key_sample
 
 _LOGGER = logging.getLogger(__name__)
-_DEBUG_KEY_SAMPLE_LIMIT = 80
-
-
-def _debug_key_sample(values: dict) -> list[str]:
-    keys = sorted(str(key) for key in values.keys())
-    if len(keys) <= _DEBUG_KEY_SAMPLE_LIMIT:
-        return keys
-    return keys[:_DEBUG_KEY_SAMPLE_LIMIT] + [f"... (+{len(keys) - _DEBUG_KEY_SAMPLE_LIMIT})"]
 
 
 class HonBaseEntity(CoordinatorEntity):
@@ -123,9 +116,9 @@ class HonBaseEntity(CoordinatorEntity):
                 type(raw_value).__name__,
                 extracted_value,
                 len(attributes) if isinstance(attributes, dict) else 0,
-                _debug_key_sample(attributes) if isinstance(attributes, dict) else [],
+                debug_key_sample(attributes) if isinstance(attributes, dict) else [],
                 len(settings) if isinstance(settings, dict) else 0,
-                _debug_key_sample(settings) if isinstance(settings, dict) else [],
+                debug_key_sample(settings) if isinstance(settings, dict) else [],
             )
 
         # 1) lookup diretto (chiavi già "flattened")
@@ -203,9 +196,9 @@ class HonBaseEntity(CoordinatorEntity):
                 self._appliance_id,
                 default,
                 len(attributes) if isinstance(attributes, dict) else 0,
-                _debug_key_sample(attributes) if isinstance(attributes, dict) else [],
+                debug_key_sample(attributes) if isinstance(attributes, dict) else [],
                 len(settings) if isinstance(settings, dict) else 0,
-                _debug_key_sample(settings) if isinstance(settings, dict) else [],
+                debug_key_sample(settings) if isinstance(settings, dict) else [],
             )
         return default
 
