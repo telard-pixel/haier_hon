@@ -1,0 +1,121 @@
+name: Post Merge Release
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: post-merge-release
+  cancel-in-progress: false
+
+env:
+  GH_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN || github.token }}
+  GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN || github.token }}
+
+jobs:
+  finalize-release:
+    name: finalize-release
+    if: >
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.ref == 'dev' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_BOT_TOKEN || github.token }}
+
+      - name: Finalize release
+        shell: bash
+        env:
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          source .github/scripts/release-policy.sh
+
+          HAS_RELEASE_MARKER="false"
+          TAG=""
+
+          if TAG="$(extract_pr_marker release-tag)"; then
+            HAS_RELEASE_MARKER="true"
+            SOURCE_SHA="$(extract_pr_marker release-source-sha)" || die "Missing release-source-sha marker in PR body."
+            validate_release_tag "${TAG}"
+            [[ "${SOURCE_SHA}" == "${PR_HEAD_SHA}" ]] || die "PR head does not match the tagged release source."
+          else
+            SOURCE_SHA="${PR_HEAD_SHA}"
+            notice "No release marker found; syncing dev to the squash commit without publishing a release."
+          fi
+
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]] || die "Invalid release-source-sha '${SOURCE_SHA}'."
+
+          git fetch --force origin dev main
+          if [[ "${HAS_RELEASE_MARKER}" == "true" ]]; then
+            git fetch --force origin "refs/tags/${TAG}:refs/tags/${TAG}"
+          fi
+
+          MAIN_SHA="$(git rev-parse origin/main)"
+          DEV_SHA="$(git rev-parse origin/dev)"
+
+          [[ "${MERGE_SHA}" == "${MAIN_SHA}" ]] || die "main (${MAIN_SHA}) does not point to the PR merge commit (${MERGE_SHA})."
+          [[ "${DEV_SHA}" == "${SOURCE_SHA}" ]] || die "origin/dev moved after this PR was merged; refusing to overwrite it."
+
+          if [[ "${HAS_RELEASE_MARKER}" == "true" ]]; then
+            TAG_SHA="$(git rev-list -n 1 "${TAG}")"
+            [[ "${TAG_SHA}" == "${SOURCE_SHA}" ]] || die "Tag ${TAG} no longer points to the original release source commit."
+          fi
+
+          PARENT_COUNT="$(git show -s --format=%P "${MERGE_SHA}" | wc -w | tr -d ' ')"
+          [[ "${PARENT_COUNT}" == "1" ]] || die "The PR was not squash-merged; refusing to create a release."
+
+          BASE_PARENT="$(git rev-parse "${MERGE_SHA}^")"
+          EXPECTED_DIFF="$(mktemp)"
+          ACTUAL_DIFF="$(mktemp)"
+
+          git diff --binary "${BASE_PARENT}...${SOURCE_SHA}" > "${EXPECTED_DIFF}"
+          git diff --binary "${BASE_PARENT}" "${MERGE_SHA}" > "${ACTUAL_DIFF}"
+
+          if ! cmp -s "${EXPECTED_DIFF}" "${ACTUAL_DIFF}"; then
+            die "The merge commit does not match the squash diff of dev onto main."
+          fi
+
+          if [[ "${HAS_RELEASE_MARKER}" == "true" ]]; then
+            assert_manifest_matches_tag "${MERGE_SHA}" "${TAG}"
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git push origin "${MERGE_SHA}:refs/heads/dev" --force-with-lease="refs/heads/dev:${SOURCE_SHA}"
+
+          if [[ "${HAS_RELEASE_MARKER}" != "true" ]]; then
+            notice "dev was synchronized to ${MERGE_SHA}; no release marker was present."
+            exit 0
+          fi
+
+          git tag -f "${TAG}" "${MERGE_SHA}"
+          git push origin ":refs/tags/${TAG}"
+          git push origin "refs/tags/${TAG}"
+
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            die "Release ${TAG} already exists after retagging; refusing to overwrite it."
+          fi
+
+          RELEASE_ARGS=(release create "${TAG}" --target "${MERGE_SHA}" --title "${TAG}" --verify-tag --generate-notes)
+          if is_beta_tag "${TAG}"; then
+            RELEASE_ARGS+=(--prerelease)
+          fi
+
+          gh "${RELEASE_ARGS[@]}"
