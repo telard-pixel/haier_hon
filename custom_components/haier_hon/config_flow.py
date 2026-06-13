@@ -137,6 +137,59 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             },
         )
 
+    async def async_step_reauth(
+        self, entry_data: dict[str, Any]
+    ) -> FlowResult:
+        """Avvia la ri-autenticazione quando il token hOn non è più valido."""
+        _LOGGER.debug(
+            "ConfigFlow debug: avvio reauth per account %s",
+            _redact_email(entry_data.get("email")),
+        )
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Chiede di nuovo la password (l'email resta quella dell'entry)."""
+        errors: dict[str, str] = {}
+        reauth_entry = self.hass.config_entries.async_get_entry(
+            self.context["entry_id"]
+        )
+        email = reauth_entry.data["email"]
+
+        if user_input is not None:
+            data = {"email": email, "password": user_input["password"]}
+            try:
+                await validate_input(self.hass, data)
+            except CannotConnect:
+                _LOGGER.debug("ConfigFlow debug: reauth fallito cannot_connect")
+                errors["base"] = "cannot_connect"
+            except InvalidAuth:
+                _LOGGER.debug("ConfigFlow debug: reauth fallito invalid_auth")
+                errors["base"] = "invalid_auth"
+            except Exception:
+                _LOGGER.exception("Errore imprevisto durante reauth")
+                errors["base"] = "unknown"
+            else:
+                # Le credenziali devono appartenere allo stesso account: l'email
+                # non è modificabile dall'utente, ma verifichiamo comunque lo
+                # unique_id per non riautenticare un'entry con un altro account.
+                await self.async_set_unique_id(email.lower())
+                if reauth_entry.unique_id and self.unique_id != reauth_entry.unique_id:
+                    return self.async_abort(reason="reauth_account_mismatch")
+                _LOGGER.debug(
+                    "ConfigFlow debug: reauth riuscito per %s, aggiorno entry",
+                    _redact_email(email),
+                )
+                return self.async_update_reload_and_abort(reauth_entry, data=data)
+
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=vol.Schema({vol.Required("password"): str}),
+            errors=errors,
+            description_placeholders={"email": email},
+        )
+
 
 class CannotConnect(HomeAssistantError):
     """Errore di connessione."""

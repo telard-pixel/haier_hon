@@ -8,6 +8,13 @@
           "email": "Email",
           "password": "Password"
         }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate your hOn account",
+        "description": "The credentials for {email} are no longer valid. Enter the password again.",
+        "data": {
+          "password": "Password"
+        }
       }
     },
     "error": {
@@ -16,7 +23,9 @@
       "unknown": "Unexpected error. Check Home Assistant logs."
     },
     "abort": {
-      "already_configured": "This hOn account is already configured."
+      "already_configured": "This hOn account is already configured.",
+      "reauth_successful": "Re-authentication was successful.",
+      "reauth_account_mismatch": "The new credentials must belong to the same hOn account."
     }
   }
 }
