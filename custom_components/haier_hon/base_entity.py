@@ -68,6 +68,24 @@ class HonBaseEntity(CoordinatorEntity):
             sw_version=None,
         )
 
+    @property
+    def available(self) -> bool:
+        """Disponibilità per-appliance, oltre allo stato globale del coordinator.
+
+        super().available (CoordinatorEntity) riflette solo l'esito complessivo
+        dell'ultimo refresh (last_update_success): NON copre il caso in cui il
+        refresh va a buon fine ma QUESTO appliance sparisce da coordinator.data
+        (dispositivo rimosso dall'account o temporaneamente non restituito
+        dall'API). Senza questo check l'entità resterebbe "available" mostrando
+        valori di default stantii. Manteniamo l'AND con lo stato del coordinator
+        e una guardia isinstance perché `x in None` solleverebbe TypeError.
+        """
+        return (
+            super().available
+            and isinstance(self.coordinator.data, dict)
+            and self._appliance_id in self.coordinator.data
+        )
+
     def _get_attr(self, key: str, default=None):
         """Recupera un attributo del dispositivo.
         
