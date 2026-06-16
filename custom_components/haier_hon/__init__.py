@@ -237,6 +237,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     "id": appliance_id,
                     "name": appliance_data.get("name"),
                     "type": appliance_data.get("type"),
+                    "mac": appliance_data.get("mac"),
                     "attributes": len(appliance_data.get("attributes", {}))
                     if isinstance(appliance_data.get("attributes"), dict)
                     else 0,

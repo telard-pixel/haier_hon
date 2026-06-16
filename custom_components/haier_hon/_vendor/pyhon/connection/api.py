@@ -85,24 +85,28 @@ class HonAPI:
     async def load_appliances(self) -> List[Dict[str, Any]]:
         async with self._hon.get(f"{const.API_URL}/commands/v1/appliance") as resp:
             result = await resp.json()
+        appliances: List[Dict[str, Any]] = []
         if result:
-            appliances: List[Dict[str, Any]] = result.get("payload", {}).get(
-                "appliances", {}
+            appliances = result.get("payload", {}).get("appliances", [])
+        if not appliances:
+            # Request/auth succeeded but no appliances came back. Two very different
+            # causes look identical here: a genuinely empty / unshared account, OR
+            # an hOn API response-shape change this (unmaintained) client no longer
+            # parses. Log the response *structure* so they can be told apart instead
+            # of silently returning []; the full body (appliance metadata, not
+            # secret) goes to DEBUG only.
+            payload = result.get("payload") if isinstance(result, dict) else None
+            _LOGGER.warning(
+                "hOn API returned 0 appliances (request OK). result type=%s keys=%s; "
+                "payload type=%s keys=%s. If the appliances appear in the hOn app, "
+                "this is likely an API change rather than an empty/unshared account.",
+                type(result).__name__,
+                sorted(result.keys()) if isinstance(result, dict) else "n/a",
+                type(payload).__name__,
+                sorted(payload.keys()) if isinstance(payload, dict) else "n/a",
             )
-            if not appliances:
-                # Request/auth succeeded but the hOn cloud returned no appliances
-                # for this account. This is almost always an account-side state
-                # (devices not owned by / no longer shared with this login, or
-                # moved in the hOn app), not a client bug. Log it explicitly so it
-                # is diagnosable straight from the log instead of looking like a
-                # silent empty result.
-                _LOGGER.warning(
-                    "hOn API returned 0 appliances for this account (request OK). "
-                    "Check that the appliances are owned by or shared with this "
-                    "login in the hOn app."
-                )
-            return appliances
-        return []
+            _LOGGER.debug("hOn raw appliance response: %s", result)
+        return appliances
 
     async def load_commands(self, appliance: HonAppliance) -> Dict[str, Any]:
         params: Dict[str, str | int] = {
