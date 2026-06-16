@@ -6,6 +6,6 @@ Rigenerato da `scripts/vendor_pyhon.py` (non modificare a mano).
 
 - source: https://github.com/telard-pixel/pyhon
 - ref: main
-- commit: 0652ae01bb54b11c7040514139dc756db42e1cd1
+- commit: b1d404925620be592b46c1fccf4aaaadf97d4b45
 - vendored: 2026-06-16
 - import namespace: `custom_components.haier_hon._vendor.pyhon`

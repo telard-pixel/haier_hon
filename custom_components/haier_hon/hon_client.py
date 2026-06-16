@@ -105,6 +105,15 @@ def _get_serial(appliance) -> str:
     return ""
 
 
+def _get_mac(appliance) -> str:
+    """MAC address dell'appliance — è l'identificatore usato nel device_registry."""
+    for attr in ("mac_address", "macAddress", "mac"):
+        val = getattr(appliance, attr, None)
+        if val:
+            return str(val)
+    return ""
+
+
 def _get_name(appliance) -> str:
     for attr in ("nick_name", "nickName", "model_name", "modelName", "name"):
         val = getattr(appliance, attr, None)
@@ -620,9 +629,34 @@ class HonClient:
                     continue
                 raise
             _LOGGER.debug("Trovati %d dispositivi hOn", len(appliances))
+            if appliances:
+                if _LOGGER.isEnabledFor(logging.DEBUG):
+                    _LOGGER.debug(
+                        "Discovery: inventario appliance dal cloud — %s",
+                        "; ".join(
+                            f"type={_get_type(a)} mac={_get_mac(a) or '<no-mac>'} "
+                            f"name={_get_name(a)}"
+                            for a in appliances
+                        ),
+                    )
+            else:
+                _LOGGER.debug(
+                    "Discovery: il cloud hOn ha restituito 0 appliance per questo "
+                    "account (request OK) — causa quasi sempre lato account "
+                    "(ownership/condivisione nell'app hOn). Vedi il WARNING del "
+                    "logger _vendor.pyhon.connection.api."
+                )
 
-            for appliance in appliances:
+            for idx, appliance in enumerate(appliances, 1):
                 try:
+                    _LOGGER.debug(
+                        "Discovery: elaboro appliance %d/%d — type=%s mac=%s name=%s",
+                        idx,
+                        len(appliances),
+                        _get_type(appliance),
+                        _get_mac(appliance) or "<no-mac>",
+                        _get_name(appliance),
+                    )
                     last_err = None
                     for attempt in range(3):
                         try:
@@ -663,6 +697,7 @@ class HonClient:
                         "name": name,
                         "model": _get_model(appliance),
                         "serial": _get_serial(appliance),
+                        "mac": _get_mac(appliance),
                         "attributes": attributes,
                         "statistics": _debug_container_to_dict(
                             getattr(appliance, "statistics", None), "statistics"
@@ -671,8 +706,9 @@ class HonClient:
                     }
                     _debug_appliance_consumption("snapshot coordinator", appliance, attributes)
                     _LOGGER.debug(
-                        "Aggiornato '%s' (type=%s, id=%s) — %d attributi",
-                        name, app_type, appliance_id, len(attributes),
+                        "Aggiornato '%s' (type=%s, mac=%s, id=%s) — %d attributi",
+                        name, app_type, _get_mac(appliance) or "<no-mac>",
+                        appliance_id, len(attributes),
                     )
 
                 except Exception as err:
