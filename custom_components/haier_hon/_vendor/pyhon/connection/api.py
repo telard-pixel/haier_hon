@@ -83,27 +83,36 @@ class HonAPI:
         return self
 
     async def load_appliances(self) -> List[Dict[str, Any]]:
-        async with self._hon.get(f"{const.API_URL}/commands/v1/appliance") as resp:
+        # The hOn app fetches the FULL registered appliance list (including
+        # OFFLINE appliances) from the unified-api "view" aggregator via POST.
+        # The legacy GET commands/v1/appliance only returns appliances that are
+        # currently connected to the cloud, so it comes back empty when every
+        # appliance happens to be offline. Use the same source the app uses.
+        device_id = self._hon.device.mobile_id or const.MOBILE_ID
+        async with self._hon.post(
+            f"{const.API_URL}/unified-api/v1/view/appliance-list",
+            json={"deviceId": device_id},
+        ) as resp:
             result = await resp.json()
         appliances: List[Dict[str, Any]] = []
-        if result:
-            appliances = result.get("payload", {}).get("appliances", [])
+        if isinstance(result, dict):
+            appliances = (
+                result.get("modules", {})
+                .get("applianceList", {})
+                .get("payload", {})
+                .get("appliances", [])
+            )
         if not appliances:
-            # Request/auth succeeded but no appliances came back. Two very different
-            # causes look identical here: a genuinely empty / unshared account, OR
-            # an hOn API response-shape change this (unmaintained) client no longer
-            # parses. Log the response *structure* so they can be told apart instead
-            # of silently returning []; the full body (appliance metadata, not
-            # secret) goes to DEBUG only.
-            payload = result.get("payload") if isinstance(result, dict) else None
+            # Request/auth succeeded but no appliances came back. Log the response
+            # structure so a genuinely empty account can be told apart from an API
+            # change; the full body (appliance metadata, not secret) -> DEBUG only.
+            modules = result.get("modules") if isinstance(result, dict) else None
             _LOGGER.warning(
-                "hOn API returned 0 appliances (request OK). result type=%s keys=%s; "
-                "payload type=%s keys=%s. If the appliances appear in the hOn app, "
-                "this is likely an API change rather than an empty/unshared account.",
-                type(result).__name__,
+                "hOn API returned 0 appliances (request OK). result keys=%s; "
+                "modules keys=%s. If the appliances appear in the hOn app, this is "
+                "likely an API change rather than an empty/unshared account.",
                 sorted(result.keys()) if isinstance(result, dict) else "n/a",
-                type(payload).__name__,
-                sorted(payload.keys()) if isinstance(payload, dict) else "n/a",
+                sorted(modules.keys()) if isinstance(modules, dict) else "n/a",
             )
             _LOGGER.debug("hOn raw appliance response: %s", result)
         return appliances
