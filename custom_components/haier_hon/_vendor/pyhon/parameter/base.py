@@ -69,8 +69,9 @@ class HonParameter:
 
     def check_trigger(self, value: str | float) -> None:
         triggers = {str(k).lower(): v for k, v in self._triggers.items()}
-        if str(value).lower() in triggers:
-            for trigger in triggers[str(value)]:
+        normalized = str(value).lower()
+        if normalized in triggers:
+            for trigger in triggers[normalized]:
                 func, args = trigger
                 func(args)
 

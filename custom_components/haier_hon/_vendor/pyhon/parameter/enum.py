@@ -14,8 +14,8 @@ class HonParameterEnum(HonParameter):
         self._value: str | float = ""
         self._values: List[str] = []
         self._set_attributes()
-        if self._default and clean_value(self._default.strip("[]")) not in self.values:
-            self._values.append(self._default)
+        if self._default and clean_value(self._default) not in self.values:
+            self._values.append(str(self._default))
 
     def _set_attributes(self) -> None:
         super()._set_attributes()
