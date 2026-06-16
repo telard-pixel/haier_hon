@@ -126,9 +126,11 @@ class HonAuth:
                     self._parse_token_data(text)
                     raise exceptions.HonNoAuthenticationNeeded()
                 await self._error_logger(response)
-            # As of July 2024 the login page has changed, and we started getting a /NewhOnLogin based relative URL in JS to parse
+            # As of July 2024 the login page has changed, and we started
+            # getting a /NewhOnLogin based relative URL in JS to parse
             if login_url[0].startswith("/NewhOnLogin"):
-                # Force use of the old login page to avoid having to make the new one work..
+                # Force use of the old login page to avoid having to make
+                # the new one work..
                 login_url[0] = f"{const.AUTH_API}/s/login{login_url[0]}"
         return login_url[0]
 
