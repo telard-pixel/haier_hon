@@ -4,3 +4,5 @@ BUG_FINDINGS.md
 __pycache__/
 *.py[cod]
 /diagnostics/
+# APK e output di decompilazione (reverse-engineering, non versionato)
+/apk/
