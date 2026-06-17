@@ -6,7 +6,6 @@ parametri. Quindi ogni invio deve applicare la stessa sanitazione di
 `windDirectionVertical`/`windDirectionHorizontal`: il device può riportarli a 0
 (valore non ammesso dagli enumValues) e l'API rifiuterebbe il comando.
 Centralizzare qui evita divergenze tra climate.py e switch.py.
-Vedi docs/hon-reverse-and-mapping.md §4.2.
 """
 from __future__ import annotations
 

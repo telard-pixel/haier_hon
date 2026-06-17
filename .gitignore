@@ -4,7 +4,6 @@ BUG_FINDINGS.md
 __pycache__/
 *.py[cod]
 /diagnostics/
-# APK e output di decompilazione (reverse-engineering, non versionato)
+# Local working artifacts (not versioned)
 /apk/
-# Doc di resume reverse-engineering + mappatura (contiene dettagli RE, non versionato)
-/docs/hon-reverse-and-mapping.md
+/docs/hon-internal-notes.md

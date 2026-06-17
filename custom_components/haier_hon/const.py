@@ -59,8 +59,7 @@ AC_ATTR_FAN_SPEED    = "settings.windSpeed"
 # swing era stato disabilitato. Il fix (climate.py): non inviare MAI 0 (sanitazione
 # pre-send) e impostare windDirectionVertical solo a valori ammessi. Gli allowed
 # values reali sono letti a runtime da .values del parametro (per-device), con
-# windDirectionVerticalPositionSequence come sorgente sul device. Vedi
-# docs/hon-reverse-and-mapping.md §4.2.
+# windDirectionVerticalPositionSequence come sorgente sul device.
 AC_ATTR_SWING_V      = "settings.windDirectionVertical"
 AC_ATTR_SWING_H      = "settings.windDirectionHorizontal"
 AC_SWING_V_PARAM     = "windDirectionVertical"   # nome param nel comando "settings"
@@ -156,8 +155,8 @@ WM_ATTR_FILTER_CLEAN     = "filterCleaning"      # pulizia filtro consigliata
 WM_ATTR_DRY_CLEAN_NEEDED = "dryCleaningNeeded"   # pulizia condensatore consigliata
 
 # Fase ciclo (prPhase, attributo grezzo numerico). Le mappe traducono prPhase ->
-# etichetta, estratte da decomp.txt: prPhaseToWashingPhase (983210, WM/WD) e
-# prPhaseToTumbleDryerPhase (983578, TD). Valori non in mappa -> "Fase N".
+# etichetta della fase; lavatrice/lavasciuga e asciugatrice usano tabelle
+# distinte. Valori non in mappa -> "Fase N".
 WASHING_PHASE_MAP = {
     "0": "Pronto",
     "1": "Lavaggio",
