@@ -24,6 +24,8 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
+    CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+    CONCENTRATION_PARTS_PER_MILLION,
     UnitOfEnergy,
     UnitOfTemperature,
     UnitOfTime,
@@ -38,10 +40,13 @@ from .const import (
     APPLIANCE_TD,
     APPLIANCE_WD,
     APPLIANCE_WM,
+    AC_ATTR_CH2O,
+    AC_ATTR_CO2,
     AC_ATTR_COMPRESSOR_FREQ,
     AC_ATTR_CURRENT_TEMP,
     AC_ATTR_HUMIDITY_INDOOR,
     AC_ATTR_OUTDOOR_TEMP,
+    AC_ATTR_PM25,
     AC_ATTR_TOTAL_ENERGY,
     DOMAIN,
     TD_ATTR_CYCLES,
@@ -278,6 +283,30 @@ _AC: tuple[HonSensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+    ),
+    HonSensorEntityDescription(
+        key="pm25",
+        name="PM2.5",
+        attr_key=AC_ATTR_PM25,
+        native_unit_of_measurement=CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+        device_class=SensorDeviceClass.PM25,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    HonSensorEntityDescription(
+        key="co2",
+        name="CO2",
+        attr_key=AC_ATTR_CO2,
+        native_unit_of_measurement=CONCENTRATION_PARTS_PER_MILLION,
+        device_class=SensorDeviceClass.CO2,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    HonSensorEntityDescription(
+        key="ch2o",
+        name="Formaldeide",
+        icon="mdi:molecule",
+        attr_key=AC_ATTR_CH2O,
+        native_unit_of_measurement="mg/m³",
+        state_class=SensorStateClass.MEASUREMENT,
     ),
 )
 

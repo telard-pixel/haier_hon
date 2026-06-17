@@ -80,6 +80,10 @@ AC_ATTR_SELF_CLEAN   = "settings.selfCleaningStatus"
 AC_ATTR_LIGHT        = "settings.lightStatus"
 AC_ATTR_COMPRESSOR_FREQ = "compressorFrequency"
 AC_ATTR_TOTAL_ENERGY = "totalElectricityUsed"
+# Qualità aria (attributi diretti, confermati sull'AC di Roberto)
+AC_ATTR_PM25        = "pm2p5ValueIndoor"   # PM2.5 interno (µg/m³)
+AC_ATTR_CO2         = "co2ValueIndoor"     # CO2 interna (ppm)
+AC_ATTR_CH2O        = "ch2oValueIndoor"    # formaldeide interna (mg/m³)
 
 # Mappatura modalità AC -> HA
 # Valori accettati dal device: [0, 1, 2, 4, 6]
