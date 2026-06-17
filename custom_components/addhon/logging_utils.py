@@ -20,22 +20,27 @@ from __future__ import annotations
 
 import logging
 
+# Namespace del pyhОn vendorizzato: i suoi moduli loggano sotto questo prefisso
+# (il nome del logger == __name__ del modulo). NON è coupling da rimuovere: sono
+# i nomi REALI dei logger di cui regoliamo il livello. Tenuto come UNICA costante
+# così, quando il transport nativo sostituirà pyhОn (vedi client/MIGRATION.md),
+# c'è un solo punto da aggiornare.
+_VENDOR_NS = "custom_components.addhon._vendor.pyhon"
+
 # Logger da alzare/abbassare quando serve diagnosticare discovery, setup,
 # reauth e polling. Il logger MQTT resta controllato separatamente sotto
 # MQTT_NOISE_LOGGERS, così il debug discovery non riaccende il rumore realtime.
 INTEGRATION_DEBUG_LOGGERS: tuple[str, ...] = (
     "custom_components.addhon",
-    "custom_components.addhon._vendor.pyhon",
+    _VENDOR_NS,
     "pyhon",
 )
 
-# Logger di pyhOn responsabili del rumore MQTT realtime. Tenuto come tupla così
-# è banale aggiungerne altri se in futuro pyhOn ne introduce di altrettanto
-# verbosi sullo stesso percorso. NB: pyhОn è vendorizzato sotto
-# custom_components.addhon._vendor.pyhon, ma nei log HA reali alcune righe
-# possono ancora arrivare come pyhon.connection.mqtt; copriamo entrambi.
+# Logger di pyhOn responsabili del rumore MQTT realtime. NB: pyhОn è vendorizzato
+# sotto _VENDOR_NS, ma nei log HA reali alcune righe possono ancora arrivare come
+# il top-level pyhon.connection.mqtt; copriamo entrambi.
 MQTT_NOISE_LOGGERS: tuple[str, ...] = (
-    "custom_components.addhon._vendor.pyhon.connection.mqtt",
+    f"{_VENDOR_NS}.connection.mqtt",
     "pyhon.connection.mqtt",
 )
 

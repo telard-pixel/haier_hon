@@ -595,9 +595,12 @@ class HonClient:
             else:
                 _LOGGER.debug(
                     "Discovery: il cloud hOn ha restituito 0 appliance per questo "
-                    "account (request OK) — causa quasi sempre lato account "
-                    "(ownership/condivisione nell'app hOn). Vedi il WARNING del "
-                    "logger _vendor.pyhon.connection.api."
+                    "account (request OK). Con l'endpoint unified-api la lista "
+                    "include anche i device offline, quindi 0 = account davvero "
+                    "vuoto/non condiviso OPPURE un nuovo cambio API (NON è 'quasi "
+                    "sempre lato account', vedi storia bug 0-appliance/v2.7.1). "
+                    "Dettagli nel WARNING del logger "
+                    "custom_components.addhon._vendor.pyhon.connection.api."
                 )
 
             for idx, appliance in enumerate(appliances, 1):
