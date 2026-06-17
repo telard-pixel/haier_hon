@@ -1,0 +1,17 @@
+{
+  "domain": "addhon",
+  "name": "addhOn",
+  "codeowners": [
+    "@telard-pixel"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/telard-pixel/addhOn",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/telard-pixel/addhOn/issues",
+  "requirements": [
+    "awsiotsdk>=1.21.0",
+    "yarl>=1.8",
+    "typing-extensions>=4.8"
+  ],
+  "version": "3.0.0"
+}

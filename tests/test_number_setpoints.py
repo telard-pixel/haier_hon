@@ -219,8 +219,8 @@ def _fridge_commands() -> dict:
 
 
 async def _build(app_type: str, appliance, attributes: dict, client=None) -> list:
-    from custom_components.haier_hon import number
-    from custom_components.haier_hon.const import DOMAIN
+    from custom_components.addhon import number
+    from custom_components.addhon.const import DOMAIN
 
     data = {
         "x-1": {

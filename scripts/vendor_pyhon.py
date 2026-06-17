@@ -2,10 +2,10 @@
 """Rigenera la copia vendorizzata di pyhon dentro l'integrazione.
 
 pyhon è mantenuta nel fork privato telard-pixel/pyhon (sorgente di verità) e
-vendorizzata qui sotto custom_components/haier_hon/_vendor/pyhon/ perché un
+vendorizzata qui sotto custom_components/addhon/_vendor/pyhon/ perché un
 repo privato non è pip-installabile da Home Assistant. Questo script riallinea
 la copia vendorizzata al fork e riscrive gli import per isolarla (namespace
-custom_components.haier_hon._vendor.pyhon), così non collide con un'eventuale
+custom_components.addhon._vendor.pyhon), così non collide con un'eventuale
 pyhon "vanilla" installata da un'altra integrazione.
 
 Uso:
@@ -27,10 +27,10 @@ import sys
 import tempfile
 
 FORK_URL = "https://github.com/telard-pixel/pyhon"
-NEW_PKG = "custom_components.haier_hon._vendor.pyhon"
+NEW_PKG = "custom_components.addhon._vendor.pyhon"
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-VENDOR_DIR = os.path.join(REPO_ROOT, "custom_components", "haier_hon", "_vendor")
+VENDOR_DIR = os.path.join(REPO_ROOT, "custom_components", "addhon", "_vendor")
 DST_PKG = os.path.join(VENDOR_DIR, "pyhon")
 
 

@@ -15,7 +15,7 @@ import json
 import unittest
 from pathlib import Path
 
-COMPONENT = Path(__file__).resolve().parents[1] / "custom_components" / "haier_hon"
+COMPONENT = Path(__file__).resolve().parents[1] / "custom_components" / "addhon"
 TRANSLATIONS = COMPONENT / "translations"
 LANGS = ("en", "it")
 

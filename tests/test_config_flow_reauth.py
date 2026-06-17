@@ -109,7 +109,7 @@ class _FakeHass:
 
 def _make_flow(entry):
     """Build a real ConfigFlow with the HA-provided helpers stubbed to capture."""
-    from custom_components.haier_hon.config_flow import ConfigFlow
+    from custom_components.addhon.config_flow import ConfigFlow
 
     flow = ConfigFlow()
     flow.hass = _FakeHass(entry)
@@ -144,7 +144,7 @@ def _make_flow(entry):
 
 class ReauthFlowTest(unittest.IsolatedAsyncioTestCase):
     def _patch_validate(self, fn) -> None:
-        from custom_components.haier_hon import config_flow
+        from custom_components.addhon import config_flow
 
         original = config_flow.validate_input
         config_flow.validate_input = fn
@@ -183,7 +183,7 @@ class ReauthFlowTest(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_reauth_invalid_auth_reshows_form(self) -> None:
-        from custom_components.haier_hon.config_flow import InvalidAuth
+        from custom_components.addhon.config_flow import InvalidAuth
 
         async def bad(hass, data):
             raise InvalidAuth("nope")
@@ -198,7 +198,7 @@ class ReauthFlowTest(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("update", flow.calls)
 
     async def test_reauth_cannot_connect_reshows_form(self) -> None:
-        from custom_components.haier_hon.config_flow import CannotConnect
+        from custom_components.addhon.config_flow import CannotConnect
 
         async def down(hass, data):
             raise CannotConnect("offline")
@@ -212,7 +212,7 @@ class ReauthFlowTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("cannot_connect", result["errors"]["base"])
 
     async def test_reauth_unexpected_error_maps_to_unknown(self) -> None:
-        from custom_components.haier_hon import config_flow
+        from custom_components.addhon import config_flow
 
         async def boom(hass, data):
             raise RuntimeError("weird")

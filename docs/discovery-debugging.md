@@ -8,7 +8,7 @@ devices, or existing devices disappear after a reload.
 From Home Assistant Developer Tools -> Actions:
 
 ```yaml
-action: haier_hon.set_log_level
+action: addhon.set_log_level
 data:
   level: debug
 ```
@@ -19,7 +19,7 @@ does not reproduce the issue.
 To go back to normal logging:
 
 ```yaml
-action: haier_hon.set_log_level
+action: addhon.set_log_level
 data:
   level: warning
 ```
@@ -34,7 +34,7 @@ MQTT, so do not enable MQTT debug unless you are specifically investigating
 push updates.
 
 ```yaml
-action: haier_hon.set_mqtt_log_level
+action: addhon.set_mqtt_log_level
 data:
   level: debug
 ```
@@ -42,7 +42,7 @@ data:
 Return it to quiet mode after capture:
 
 ```yaml
-action: haier_hon.set_mqtt_log_level
+action: addhon.set_mqtt_log_level
 data:
   level: warning
 ```
@@ -56,10 +56,10 @@ If you need debug from startup before services are registered, add this to
 logger:
   default: warning
   logs:
-    custom_components.haier_hon: debug
-    custom_components.haier_hon._vendor.pyhon: debug
+    custom_components.addhon: debug
+    custom_components.addhon._vendor.pyhon: debug
     pyhon: debug
-    custom_components.haier_hon._vendor.pyhon.connection.mqtt: warning
+    custom_components.addhon._vendor.pyhon.connection.mqtt: warning
     pyhon.connection.mqtt: warning
 ```
 

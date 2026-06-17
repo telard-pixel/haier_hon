@@ -29,7 +29,7 @@ When you need to inspect the realtime channel, raise the level with the
 dedicated service:
 
 ```yaml
-action: haier_hon.set_mqtt_log_level
+action: addhon.set_mqtt_log_level
 data:
   level: debug      # debug | info | warning | error
 ```
@@ -39,7 +39,7 @@ data:
 To go back to quiet:
 
 ```yaml
-action: haier_hon.set_mqtt_log_level
+action: addhon.set_mqtt_log_level
 data:
   level: warning
 ```
@@ -61,10 +61,10 @@ already keeps every entity up to date.
 
 ## Where it lives (code)
 
-- `custom_components/haier_hon/logging_utils.py` - logger names, level map,
+- `custom_components/addhon/logging_utils.py` - logger names, level map,
   `apply_mqtt_log_level()` / `silence_mqtt_noise()` (no Home Assistant imports,
   unit-tested in isolation).
-- `custom_components/haier_hon/__init__.py` - applies the default silence and
+- `custom_components/addhon/__init__.py` - applies the default silence and
   registers the `set_mqtt_log_level` service on setup.
-- `custom_components/haier_hon/services.yaml` - service definition.
+- `custom_components/addhon/services.yaml` - service definition.
 - `tests/test_mqtt_log_level.py` - tests.

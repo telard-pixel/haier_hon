@@ -5,7 +5,7 @@ reconnect attempt. When the realtime push slot is contended (shared appliance,
 the owner holds the channel) these attempts fail in a ~20-minute loop and flood
 the log, with nothing actionable on the integration side (data still updates via
 polling). The integration lowers that logger to WARNING by default and exposes
-the service haier_hon.set_mqtt_log_level to raise it back to debug on demand.
+the service addhon.set_mqtt_log_level to raise it back to debug on demand.
 
 logging_utils.py is loaded directly by file path (no intra-package imports, no
 homeassistant), like test_debug_utils_redact. The wiring in __init__.py /
@@ -20,7 +20,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-COMPONENT = ROOT / "custom_components" / "haier_hon"
+COMPONENT = ROOT / "custom_components" / "addhon"
 LOGGING_UTILS_PATH = COMPONENT / "logging_utils.py"
 INIT = COMPONENT / "__init__.py"
 CONST = COMPONENT / "const.py"
@@ -29,7 +29,7 @@ SERVICES = COMPONENT / "services.yaml"
 
 def _load_logging_utils():
     spec = importlib.util.spec_from_file_location(
-        "haier_hon_logging_utils_standalone", LOGGING_UTILS_PATH
+        "addhon_logging_utils_standalone", LOGGING_UTILS_PATH
     )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -55,7 +55,7 @@ class ApplyMqttLevelTest(unittest.TestCase):
         # pyhon è vendorizzato, quindi i suoi logger (che usano __name__) sono
         # sotto il package namespacizzato.
         self.assertIn(
-            "custom_components.haier_hon._vendor.pyhon.connection.mqtt",
+            "custom_components.addhon._vendor.pyhon.connection.mqtt",
             lu.MQTT_NOISE_LOGGERS,
         )
         # In Home Assistant reale alcune righe arrivano ancora col nome logger
@@ -98,8 +98,8 @@ class ApplyIntegrationLevelTest(unittest.TestCase):
             logging.getLogger(name).setLevel(level)
 
     def test_integration_debug_loggers_cover_integration_and_pyhon(self) -> None:
-        self.assertIn("custom_components.haier_hon", lu.INTEGRATION_DEBUG_LOGGERS)
-        self.assertIn("custom_components.haier_hon._vendor.pyhon", lu.INTEGRATION_DEBUG_LOGGERS)
+        self.assertIn("custom_components.addhon", lu.INTEGRATION_DEBUG_LOGGERS)
+        self.assertIn("custom_components.addhon._vendor.pyhon", lu.INTEGRATION_DEBUG_LOGGERS)
         self.assertIn("pyhon", lu.INTEGRATION_DEBUG_LOGGERS)
 
     def test_apply_integration_log_level_sets_all_debug_loggers(self) -> None:

@@ -37,7 +37,7 @@ version_from_tag() {
 manifest_version_at_ref() {
   local ref="${1:-}"
 
-  git show "${ref}:custom_components/haier_hon/manifest.json" \
+  git show "${ref}:custom_components/addhon/manifest.json" \
     | python3 -c 'import json, sys; print(json.load(sys.stdin)["version"])'
 }
 
@@ -50,7 +50,7 @@ import sys
 from pathlib import Path
 
 version = sys.argv[1]
-path = Path("custom_components/haier_hon/manifest.json")
+path = Path("custom_components/addhon/manifest.json")
 data = json.loads(path.read_text())
 data["version"] = version
 path.write_text(json.dumps(data, indent=2) + "\n")

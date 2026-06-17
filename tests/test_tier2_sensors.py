@@ -186,20 +186,20 @@ class FakeEntry:
 
 
 def _sensor_keys(app_type: str) -> list[str]:
-    from custom_components.haier_hon.sensor import SENSORS
+    from custom_components.addhon.sensor import SENSORS
 
     return [d.key for d in SENSORS.get(app_type, ())]
 
 
 def _binary_keys(app_type: str) -> list[str]:
-    from custom_components.haier_hon.binary_sensor import BINARY_SENSORS
+    from custom_components.addhon.binary_sensor import BINARY_SENSORS
 
     return [d.key for d in BINARY_SENSORS.get(app_type, ())]
 
 
 async def _build_sensors(app_type: str, attributes: dict) -> list:
-    from custom_components.haier_hon import sensor
-    from custom_components.haier_hon.const import DOMAIN
+    from custom_components.addhon import sensor
+    from custom_components.addhon.const import DOMAIN
 
     data = {"x-1": {"type": app_type, "name": "Dev", "attributes": attributes, "settings": {}}}
     coordinator = FakeCoordinator(data)
@@ -210,8 +210,8 @@ async def _build_sensors(app_type: str, attributes: dict) -> list:
 
 
 async def _build_binary(app_type: str, attributes: dict) -> list:
-    from custom_components.haier_hon import binary_sensor
-    from custom_components.haier_hon.const import DOMAIN
+    from custom_components.addhon import binary_sensor
+    from custom_components.addhon.const import DOMAIN
 
     data = {"x-1": {"type": app_type, "name": "Dev", "attributes": attributes, "settings": {}}}
     coordinator = FakeCoordinator(data)
@@ -252,14 +252,14 @@ class Tier2TableTest(unittest.TestCase):
         self.assertEqual(_binary_keys("IH"), _binary_keys("HOB"))
 
     def test_all_tier2_descriptions_are_gated(self) -> None:
-        from custom_components.haier_hon.sensor import SENSORS
+        from custom_components.addhon.sensor import SENSORS
 
         for app_type in ("REF", "FR", "FRE", "OV", "DW", "WC", "IH", "HOB", "HO", "KT", "WH", "RVC"):
             for d in SENSORS[app_type]:
                 self.assertTrue(d.gated, f"{app_type}/{d.key} must be gated")
 
     def test_historic_types_not_gated(self) -> None:
-        from custom_components.haier_hon.sensor import SENSORS
+        from custom_components.addhon.sensor import SENSORS
 
         for app_type in ("AC", "WM", "WD", "TD"):
             for d in SENSORS[app_type]:

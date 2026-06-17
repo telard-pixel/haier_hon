@@ -16,7 +16,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-COMPONENT = ROOT / "custom_components" / "haier_hon"
+COMPONENT = ROOT / "custom_components" / "addhon"
 INIT = COMPONENT / "__init__.py"
 MANIFEST = COMPONENT / "manifest.json"
 HACS = ROOT / "hacs.json"

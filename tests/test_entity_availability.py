@@ -107,7 +107,7 @@ def _appliance_data() -> dict:
 
 class AvailabilityTest(unittest.TestCase):
     def _make_entity(self, coordinator):
-        from custom_components.haier_hon.base_entity import HonBaseEntity
+        from custom_components.addhon.base_entity import HonBaseEntity
 
         class _Concrete(HonBaseEntity):
             pass

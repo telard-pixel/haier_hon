@@ -32,9 +32,9 @@ jobs:
           set -euo pipefail
           # Zip the CONTENTS of the integration dir (manifest.json at the zip
           # root), which is what HACS expects to extract into
-          # custom_components/haier_hon/.
-          cd custom_components/haier_hon
-          zip -r "${{ runner.temp }}/haier_hon.zip" . -x '*.pyc' -x '*/__pycache__/*'
+          # custom_components/addhon/.
+          cd custom_components/addhon
+          zip -r "${{ runner.temp }}/addhon.zip" . -x '*.pyc' -x '*/__pycache__/*'
 
       - name: Upload zip to release
         env:
@@ -47,4 +47,4 @@ jobs:
           # --clobber makes a re-run idempotent (replaces the asset rather than
           # failing if it already exists).
           gh release upload "$RELEASE_TAG" \
-            "${{ runner.temp }}/haier_hon.zip" --clobber
+            "${{ runner.temp }}/addhon.zip" --clobber

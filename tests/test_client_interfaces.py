@@ -19,7 +19,7 @@ from pathlib import Path
 _PATH = (
     Path(__file__).resolve().parents[1]
     / "custom_components"
-    / "haier_hon"
+    / "addhon"
     / "client"
     / "interfaces.py"
 )

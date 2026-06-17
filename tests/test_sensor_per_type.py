@@ -168,7 +168,7 @@ class FakeEntry:
 
 class PerTypeTableTest(unittest.TestCase):
     def _keys(self, app_type: str) -> list[str]:
-        from custom_components.haier_hon.sensor import SENSORS
+        from custom_components.addhon.sensor import SENSORS
 
         return [d.key for d in SENSORS.get(app_type, ())]
 
@@ -212,13 +212,13 @@ class PerTypeTableTest(unittest.TestCase):
         self.assertNotIn("current_energy", keys)
 
     def test_td_cycles_read_programscounter(self) -> None:
-        from custom_components.haier_hon.sensor import SENSORS
+        from custom_components.addhon.sensor import SENSORS
 
         td = {d.key: d for d in SENSORS["TD"]}
         self.assertEqual(td["total_washes"].attr_key, "programsCounter")
 
     def test_wm_cycles_read_totalwashcycle(self) -> None:
-        from custom_components.haier_hon.sensor import SENSORS
+        from custom_components.addhon.sensor import SENSORS
 
         wm = {d.key: d for d in SENSORS["WM"]}
         self.assertEqual(wm["total_washes"].attr_key, "totalWashCycle")
@@ -226,8 +226,8 @@ class PerTypeTableTest(unittest.TestCase):
 
 class SensorBuildTest(unittest.IsolatedAsyncioTestCase):
     async def test_td_builds_only_expected_entities(self) -> None:
-        from custom_components.haier_hon import sensor
-        from custom_components.haier_hon.const import DOMAIN
+        from custom_components.addhon import sensor
+        from custom_components.addhon.const import DOMAIN
 
         data = {
             "td-1": {
@@ -255,8 +255,8 @@ class SensorBuildTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(state.native_value, "In esecuzione")  # WM_STATE_MAP["1"]
 
     async def test_td_cycles_can_read_programscounter_from_statistics(self) -> None:
-        from custom_components.haier_hon import sensor
-        from custom_components.haier_hon.const import DOMAIN
+        from custom_components.addhon import sensor
+        from custom_components.addhon.const import DOMAIN
 
         data = {
             "td-1": {
@@ -277,8 +277,8 @@ class SensorBuildTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cycles.native_value, 27.0)
 
     async def test_wm_keeps_water_and_energy(self) -> None:
-        from custom_components.haier_hon import sensor
-        from custom_components.haier_hon.const import DOMAIN
+        from custom_components.addhon import sensor
+        from custom_components.addhon.const import DOMAIN
 
         data = {
             "wm-1": {
@@ -304,8 +304,8 @@ class SensorBuildTest(unittest.IsolatedAsyncioTestCase):
 class TdLegacyCleanupTest(unittest.TestCase):
     def test_removes_only_td_washeronly_sensors(self) -> None:
         from homeassistant.helpers import entity_registry as er
-        from custom_components.haier_hon import _remove_legacy_entities
-        from custom_components.haier_hon.const import DOMAIN
+        from custom_components.addhon import _remove_legacy_entities
+        from custom_components.addhon.const import DOMAIN
 
         class RegEntry:
             def __init__(self, entity_id, unique_id):

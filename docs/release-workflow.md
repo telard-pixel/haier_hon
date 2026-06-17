@@ -22,7 +22,7 @@ v1.2.3-beta
 
 The release tag is the source of truth for the integration version. When the tag
 is pushed, the intake workflow updates
-`custom_components/haier_hon/manifest.json` on `dev` to match the tag without
+`custom_components/addhon/manifest.json` on `dev` to match the tag without
 the leading `v`. For example, tag `v1.2.3-beta` writes manifest version
 `1.2.3-beta`.
 

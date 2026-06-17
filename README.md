@@ -1,4 +1,4 @@
-# Haier hOn Integration for Home Assistant
+# addhOn
 
 A custom Home Assistant integration for controlling Haier appliances via the hOn cloud API. Supports air conditioning units and washing machines with full entity discovery and command routing.
 
@@ -35,7 +35,7 @@ Other hOn-compatible Haier appliances should work — feel free to test and repo
 1. **Clone or download** this integration to your Home Assistant custom integrations folder:
 
 ```bash
-git clone https://github.com/yourusername/haier-hon-integration.git /path/to/config/custom_components/haier_hon
+git clone https://github.com/yourusername/haier-hon-integration.git /path/to/config/custom_components/addhon
 ```
 
 If you don't have a `custom_components` folder, create it:
@@ -49,7 +49,7 @@ mkdir -p /path/to/config/custom_components
 3. **Add the integration** via Settings → Devices & Services → Create Automation → Haier hOn, or manually add to `configuration.yaml`:
 
 ```yaml
-haier_hon:
+addhon:
   username: your-haier-email@example.com
   password: your-haier-password
 ```
@@ -65,7 +65,7 @@ Add this repository to HACS as a custom integration and install from the UI.
 Edit your `configuration.yaml`:
 
 ```yaml
-haier_hon:
+addhon:
   username: your-haier-email@example.com
   password: your-haier-password
 ```
@@ -73,7 +73,7 @@ haier_hon:
 ### Advanced Options
 
 ```yaml
-haier_hon:
+addhon:
   username: your-haier-email@example.com
   password: your-haier-password
   scan_interval: 60          # Update interval in seconds (default: 60)
@@ -127,12 +127,12 @@ The backend cloud service that handles:
 
 ## Services
 
-### `haier_hon.send_command`
+### `addhon.send_command`
 
 Send a raw command to a device.
 
 ```yaml
-service: haier_hon.send_command
+service: addhon.send_command
 data:
   device_id: "AC_UNIT_ID"
   command: "startProgram"
@@ -181,7 +181,7 @@ To add support for a new Haier device:
 
 1. Pair it in the Haier hOn app
 2. Enable debug logging and capture the device diagnostics
-3. Add a new entity platform in `custom_components/haier_hon/entities/`
+3. Add a new entity platform in `custom_components/addhon/entities/`
 4. Test with your device and submit a pull request
 
 ## Limitations

@@ -90,8 +90,8 @@ jobs:
 
             set_manifest_version "${RELEASE_VERSION}"
 
-            if ! git diff --quiet -- custom_components/haier_hon/manifest.json; then
-              git add custom_components/haier_hon/manifest.json
+            if ! git diff --quiet -- custom_components/addhon/manifest.json; then
+              git add custom_components/addhon/manifest.json
               git commit -m "chore: set manifest version ${RELEASE_VERSION}"
               git push origin HEAD:refs/heads/dev
             fi

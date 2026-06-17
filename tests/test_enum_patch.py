@@ -67,11 +67,11 @@ _install_min_ha_stubs()
 # pyhon è vendorizzato sotto questo namespace e _ensure_enum_patch importa da lì.
 # Stubbiamo l'intera catena in sys.modules così l'import del patch non esegue i
 # veri __init__ vendorizzati (che tirerebbero dentro aiohttp/awsiotsdk).
-_VENDOR_ENUM = "custom_components.haier_hon._vendor.pyhon.parameter.enum"
+_VENDOR_ENUM = "custom_components.addhon._vendor.pyhon.parameter.enum"
 _VENDOR_STUB_CHAIN = (
-    "custom_components.haier_hon._vendor",
-    "custom_components.haier_hon._vendor.pyhon",
-    "custom_components.haier_hon._vendor.pyhon.parameter",
+    "custom_components.addhon._vendor",
+    "custom_components.addhon._vendor.pyhon",
+    "custom_components.addhon._vendor.pyhon.parameter",
     _VENDOR_ENUM,
 )
 
@@ -107,7 +107,7 @@ def _install_buggy_pyhon() -> type:
 
 class EnsureEnumPatchTest(unittest.TestCase):
     def setUp(self) -> None:
-        import custom_components.haier_hon.hon_client as hon_client
+        import custom_components.addhon.hon_client as hon_client
 
         self.hc = hon_client
         # The applied flag is process-global; reset it so each test is isolated.
