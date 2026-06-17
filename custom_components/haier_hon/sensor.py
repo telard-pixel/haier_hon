@@ -24,8 +24,6 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
-    CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
-    CONCENTRATION_PARTS_PER_MILLION,
     UnitOfEnergy,
     UnitOfTemperature,
     UnitOfTime,
@@ -331,7 +329,7 @@ _AC: tuple[HonSensorEntityDescription, ...] = (
         key="pm25",
         name="PM2.5",
         attr_key=AC_ATTR_PM25,
-        native_unit_of_measurement=CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+        native_unit_of_measurement="µg/m³",
         device_class=SensorDeviceClass.PM25,
         state_class=SensorStateClass.MEASUREMENT,
     ),
@@ -339,7 +337,7 @@ _AC: tuple[HonSensorEntityDescription, ...] = (
         key="co2",
         name="CO2",
         attr_key=AC_ATTR_CO2,
-        native_unit_of_measurement=CONCENTRATION_PARTS_PER_MILLION,
+        native_unit_of_measurement="ppm",
         device_class=SensorDeviceClass.CO2,
         state_class=SensorStateClass.MEASUREMENT,
     ),
