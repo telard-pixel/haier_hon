@@ -11,10 +11,8 @@ from .debug_utils import debug_key_sample, redact_email
 
 _LOGGER = logging.getLogger(__name__)
 
-# Guardie per applicare la patch BABYCARE di HonParameterEnum una sola volta per
-# processo, in modo thread-safe tra più config entry (vedi _ensure_enum_patch).
-_ENUM_PATCH_LOCK = threading.Lock()
-_ENUM_PATCH_APPLIED = False
+# La patch BABYCARE di HonParameterEnum vive nell'adattatore-ponte
+# (client/pyhon_adapter.ensure_enum_patch): è l'unico punto che importa _vendor.
 
 _SERIAL_ATTRS = ("serial_number", "serialNumber", "mac_address", "macAddress", "code")
 _CONSUMPTION_ATTRS = (
@@ -233,50 +231,6 @@ def _requires_reauth(err: BaseException) -> bool:
     ) and not _is_retryable_server_error(err)
 
 
-def _ensure_enum_patch() -> None:
-    """Applica una sola volta per processo la patch BABYCARE di HonParameterEnum.
-
-    pyhOn crasha su load_commands() dell'asciugatrice TD perché il valore
-    "BABYCARE" è nell'elenco dei valori ammessi ma il confronto stringa fallisce
-    per un bug interno del setter HonParameterEnum.value. La patch accetta il
-    valore se è già presente in _values.
-
-    È best-effort e idempotente: protetta da un lock di modulo (la classe pyhOn è
-    globale e condivisa tra tutte le config entry) e applicata al più una volta,
-    catturando il setter ORIGINALE una sola volta per non annidare le closure a
-    ogni reauth. In caso di errore il flag resta False, così un setup successivo
-    può ritentare.
-    """
-    global _ENUM_PATCH_APPLIED
-    with _ENUM_PATCH_LOCK:
-        if _ENUM_PATCH_APPLIED:
-            return
-        try:
-            from ._vendor.pyhon.parameter.enum import HonParameterEnum as _HonEnum
-
-            _orig_setter = _HonEnum.value.fset
-
-            def _patched_setter(instance, value):
-                try:
-                    _orig_setter(instance, value)
-                except ValueError:
-                    # Accetta il valore se è già presente nella lista (case-sensitive)
-                    if value in instance._values:
-                        instance._value = value
-                        _LOGGER.debug("Patch enum BABYCARE applicata per valore: %s", value)
-                    else:
-                        raise
-
-            _HonEnum.value = property(
-                _HonEnum.value.fget, _patched_setter, _HonEnum.value.fdel
-            )
-            _ENUM_PATCH_APPLIED = True
-            _LOGGER.debug("Patch HonParameterEnum applicata")
-        except Exception as patch_err:
-            # Best-effort: non impostiamo il flag così un setup successivo ritenta.
-            _LOGGER.warning("Impossibile applicare la patch HonParameterEnum: %s", patch_err)
-
-
 class HonClient:
     """Gestisce la connessione alle API Haier hOn tramite pyhOn.
 
@@ -470,18 +424,18 @@ class HonClient:
         La sessione aiohttp viene creata sul loop dedicato e vi rimane
         legata per tutta la durata del client.
         """
-        # La sessione hОn passa per l'adattatore-ponte (client/), non più con un
-        # import diretto di _vendor.pyhon: vedi client/MIGRATION.md (strangler).
-        from .client.pyhon_adapter import create_session
+        # Sessione + patch enum passano per l'adattatore-ponte (client/), non più
+        # con import diretti di _vendor.pyhon: vedi client/MIGRATION.md (strangler).
+        from .client.pyhon_adapter import create_session, ensure_enum_patch
 
         with self._lifecycle_lock:
             try:
                 if self._hon_loop is None or not self._hon_loop.is_running():
                     self._start_hon_loop()
 
-                # Patch BABYCARE per il bug enum di pyhOn: best-effort e applicata
-                # una sola volta per processo (vedi _ensure_enum_patch).
-                _ensure_enum_patch()
+                # Patch BABYCARE per il bug enum di pyhOn (best-effort, una volta
+                # per processo): ora vive nell'adattatore-ponte client/.
+                ensure_enum_patch()
 
                 self._hon_instance = create_session(self._email, self._password)
                 _LOGGER.debug("Istanza Hon creata")

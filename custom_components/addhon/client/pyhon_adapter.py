@@ -7,11 +7,22 @@ di `_vendor.pyhon`: così è disaccoppiato da pyhОn dietro questa funzione, e
 quando arriverà il transport nativo si cambia solo qui.
 
 `create_session` ritorna un oggetto conforme a `interfaces.HonSession`
-(oggi: `pyhon.Hon`; domani: il client nativo).
+(oggi: `pyhon.Hon`; domani: il client nativo). Qui vive anche la patch BABYCARE
+di HonParameterEnum (anch'essa tocca `_vendor`, quindi sta nel ponte).
 """
 from __future__ import annotations
 
+import logging
+import threading
 from typing import Any
+
+_LOGGER = logging.getLogger(__name__)
+
+# Stato della patch BABYCARE: globale di processo e thread-safe tra config entry
+# (la classe HonParameterEnum di pyhОn è condivisa). Vive qui perché questo è
+# l'unico file che importa _vendor.pyhon.parameter.enum.
+_ENUM_PATCH_LOCK = threading.Lock()
+_ENUM_PATCH_APPLIED = False
 
 
 def create_session(email: str, password: str) -> Any:
@@ -27,3 +38,47 @@ def create_session(email: str, password: str) -> Any:
         raise ImportError("La libreria pyhOn non è installata.") from err
 
     return Hon(email=email, password=password)
+
+
+def ensure_enum_patch() -> None:
+    """Applica una sola volta per processo la patch BABYCARE di HonParameterEnum.
+
+    pyhOn crasha su load_commands() dell'asciugatrice TD perché il valore
+    "BABYCARE" è nell'elenco dei valori ammessi ma il confronto stringa fallisce
+    per un bug interno del setter HonParameterEnum.value. La patch accetta il
+    valore se è già presente in _values.
+
+    È best-effort e idempotente: protetta da un lock di modulo (la classe pyhOn è
+    globale e condivisa tra tutte le config entry) e applicata al più una volta,
+    catturando il setter ORIGINALE una sola volta per non annidare le closure a
+    ogni reauth. In caso di errore il flag resta False, così un setup successivo
+    può ritentare.
+    """
+    global _ENUM_PATCH_APPLIED
+    with _ENUM_PATCH_LOCK:
+        if _ENUM_PATCH_APPLIED:
+            return
+        try:
+            from .._vendor.pyhon.parameter.enum import HonParameterEnum as _HonEnum
+
+            _orig_setter = _HonEnum.value.fset
+
+            def _patched_setter(instance, value):
+                try:
+                    _orig_setter(instance, value)
+                except ValueError:
+                    # Accetta il valore se è già presente nella lista (case-sensitive)
+                    if value in instance._values:
+                        instance._value = value
+                        _LOGGER.debug("Patch enum BABYCARE applicata per valore: %s", value)
+                    else:
+                        raise
+
+            _HonEnum.value = property(
+                _HonEnum.value.fget, _patched_setter, _HonEnum.value.fdel
+            )
+            _ENUM_PATCH_APPLIED = True
+            _LOGGER.debug("Patch HonParameterEnum applicata")
+        except Exception as patch_err:
+            # Best-effort: non impostiamo il flag così un setup successivo ritenta.
+            _LOGGER.warning("Impossibile applicare la patch HonParameterEnum: %s", patch_err)

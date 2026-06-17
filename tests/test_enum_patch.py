@@ -2,7 +2,7 @@
 
 Covers the fix (commit "make HonParameterEnum patch idempotent and
 thread-safe"): the monkey-patch now lives in a module-level, once-only
-_ensure_enum_patch(). Repeated setup/reauth cycles must NOT re-wrap pyhon's
+ensure_enum_patch(). Repeated setup/reauth cycles must NOT re-wrap pyhon's
 global enum setter, the patched semantics (accept values already in _values)
 must hold, and a failed best-effort attempt must leave the flag clear so a
 later setup can retry.
@@ -64,7 +64,7 @@ def _install_min_ha_stubs() -> None:
 
 _install_min_ha_stubs()
 
-# pyhon è vendorizzato sotto questo namespace e _ensure_enum_patch importa da lì.
+# pyhon è vendorizzato sotto questo namespace e ensure_enum_patch importa da lì.
 # Stubbiamo l'intera catena in sys.modules così l'import del patch non esegue i
 # veri __init__ vendorizzati (che tirerebbero dentro aiohttp/awsiotsdk).
 _VENDOR_ENUM = "custom_components.addhon._vendor.pyhon.parameter.enum"
@@ -107,9 +107,11 @@ def _install_buggy_pyhon() -> type:
 
 class EnsureEnumPatchTest(unittest.TestCase):
     def setUp(self) -> None:
-        import custom_components.addhon.hon_client as hon_client
+        # La patch ora vive nell'adattatore-ponte (client/pyhon_adapter), non più
+        # in hon_client: il test la esercita da lì.
+        import custom_components.addhon.client.pyhon_adapter as pyhon_adapter
 
-        self.hc = hon_client
+        self.hc = pyhon_adapter
         # The applied flag is process-global; reset it so each test is isolated.
         self.hc._ENUM_PATCH_APPLIED = False
         self.HonParameterEnum = _install_buggy_pyhon()
@@ -123,14 +125,14 @@ class EnsureEnumPatchTest(unittest.TestCase):
 
     def test_patch_sets_applied_flag(self) -> None:
         self.assertFalse(self.hc._ENUM_PATCH_APPLIED)
-        self.hc._ensure_enum_patch()
+        self.hc.ensure_enum_patch()
         self.assertTrue(self.hc._ENUM_PATCH_APPLIED)
 
     def test_idempotent_no_rewrap_after_repeated_calls(self) -> None:
-        self.hc._ensure_enum_patch()
+        self.hc.ensure_enum_patch()
         first_setter = self.HonParameterEnum.value.fset
         for _ in range(5):  # simulate initial setup + several reauth cycles
-            self.hc._ensure_enum_patch()
+            self.hc.ensure_enum_patch()
         self.assertIs(
             self.HonParameterEnum.value.fset,
             first_setter,
@@ -138,19 +140,19 @@ class EnsureEnumPatchTest(unittest.TestCase):
         )
 
     def test_patched_setter_accepts_value_already_in_values(self) -> None:
-        self.hc._ensure_enum_patch()
+        self.hc.ensure_enum_patch()
         inst = self.HonParameterEnum()
         inst.value = "BABYCARE"  # rejected by original setter, accepted via fallback
         self.assertEqual("BABYCARE", inst._value)
 
     def test_patched_setter_passes_through_valid_value(self) -> None:
-        self.hc._ensure_enum_patch()
+        self.hc.ensure_enum_patch()
         inst = self.HonParameterEnum()
         inst.value = "OK"
         self.assertEqual("OK", inst._value)
 
     def test_patched_setter_still_rejects_unknown_value(self) -> None:
-        self.hc._ensure_enum_patch()
+        self.hc.ensure_enum_patch()
         inst = self.HonParameterEnum()
         with self.assertRaises(ValueError):
             inst.value = "NOPE"
@@ -161,7 +163,7 @@ class EnsureEnumPatchTest(unittest.TestCase):
         sys.modules[_VENDOR_ENUM] = types.ModuleType(_VENDOR_ENUM)
         self.hc._ENUM_PATCH_APPLIED = False
         with self.assertLogs(self.hc._LOGGER.name, level="WARNING"):
-            self.hc._ensure_enum_patch()
+            self.hc.ensure_enum_patch()
         self.assertFalse(self.hc._ENUM_PATCH_APPLIED)
 
 

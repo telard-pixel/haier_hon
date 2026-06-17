@@ -10,6 +10,7 @@ la sessione; `hon_client.py` non importa più `Hon` direttamente da _vendor.
 """
 from __future__ import annotations
 
+import ast
 import importlib.util
 import unittest
 from pathlib import Path
@@ -45,6 +46,28 @@ class SessionAdapterTest(unittest.TestCase):
         self.assertIn("create_session(self._email, self._password)", src)
         # la sessione NON arriva più da un import diretto di _vendor
         self.assertNotIn("from ._vendor.pyhon import Hon", src)
+
+    def test_enum_patch_reached_via_adapter(self) -> None:
+        src = _HON_CLIENT.read_text(encoding="utf-8")
+        self.assertIn(
+            "from .client.pyhon_adapter import create_session, ensure_enum_patch", src
+        )
+        self.assertIn("ensure_enum_patch()", src)
+
+    def test_hon_client_has_no_vendor_imports(self) -> None:
+        # Milestone: TUTTO il coupling a _vendor di hon_client è dietro il ponte.
+        # Controlla gli IMPORT reali (ast), non stringhe/commenti: la riga di log
+        # che cita "_vendor.pyhon.connection.api" è un literal, non un import.
+        tree = ast.parse(_HON_CLIENT.read_text(encoding="utf-8"))
+        vendor_imports: list[str] = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                mod = ("." * (node.level or 0)) + (node.module or "")
+                if "_vendor" in mod:
+                    vendor_imports.append(mod)
+            elif isinstance(node, ast.Import):
+                vendor_imports.extend(a.name for a in node.names if "_vendor" in a.name)
+        self.assertEqual(vendor_imports, [], f"hon_client importa ancora _vendor: {vendor_imports}")
 
 
 if __name__ == "__main__":
