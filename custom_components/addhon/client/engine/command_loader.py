@@ -7,7 +7,7 @@ ripristina l'ultimo stato eseguito di ogni comando.
 `api`/`appliance` duck-typed. Comportamento ancorato a pyhОn dal differential test
 sui dati reali del frigo (commands.json + command_history.json + favourites).
 
-DIVERGENZA enum-casing (eredita lo slice 1, da rivalidare LIVE): i path favourites
+DIVERGENZA enum-casing (da rivalidare LIVE): i path favourites
 (`_update_base_command_with_data`) e recover (`_recover_last_command_states`) scrivono
 nei parametri valori GREZZI (salvati dal cloud/dalla history), che possono avere un
 casing diverso dai `enumValues`. Su un enum il nostro setter accetta il valore se la
@@ -17,7 +17,7 @@ pyhОn+patch invece RIFIUTA un valore ri-castato (e l'errore viene inghiottito d
 enum ri-castato il valore inviato al cloud può differire. Non è validabile offline
 (il frigo non ha favourites, l'AC è offline) e il valore "preservato" di pyhОn è esso
 stesso un artefatto (es. `[dashboard]` con parentesi): si RIMANDA la decisione alla
-validazione live, come per lo slice 1. Sui valori già puliti (caso comune) è identico.
+validazione live. Sui valori già puliti (caso comune) è identico.
 """
 from __future__ import annotations
 

@@ -5,7 +5,7 @@ piu' metadati di categoria/programma. Costruisce i parametri nativi (range/enum/
 fixed/program), raccoglie le rules dai parametri `category=="rule"`, e sa inviarsi
 al cloud via l'api nativa iniettata (appliance.api).
 
-`appliance` e' duck-typed (HonAppliance pyhОn finche' non arriva lo slice 5):
+`appliance` è duck-typed (l'HonAppliance ROOT nativo):
 servono `.api`, `.zone`, `.commands`, `.sync_command_to_params`. Comportamento
 ancorato a pyhОn dal differential test sui comandi reali del frigo.
 

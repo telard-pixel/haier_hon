@@ -1,10 +1,10 @@
-"""API HTTP nativa del cloud hОn (transport addhОn, Fase 3 piece 2).
+"""API HTTP nativa del cloud hОn (transport addhОn).
 
 Riscrittura (NON copia) dei metodi autenticati di `_vendor/pyhon/connection/api.HonAPI`
 sopra il nostro `HonConnection` (che inietta i token per-richiesta e gestisce il
 retry su scadenza/401-403). Ogni metodo ritorna la STESSA shape JSON che il motore
-parser/command_loader di pyhОn si aspetta: è il contratto del piece 3 (l'orchestrazione
-nativa riusa `HonAppliance`/`HonCommandLoader` di pyhОn iniettando QUESTO api).
+parser/command_loader nativo si aspetta: è il contratto verso `HonAppliance`/
+`HonCommandLoader`, che ricevono QUESTO api iniettato.
 
 DUE filosofie, deliberate (come parse.py/tokens.py):
   * COSTRUZIONE RICHIESTA (verbo, path, params, body) = EXACT-PRESERVING: va al
@@ -16,7 +16,7 @@ DUE filosofie, deliberate (come parse.py/tokens.py):
 
 Metodi ANONIMI (appliance_configuration / app_config / translation_keys) NON sono
 qui: usano un handler senza auth e non entrano nel flusso di setup dei nostri
-appliance; restano a pyhОn finché non servono.
+appliance; non implementati perché non usati.
 
 `appliance` è duck-typed (`Any`): leggiamo solo `.appliance_type`, `.appliance_model_id`,
 `.mac_address`, `.code`, `.info` (dict), `.options`. Così `transport/` resta

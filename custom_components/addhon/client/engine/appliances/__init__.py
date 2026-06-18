@@ -1,4 +1,4 @@
-"""Layer per-tipo nativo (Fase 4 slice 4).
+"""Layer per-tipo nativo.
 
 Riscrive (non copia) le appliance per-tipo di pyhОn (`_vendor/pyhon/appliances/`):
 derivazioni CLIENT-SIDE (programName, modi, active/pause, available) e ritocchi alle

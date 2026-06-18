@@ -23,7 +23,6 @@ from .const import (
     AC_ATTR_TEMP,
     AC_ATTR_ON_OFF,
     AC_ATTR_CURRENT_TEMP,
-    AC_ATTR_OUTDOOR_TEMP,
     AC_ATTR_FAN_SPEED,
     AC_ATTR_SWING_V,
     AC_SWING_V_PARAM,

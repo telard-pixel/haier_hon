@@ -1,9 +1,8 @@
-"""HonAppliance ROOT nativo (Fase 4 slice 5). Riscrittura di
-`_vendor/pyhon/appliance.HonAppliance` — l'ultimo pezzo del motore pyhОn.
+"""HonAppliance ROOT nativo. Riscrittura di `_vendor/pyhon/appliance.HonAppliance`.
 
 Mette insieme tutto il motore NOSTRO: attributi nativi (engine.attributes), loader/
 commands/rules/program nativi (engine.command_loader), layer per-tipo nativo
-(engine.appliances.registry). Con questo `_vendor/` non serve più.
+(engine.appliances.registry).
 
 Implementa SOLO la superficie realmente consumata (misurata su integrazione + sessione
 + engine): proprietà identificative/stato, load_*/update, settings/data/command_parameters,

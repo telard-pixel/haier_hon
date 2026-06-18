@@ -170,9 +170,9 @@ class HonAuth:
         self.id_token = tokens.id_token
 
     async def _api_auth(self) -> None:
-        # Shim di transizione: il nostro HonDevice espone payload(), quello di
-        # pyhОn (quando questo auth è iniettato nel suo handler durante il flip)
-        # espone get(). Stesso dizionario in entrambi i casi.
+        # Il nostro HonDevice espone payload(); il ramo get() è un fallback difensivo
+        # per un device che esponga la vecchia interfaccia. Stesso dizionario in
+        # entrambi i casi.
         device_payload = (
             self._device.payload()
             if hasattr(self._device, "payload")

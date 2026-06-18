@@ -1,4 +1,4 @@
-"""Registry per-tipo nativo (Fase 4 slice 4).
+"""Registry per-tipo nativo.
 
 Sostituisce l'`importlib.import_module(f"...appliances.{type}")` dinamico di pyhОn con
 una mappa STATICA tipo->classe: niente import a runtime, dipendenze esplicite, e l'IDE/

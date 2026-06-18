@@ -1,23 +1,18 @@
-"""Orchestrazione `Hon` nativa di addhОn (Fase 3 piece 3).
+"""Orchestrazione `NativeHon` di addhОn (rimpiazza l'ex `pyhon.Hon`).
 
-Riscrive `_vendor/pyhon/hon.Hon` (il "chi coordina il setup") sopra il NOSTRO
-transport nativo (`transport.connection.HonConnection` + `transport.api.HonApi`),
-RIUSANDO il motore parser di pyhОn (`HonAppliance`/`HonCommandLoader`/parser),
-a cui inietta il nostro `api`. È il penultimo passo dello strangler: quando regge
-live, il piece 4 fa puntare `pyhon_adapter.create_session` qui e cancella
-`_vendor/connection/`.
+Coordina il setup sopra il transport nativo (`transport.connection.HonConnection` +
+`transport.api.HonApi`) e costruisce gli appliance nativi (`engine.appliance.HonAppliance`)
+via il factory `pyhon_adapter.create_appliance`, a cui inietta il nostro `api`.
 
-Confine: questo file è `_vendor`-free. La costruzione dell'oggetto-motore di pyhОn
-(HonAppliance) passa dall'UNICO ponte `pyhon_adapter` (MIGRATION.md regola 1); il
-MQTT è ora NATIVO (`transport.mqtt.NativeMqttClient`, import lazy in `_make_mqtt`).
-`NativeHon` soddisfa il Protocol `interfaces.HonSession` ed espone `.api`/
-`.appliances`/`subscribe_updates`/`notify` come il `Hon` di pyhОn (il client MQTT
-legge proprio quei membri).
+Confine: la costruzione dell'appliance passa dal factory `pyhon_adapter` (MIGRATION.md
+regola 1); il MQTT è NATIVO (`transport.mqtt.NativeMqttClient`, import lazy in `_make_mqtt`).
+`NativeHon` soddisfa il Protocol `interfaces.HonSession` ed espone `.api`/`.appliances`/
+`subscribe_updates`/`notify` (il client MQTT legge proprio quei membri).
 
-Sequenza di setup (fedele a pyhОn): create connessione → `api.load_appliances()`
-→ per ogni appliance costruisci HonAppliance e carica commands/attributes/statistics
-(motore pyhОn col nostro api) → avvia MQTT. L'ordine conta: i load_* fanno le prime
-richieste HTTP che popolano i token, così quando MQTT parte `api.auth.id_token` c'è.
+Sequenza di setup: crea connessione → `api.load_appliances()` → per ogni appliance
+costruisci l'HonAppliance e carica commands/attributes/statistics → avvia MQTT. L'ordine
+conta: i load_* fanno le prime richieste HTTP che popolano i token, così quando MQTT parte
+`api.auth.id_token` c'è.
 """
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""HonAttribute nativo (Fase 4 slice 2).
+"""HonAttribute nativo.
 
 Porting di `_vendor/pyhon/attributes.HonAttribute`. Un "attribute" è un valore di
 stato che arriva dallo shadow del device (`shadow.parameters.<name> =

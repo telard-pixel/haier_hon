@@ -4,9 +4,10 @@ Porting di `_vendor/pyhon/parameter/enum.py`. UNICA divergenza voluta: il setter
 pyhОn confronta il valore GREZZO in ingresso contro `self.values` che è GIA'
 normalizzato da `clean_value` (lowercase, strip `[]`, `|`->`_`). Così un valore con
 casing del cloud (es. "BABYCARE") non combacia mai con ["babycare"] -> ValueError.
-È il bug che in produzione tappiamo col monkeypatch `ensure_enum_patch`.
+È il bug BABYCARE, qui FIXATO alla radice (il vecchio monkeypatch su pyhОn non esiste
+più).
 
-Qui lo FIXIAMO alla radice: il setter normalizza il valore in ingresso con lo
+Il setter normalizza il valore in ingresso con lo
 STESSO `clean_value` prima del confronto. Accetta sia "BABYCARE" sia "babycare";
 memorizza il valore grezzo (così `intern_value` resta grezzo = ciò che si invia al
 cloud). Sul caso reale (valori già puliti del frigo) e sulla superficie che
@@ -15,8 +16,8 @@ comportamento è IDENTICO a pyhОn+patch: lo verifica il differential test su 67
 parametri reali.
 
 DIVERGENZE VOLUTE da pyhОn+patch su valori-edge (cased/`|`/`[]`), tutte = native
-PIÙ CORRETTO (il patch è un bolt-on incoerente), da rivalidare LIVE sull'AC al
-flip del cluster (l'oracolo vero lì è l'app, non pyhОn — vedi FASE4 plan):
+PIÙ CORRETTO (il patch era un bolt-on incoerente), da rivalidare LIVE sull'AC
+(l'oracolo vero lì è l'app, non pyhОn, vedi FASE4 plan):
   1. TRIGGER: native chiama `check_trigger` su OGNI valore accettato (come il ramo
      normale di pyhОn); il fallback del patch impostava `_value` ma DIMENTICAVA il
      trigger -> su valori col casing del cloud le rules non cascatavano. Native le fa
@@ -26,10 +27,8 @@ flip del cluster (l'oracolo vero lì è l'app, non pyhОn — vedi FASE4 plan):
      grezzi o puliti. L'integrazione imposta sempre forme pulite da `param.values`,
      quindi in pratica non cambia.
   3. `|`-STRING: con `enumValues` come STRINGA "A|B|C" il patch accettava per un
-     QUIRK di substring (`"A|B|C" in "A|B|C"`); native no. Caso degenere; la
-     gestione corretta dello split `|` arriverà col cluster (l'app lo splitta).
-=> quando il cluster nativo sostituirà pyhОn, `ensure_enum_patch` e il suo test si
-eliminano.
+     QUIRK di substring (`"A|B|C" in "A|B|C"`); native no. Caso degenere; lo split `|`
+     corretto è gestito a monte (l'app lo splitta).
 """
 from __future__ import annotations
 

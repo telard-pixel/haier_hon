@@ -21,8 +21,8 @@ MODELLO rules — RISOLTO sull'AC live (2026-06-18, vedi apk/analysis/rules-mode
   parametro) NON scattano (come in pyhОn: `$` non strippato, options vuote a
   costruzione); impatto basso (remoteVisible/selfClean), non implementato alla cieca.
 
-`isinstance` qui è contro le classi parametro NATIVE: è il motivo per cui il flip
-avviene a CLUSTER (params+commands+rules insieme).
+`isinstance` qui è contro le classi parametro NATIVE: parametri, comandi e rules sono
+un cluster coeso.
 """
 from __future__ import annotations
 
@@ -167,7 +167,7 @@ class HonRuleSet:
         if enum_values := rule.param_data.get("enumValues"):
             param.values = enum_values.split("|")
         if default_value := rule.param_data.get("defaultValue"):
-            # NB enum-casing (eredita slice 1): se `defaultValue` ha un casing diverso
+            # NB enum-casing: se `defaultValue` ha un casing diverso
             # dai suoi `enumValues`, il nostro setter lo accetta (fix BABYCARE) mentre
             # pyhОn+patch solleverebbe (e il chiamante del trigger inghiotte l'errore).
             # Caso degenere, non validabile offline -> rimandato a live-AC.

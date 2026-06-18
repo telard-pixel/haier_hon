@@ -1,25 +1,23 @@
-"""Client MQTT nativo addhОn (push realtime AWS IoT, Fase 3 piece 4b).
+"""Client MQTT nativo addhОn (push realtime AWS IoT).
 
 Riscrittura (non copia) di `_vendor/pyhon/connection/mqtt.MQTTClient` con awscrt
-diretto: è l'ULTIMO pezzo di `_vendor/connection/` che ancora usavamo, quindi
-riscriverlo qui sblocca la cancellazione di quella cartella.
+diretto: rimpiazza l'ex `_vendor/pyhon/connection/mqtt` con awscrt diretto.
 
 Riceve la sessione (`NativeHon`) e ne legge `api` (token: `load_aws_token` +
-`auth.id_token`), `appliances`, `notify` — tutto duck-typed: questo modulo resta
-`_vendor`-free (gli `appliance` sono il motore parser pyhОn riusato, toccato solo
-via la sua interfaccia pubblica).
+`auth.id_token`), `appliances`, `notify` (tutto duck-typed): gli `appliance` sono il
+motore parser nativo, toccato solo via la sua interfaccia pubblica.
 
 Migliorie deliberate rispetto a pyhОn:
 - un vero `stop()` (cancella+attende il watchdog PRIMA di fermare il client, così
-  un `_start()` in volo non ricrea una connessione orfana) — pyhОn non lo aveva
+  un `_start()` in volo non ricrea una connessione orfana), che pyhОn non aveva
   (leak di una connessione AWS IoT per reload);
 - `_on_publish_received` difensivo: appliance non trovato per il topic / parametri
   mancanti -> skip invece del crash (pyhОn faceva `next(...)`/`payload["parameters"]`
   che sollevano). Identico a pyhОn quando ogni `parName` del messaggio è già presente
   in `attributes["parameters"]` (seminato dal poll HTTP `load_attributes`); un parName
   MQTT mai visto prima viene SALTATO (pyhОn crashava e non lo riteneva comunque; il
-  successivo poll HTTP lo recupera). Quando il motore sarà nostro (Fase 4) potremo
-  crearne la voce al volo senza dipendere da `_vendor`.
+  successivo poll HTTP lo recupera). Sul motore nativo potremmo crearne la voce al
+  volo, opzione non ancora necessaria.
 
 awscrt/awsiot sono importati al top (come pyhОn): il modulo NON è importabile a
 secco; chi lo usa (`NativeHon`) lo importa lazy. Il rumore INFO del lifecycle è

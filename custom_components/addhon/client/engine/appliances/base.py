@@ -5,11 +5,9 @@ Hook per-tipo sullo stato dell'appliance:
 - `settings(result)`: ritocca il dict settings (default: no-op).
 
 `parent` è l'appliance (duck-typed): servono `.settings`, `.connection`.
-I VALORI in `data["parameters"][...]` sono `HonAttribute` (ancora di pyhОn finché lo
-slice 5 non flippa gli attributi): li leggiamo duck-typed via `.value`/`str()`.
-Gli `isinstance` invece sono contro le classi PARAMETRO native (i parametri sono già
-nativi dopo il flip del cluster) — è il motivo per cui per-tipo (slice 4) e cluster
-(slice 3) flippano insieme.
+I VALORI in `data["parameters"][...]` sono `HonAttribute` (nativi): li leggiamo
+duck-typed via `.value`/`str()`. Gli `isinstance` invece sono contro le classi
+PARAMETRO native.
 
 Helper di confronto: pyhОn confrontava `HonAttribute == "1"` che è SEMPRE False
 (nessun `__eq__`) -> ref/td/wm pause erano no-op rotti. Qui confrontiamo per VALORE
@@ -62,9 +60,9 @@ class ApplianceExtra:
             if isinstance(start_cmd, HonParameterProgram) and (ids := start_cmd.ids):
                 program_name = ids.get(program, program_name)
         data["programName"] = program_name
-        # available: connettività come attributo first-class (modello app). Additivo;
-        # lo zeroing offline resta nelle per-tipo come layer di compat finché le entità
-        # non passano a `available`. (Vedi apk/analysis/per-type-derivations.md #5.)
+        # available: connettività come attributo first-class (modello app). L'offline
+        # è gestito dalla disponibilità entità (base_entity), non più con lo zeroing
+        # dei parametri. (Vedi apk/analysis/per-type-derivations.md #5.)
         data["available"] = bool(self.parent.connection)
         return data
 

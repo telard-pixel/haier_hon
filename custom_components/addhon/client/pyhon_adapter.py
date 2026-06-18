@@ -26,16 +26,12 @@ _NATIVE_APPLIANCE_CLS: Any = None
 def create_session(email: str, password: str) -> Any:
     """Crea la sessione hОn NATIVA (`client.session.NativeHon`).
 
-    FLIP COMPLETO del transport (Fase 3 piece 4): auth, connessione, api, MQTT e
-    orchestrazione sono NOSTRI; di pyhОn resta solo il motore parser
-    (HonAppliance/HonCommandLoader, riusato dentro NativeHon). Prima qui si creava un
-    `pyhon.Hon` col nostro auth INIETTATO (`install_native_auth`, ora superato): il
-    transport pyhОn non gira più in produzione. Il chiamante la usa identica a prima
+    Auth, connessione, api, MQTT, orchestrazione e motore parser sono tutti NOSTRI
+    (pyhОn cancellato). Il chiamante la usa come context manager async
     (`__aenter__()` → `.appliances`).
 
     Import lazy di `NativeHon`: evita il ciclo (session.py importa questo modulo) e
-    tiene `pyhon_adapter` importabile a secco (gli import di _vendor restano lazy,
-    nei factory `create_appliance`/`ensure_enum_patch`).
+    tiene `pyhon_adapter` importabile a secco (`NativeHon` tira dentro awscrt via MQTT).
     """
     from .session import NativeHon
 
@@ -45,10 +41,8 @@ def create_session(email: str, password: str) -> Any:
 def _native_engine_appliance_cls() -> Any:
     """Ritorna la classe ROOT appliance NATIVA (`engine.appliance.HonAppliance`).
 
-    Fase 4 slice 5: il ROOT è ora interamente nostro (prima era una sottoclasse del ROOT
-    pyhОn col motore iniettato; ora è una classe standalone che usa attributi/loader/
-    commands/rules/program/per-tipo TUTTI nativi). `_vendor` non è più coinvolto. Lazy
-    (l'engine importa senza awscrt), cachata per processo.
+    Il ROOT è una classe standalone che usa attributi/loader/commands/rules/program/
+    per-tipo TUTTI nativi. Import lazy (l'engine importa senza awscrt), cachata per processo.
     """
     global _NATIVE_APPLIANCE_CLS
     if _NATIVE_APPLIANCE_CLS is None:
@@ -59,7 +53,7 @@ def _native_engine_appliance_cls() -> Any:
 
 
 def create_appliance(api: Any, appliance_data: dict, zone: int = 0) -> Any:
-    """Costruisce l'appliance ROOT NATIVA (Fase 4 slice 5 — distacco TOTALE da pyhОn).
+    """Costruisce l'appliance ROOT NATIVA (distacco TOTALE da pyhОn).
 
     Tutto il motore (loader/commands/rules/program/parametri/attributi/per-tipo + ROOT)
     è nostro: `_vendor` non viene più importato. L'oggetto ritornato è conforme al

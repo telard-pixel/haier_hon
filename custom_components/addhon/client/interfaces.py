@@ -1,10 +1,9 @@
-"""Seam di migrazione: i Protocol che definiscono l'ESATTA superficie del client
-hОn da cui dipende l'integrazione.
+"""I Protocol che definiscono l'ESATTA superficie del client hОn da cui dipende
+l'integrazione.
 
-Questo file è la frontiera dello strangler pattern verso il client nativo. Oggi
-gli oggetti concreti del pyhОn vendorizzato soddisfano (per duck-typing) questi
-Protocol; domani li soddisferà l'implementazione nativa. Catturando qui SOLO ciò
-che usiamo davvero, il contratto da reimplementare resta minuscolo e verificabile.
+È il contratto su cui poggia il corpo dell'integrazione: gli oggetti concreti del
+client nativo lo soddisfano per duck-typing. Catturando qui SOLO ciò che usiamo
+davvero, il contratto resta minuscolo e verificabile.
 
 La superficie sotto è stata misurata sul codice reale (entità + hon_client):
 `.value` (read/write), `.values`, range `.min/.max/.step`, command `.parameters`
@@ -12,10 +11,8 @@ La superficie sotto è stata misurata sul codice reale (entità + hon_client):
 `.attributes`/`.statistics`/`.appliance_type`/`.model_id`, session `.appliances`
 + context manager async. Nient'altro.
 
-VINCOLO: questo modulo è SENZA dipendenze (solo `typing`). Non importa né
-homeassistant né _vendor.pyhon, così è il punto fisso su cui far combaciare sia
-pyhОn (oggi) sia il client nativo (domani), e i test possono asserire la
-conformità con `isinstance(..., Protocol)`.
+VINCOLO: questo modulo è SENZA dipendenze (solo `typing`), così i test possono
+asserire la conformità con `isinstance(..., Protocol)`.
 """
 from __future__ import annotations
 
@@ -86,8 +83,7 @@ class HonSession(Protocol):
     (`async with Session(email, password) as s: s.appliances`).
 
     `appliances` è la lista (completa, inclusi offline dal fix unified-api).
-    Questo è il livello che, oggi, il nostro hon_client costruisce da
-    `_vendor.pyhon.Hon`; domani lo costruirà l'auth/transport nativo.
+    La costruisce l'auth/transport nativo (`client.session.NativeHon`).
     """
 
     appliances: Sequence[Appliance]
