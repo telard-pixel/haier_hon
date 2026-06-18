@@ -129,6 +129,7 @@ def _install_homeassistant_stubs() -> None:
         RUNNING = "running"
         OCCUPANCY = "occupancy"
         LIGHT = "light"
+        CONNECTIVITY = "connectivity"
 
     binary_mod.BinarySensorEntityDescription = getattr(binary_mod, "BinarySensorEntityDescription", BinarySensorEntityDescription)
     binary_mod.BinarySensorEntity = getattr(binary_mod, "BinarySensorEntity", BinarySensorEntity)
@@ -318,7 +319,7 @@ class Tier2BinaryGatingTest(unittest.IsolatedAsyncioTestCase):
         added = await _build_binary("REF", {"doorStatusZ1": "1", "icemakerOnOffStatus": "0"})
         self.assertEqual(
             {e._attr_unique_id for e in added},
-            {"x-1_door_zone1", "x-1_ice_maker"},
+            {"x-1_door_zone1", "x-1_ice_maker", "x-1_connectivity"},
         )
         door = next(e for e in added if e._attr_unique_id == "x-1_door_zone1")
         self.assertTrue(door.is_on)
@@ -327,14 +328,35 @@ class Tier2BinaryGatingTest(unittest.IsolatedAsyncioTestCase):
         added = await _build_binary("IH", {"panStatusZ1": "1", "panStatusZ3": "0"})
         self.assertEqual(
             {e._attr_unique_id for e in added},
-            {"x-1_pan_zone1", "x-1_pan_zone3"},
+            {"x-1_pan_zone1", "x-1_pan_zone3", "x-1_connectivity"},
         )
 
     async def test_water_heater_binary(self) -> None:
         added = await _build_binary("WH", {"lockStatus": "1"})
-        self.assertEqual({e._attr_unique_id for e in added}, {"x-1_child_lock"})
-        lock = next(iter(added))
+        self.assertEqual({e._attr_unique_id for e in added}, {"x-1_child_lock", "x-1_connectivity"})
+        lock = next(e for e in added if e._attr_unique_id == "x-1_child_lock")
         self.assertTrue(lock.is_on)
+
+
+class ConnectivityBinaryTest(unittest.IsolatedAsyncioTestCase):
+    async def _conn(self, attributes):
+        added = await _build_binary("AC", attributes)  # AC: nessun set per-tipo
+        return next(e for e in added if e._attr_unique_id == "x-1_connectivity")
+
+    async def test_created_for_type_without_pertype_set(self) -> None:
+        added = await _build_binary("AC", {"available": True})
+        self.assertEqual({e._attr_unique_id for e in added}, {"x-1_connectivity"})
+
+    async def test_is_on_reflects_available(self) -> None:
+        self.assertTrue((await self._conn({"available": True})).is_on)
+        self.assertFalse((await self._conn({"available": False})).is_on)
+        self.assertIsNone((await self._conn({})).is_on)
+
+    async def test_stays_available_when_device_disconnected(self) -> None:
+        # il sensore connettività deve restare DISPONIBILE per poter dire 'disconnesso'
+        conn = await self._conn({"available": False})
+        self.assertTrue(conn.available)
+        self.assertFalse(conn.is_on)
 
 
 if __name__ == "__main__":

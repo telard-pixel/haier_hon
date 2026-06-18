@@ -89,14 +89,22 @@ class HonBaseEntity(CoordinatorEntity):
         mostrare valori stantii. Sostituisce il vecchio zeroing offline lato motore.
         Default True se l'attributo manca (device che ha errato il primo load): non
         nascondere a sproposito.
+
+        NB: il binary_sensor di connettività esclude il gate `available` (deve restare
+        disponibile per segnalare 'disconnesso'): usa `_present` direttamente.
         """
-        if not (
+        return self._present and bool(self._attributes.get("available", True))
+
+    @property
+    def _present(self) -> bool:
+        """Coordinator ok + questo appliance presente nei dati, SENZA il gate di
+        connettività. Base per `available` e per le entità che devono restare
+        disponibili anche offline (connettività)."""
+        return (
             super().available
             and isinstance(self.coordinator.data, dict)
             and self._appliance_id in self.coordinator.data
-        ):
-            return False
-        return bool(self._attributes.get("available", True))
+        )
 
     def _get_attr(self, key: str, default=None):
         """Recupera un attributo del dispositivo.

@@ -97,6 +97,16 @@ _DRY_CLEAN = HonBinarySensorEntityDescription(
     device_class=BinarySensorDeviceClass.PROBLEM,
 )
 
+# Connettività: UNIVERSALE (ogni device) e SEMPRE disponibile (deve poter segnalare
+# 'disconnesso'). Legge il flag `available` (dal motore, da lastConnEvent.category).
+# on = connesso.
+_CONNECTIVITY = HonBinarySensorEntityDescription(
+    key="connectivity",
+    name="Connettività",
+    attr_key="available",
+    device_class=BinarySensorDeviceClass.CONNECTIVITY,
+)
+
 # Set per-tipo (candidati; il capability-gate scarta quelli non presenti sul device).
 _WASH_BINARY: tuple[HonBinarySensorEntityDescription, ...] = (
     _DOOR_OPEN, _DOOR_LOCK, _CHILD_LOCK, _DRUM_CLEAN, _FILTER_CLEAN, _DRY_CLEAN,
@@ -254,6 +264,10 @@ async def async_setup_entry(
                 continue
             entities.append(HonBinarySensor(coordinator, appliance_id, description))
             created.append(description.key)
+        # Connettività: universale (ogni tipo, anche quelli senza set per-tipo) e non
+        # capability-gated: deve esistere sempre per segnalare lo stato di connessione.
+        entities.append(HonConnectivityBinarySensor(coordinator, appliance_id, _CONNECTIVITY))
+        created.append(_CONNECTIVITY.key)
         _LOGGER.debug(
             "Binary debug: '%s' (type=%s, id=%s) -> %d binary sensor %s",
             data.get("name"), app_type, appliance_id, len(created), created,
@@ -284,3 +298,20 @@ class HonBinarySensor(HonBaseEntity, BinarySensorEntity):
         if raw is None:
             return None
         return str(raw) == self.entity_description.on_value
+
+
+class HonConnectivityBinarySensor(HonBinarySensor):
+    """Connettività del device. SEMPRE disponibile (anche se il device è offline): deve
+    poter segnalare 'disconnesso'. `on` = connesso. Bypassa il gate di disponibilità di
+    base_entity (che renderebbe unavailable proprio quando serve)."""
+
+    @property
+    def available(self) -> bool:
+        # niente gate connettività: basta che il coordinator sia ok e l'appliance presente
+        return self._present
+
+    @property
+    def is_on(self) -> bool | None:
+        # `available` è un bool (dal motore), non un raw "1"/"0": leggilo direttamente
+        val = self._attributes.get("available")
+        return None if val is None else bool(val)
