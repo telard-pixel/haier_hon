@@ -54,9 +54,13 @@ il transport; il motore (stabile e complesso) si tiene il più a lungo possibile
   - [x] piece 2 — `transport/api.py` (`HonApi`): i metodi HTTP (`load_*`/`send_command`)
     sopra `HonConnection`, drop-in del `HonAPI` pyhОn per il motore parser.
     Richieste byte-identiche al cloud, estrazione difensiva, differential test offline.
-  - [ ] piece 3 — orchestrazione `Hon` nativa: `__aenter__` → auth + load_appliances →
-    costruisce gli appliance RIUSANDO `HonAppliance`/`HonCommandLoader` di pyhОn,
-    espone il Protocol `HonSession` (+ `.api`/`.appliances` per MQTT).
+  - [x] piece 3 — orchestrazione `Hon` nativa: `client/session.py` (`NativeHon`),
+    `__aenter__` → auth + load_appliances → costruisce gli appliance RIUSANDO
+    `HonAppliance`/`HonCommandLoader` di pyhОn (via i factory `pyhon_adapter.create_appliance`/
+    `create_mqtt`, così `session.py` resta _vendor-free). Espone `HonSession` + `.api`/
+    `.appliances`/`subscribe_updates`/`notify` (il `MQTTClient` riusato li legge). MQTT
+    gated da `enable_mqtt` (default True = pyhОn). Test offline + LIVE-validato: stessi 4
+    appliance/fingerprint di pyhОn, MQTT smoke OK sopra la sessione nativa.
   - [ ] piece 4 — FULL FLIP: `create_session` ritorna il `Hon` nativo → si cancella
     `_vendor/connection/` (handler/api/auth/device-HTTP/mqtt) + `scripts/vendor_pyhon.py`.
 - [ ] **Fase 4 — motore parser nativo (= distacco TOTALE, la meta).** Riscrivere

@@ -72,6 +72,33 @@ def create_session(email: str, password: str) -> Any:
     return Hon(email=email, password=password)
 
 
+def create_appliance(api: Any, appliance_data: dict, zone: int = 0) -> Any:
+    """Costruisce un HonAppliance di pyhОn (il MOTORE parser che ancora riusiamo).
+
+    Il `Hon` nativo (`client/session.py`) orchestra il setup ma RIUSA questo
+    motore, iniettandogli il NOSTRO `api` (transport.api.HonApi). Tenere la
+    costruzione qui mantiene `pyhon_adapter` l'UNICO file di `client/` che importa
+    `_vendor.pyhon` (MIGRATION.md regola 1). L'oggetto ritornato è conforme al
+    Protocol `interfaces.Appliance` (duck-typing). Import lazy.
+    """
+    from .._vendor.pyhon.appliance import HonAppliance
+
+    return HonAppliance(api, appliance_data, zone=zone)
+
+
+async def create_mqtt(hon: Any, mobile_id: str) -> Any:
+    """Avvia il MQTTClient di pyhОn (push background AWS IoT) per la sessione nativa.
+
+    pyhОn lo crea in `Hon.setup()`; lo riusiamo finché non riscriviamo/decidiamo
+    il transport MQTT (è in `_vendor/connection/`, bersaglio del piece 4). Import
+    lazy: `mqtt.py` importa awscrt/awsiot, assenti negli ambienti di test offline.
+    `MQTTClient` legge `hon.api`, `hon.appliances`, `hon.notify` dall'oggetto passato.
+    """
+    from .._vendor.pyhon.connection.mqtt import MQTTClient
+
+    return await MQTTClient(hon, mobile_id).create()
+
+
 def ensure_enum_patch() -> None:
     """Applica una sola volta per processo la patch BABYCARE di HonParameterEnum.
 
