@@ -1,0 +1,430 @@
+{
+  "construct": {
+    "debugEnabled": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "0",
+      "value": 0,
+      "value_type": "int"
+    },
+    "doorStatusZ1": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "0",
+      "value": 0,
+      "value_type": "int"
+    },
+    "errors": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "00",
+      "value": 0,
+      "value_type": "int"
+    },
+    "highTransRate": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "1",
+      "value": 1,
+      "value_type": "int"
+    },
+    "holidayMode": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "0",
+      "value": 0,
+      "value_type": "int"
+    },
+    "humidityEnv": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "65",
+      "value": 65,
+      "value_type": "int"
+    },
+    "intelligenceMode": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "0",
+      "value": 0,
+      "value_type": "int"
+    },
+    "quickModeZ1": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "0",
+      "value": 0,
+      "value_type": "int"
+    },
+    "quickModeZ2": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "0",
+      "value": 0,
+      "value_type": "int"
+    },
+    "statusSyncRate": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "1440",
+      "value": 1440,
+      "value_type": "int"
+    },
+    "stdTransRate": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "3600",
+      "value": 3600,
+      "value_type": "int"
+    },
+    "tempEnv": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "19",
+      "value": 19,
+      "value_type": "int"
+    },
+    "tempSelZ1": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "2",
+      "value": 2,
+      "value_type": "int"
+    },
+    "tempSelZ2": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "-24",
+      "value": -24,
+      "value_type": "int"
+    },
+    "tempSelZ3": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "5",
+      "value": 5,
+      "value_type": "int"
+    },
+    "transMode": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "0",
+      "value": 0,
+      "value_type": "int"
+    }
+  },
+  "dict_update": {
+    "debugEnabled": {
+      "last_update": "2024-05-01 12:00:00",
+      "lock": false,
+      "str": "7",
+      "value": 7,
+      "value_type": "int"
+    },
+    "doorStatusZ1": {
+      "last_update": "2024-05-01 12:00:00",
+      "lock": false,
+      "str": "7",
+      "value": 7,
+      "value_type": "int"
+    },
+    "errors": {
+      "last_update": "2024-05-01 12:00:00",
+      "lock": false,
+      "str": "7",
+      "value": 7,
+      "value_type": "int"
+    },
+    "highTransRate": {
+      "last_update": "2024-05-01 12:00:00",
+      "lock": false,
+      "str": "7",
+      "value": 7,
+      "value_type": "int"
+    },
+    "holidayMode": {
+      "last_update": "2024-05-01 12:00:00",
+      "lock": false,
+      "str": "7",
+      "value": 7,
+      "value_type": "int"
+    },
+    "humidityEnv": {
+      "last_update": "2024-05-01 12:00:00",
+      "lock": false,
+      "str": "7",
+      "value": 7,
+      "value_type": "int"
+    },
+    "intelligenceMode": {
+      "last_update": "2024-05-01 12:00:00",
+      "lock": false,
+      "str": "7",
+      "value": 7,
+      "value_type": "int"
+    },
+    "quickModeZ1": {
+      "last_update": "2024-05-01 12:00:00",
+      "lock": false,
+      "str": "7",
+      "value": 7,
+      "value_type": "int"
+    },
+    "quickModeZ2": {
+      "last_update": "2024-05-01 12:00:00",
+      "lock": false,
+      "str": "7",
+      "value": 7,
+      "value_type": "int"
+    },
+    "statusSyncRate": {
+      "last_update": "2024-05-01 12:00:00",
+      "lock": false,
+      "str": "7",
+      "value": 7,
+      "value_type": "int"
+    },
+    "stdTransRate": {
+      "last_update": "2024-05-01 12:00:00",
+      "lock": false,
+      "str": "7",
+      "value": 7,
+      "value_type": "int"
+    },
+    "tempEnv": {
+      "last_update": "2024-05-01 12:00:00",
+      "lock": false,
+      "str": "7",
+      "value": 7,
+      "value_type": "int"
+    },
+    "tempSelZ1": {
+      "last_update": "2024-05-01 12:00:00",
+      "lock": false,
+      "str": "7",
+      "value": 7,
+      "value_type": "int"
+    },
+    "tempSelZ2": {
+      "last_update": "2024-05-01 12:00:00",
+      "lock": false,
+      "str": "7",
+      "value": 7,
+      "value_type": "int"
+    },
+    "tempSelZ3": {
+      "last_update": "2024-05-01 12:00:00",
+      "lock": false,
+      "str": "7",
+      "value": 7,
+      "value_type": "int"
+    },
+    "transMode": {
+      "last_update": "2024-05-01 12:00:00",
+      "lock": false,
+      "str": "7",
+      "value": 7,
+      "value_type": "int"
+    }
+  },
+  "missing_parnewval": [
+    {
+      "last_update": "2024-01-01 00:00:00",
+      "lock": false,
+      "str": "",
+      "value": "",
+      "value_type": "str"
+    },
+    {
+      "last_update": null,
+      "lock": false,
+      "str": "",
+      "value": "",
+      "value_type": "str"
+    }
+  ],
+  "nonstring": {
+    "5.5": 5,
+    "7": 7,
+    "True": 1
+  },
+  "str_update": {
+    "debugEnabled": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "42",
+      "value": 42,
+      "value_type": "int"
+    },
+    "doorStatusZ1": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "42",
+      "value": 42,
+      "value_type": "int"
+    },
+    "errors": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "42",
+      "value": 42,
+      "value_type": "int"
+    },
+    "highTransRate": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "42",
+      "value": 42,
+      "value_type": "int"
+    },
+    "holidayMode": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "42",
+      "value": 42,
+      "value_type": "int"
+    },
+    "humidityEnv": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "42",
+      "value": 42,
+      "value_type": "int"
+    },
+    "intelligenceMode": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "42",
+      "value": 42,
+      "value_type": "int"
+    },
+    "quickModeZ1": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "42",
+      "value": 42,
+      "value_type": "int"
+    },
+    "quickModeZ2": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "42",
+      "value": 42,
+      "value_type": "int"
+    },
+    "statusSyncRate": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "42",
+      "value": 42,
+      "value_type": "int"
+    },
+    "stdTransRate": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "42",
+      "value": 42,
+      "value_type": "int"
+    },
+    "tempEnv": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "42",
+      "value": 42,
+      "value_type": "int"
+    },
+    "tempSelZ1": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "42",
+      "value": 42,
+      "value_type": "int"
+    },
+    "tempSelZ2": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "42",
+      "value": 42,
+      "value_type": "int"
+    },
+    "tempSelZ3": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "42",
+      "value": 42,
+      "value_type": "int"
+    },
+    "transMode": {
+      "last_update": "1970-01-01 00:00:00+00:00",
+      "lock": false,
+      "str": "42",
+      "value": 42,
+      "value_type": "int"
+    }
+  },
+  "synthetic_values": {
+    "": {
+      "last_update": null,
+      "lock": false,
+      "str": "",
+      "value": "",
+      "value_type": "str"
+    },
+    " 5 ": {
+      "last_update": null,
+      "lock": false,
+      "str": " 5 ",
+      "value": 5,
+      "value_type": "int"
+    },
+    "-16": {
+      "last_update": null,
+      "lock": false,
+      "str": "-16",
+      "value": -16,
+      "value_type": "int"
+    },
+    "-3,25": {
+      "last_update": null,
+      "lock": false,
+      "str": "-3,25",
+      "value": -3.25,
+      "value_type": "float"
+    },
+    "00": {
+      "last_update": null,
+      "lock": false,
+      "str": "00",
+      "value": 0,
+      "value_type": "int"
+    },
+    "12.0": {
+      "last_update": null,
+      "lock": false,
+      "str": "12.0",
+      "value": 12.0,
+      "value_type": "float"
+    },
+    "5,5": {
+      "last_update": null,
+      "lock": false,
+      "str": "5,5",
+      "value": 5.5,
+      "value_type": "float"
+    },
+    "5.5": {
+      "last_update": null,
+      "lock": false,
+      "str": "5.5",
+      "value": 5.5,
+      "value_type": "float"
+    },
+    "abc": {
+      "last_update": null,
+      "lock": false,
+      "str": "abc",
+      "value": "abc",
+      "value_type": "str"
+    }
+  }
+}

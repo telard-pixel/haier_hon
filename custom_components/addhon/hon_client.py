@@ -11,8 +11,9 @@ from .debug_utils import debug_key_sample, redact_email
 
 _LOGGER = logging.getLogger(__name__)
 
-# La patch BABYCARE di HonParameterEnum vive nell'adattatore-ponte
-# (client/pyhon_adapter.ensure_enum_patch): è l'unico punto che importa _vendor.
+# Il client hОn è interamente nativo (client/): la sessione arriva da
+# client.pyhon_adapter.create_session. pyhОn (_vendor/) è stato cancellato in Fase 4;
+# il fix BABYCARE è nativo nella classe enum.
 
 _SERIAL_ATTRS = ("serial_number", "serialNumber", "mac_address", "macAddress", "code")
 _CONSUMPTION_ATTRS = (
@@ -431,18 +432,14 @@ class HonClient:
         La sessione aiohttp viene creata sul loop dedicato e vi rimane
         legata per tutta la durata del client.
         """
-        # Sessione + patch enum passano per l'adattatore-ponte (client/), non più
-        # con import diretti di _vendor.pyhon: vedi client/MIGRATION.md (strangler).
-        from .client.pyhon_adapter import create_session, ensure_enum_patch
+        # La sessione hОn arriva dalla factory nativa (client/); nessun import di
+        # _vendor.pyhon (cancellato in Fase 4). Il fix BABYCARE è nativo nell'enum.
+        from .client.pyhon_adapter import create_session
 
         with self._lifecycle_lock:
             try:
                 if self._hon_loop is None or not self._hon_loop.is_running():
                     self._start_hon_loop()
-
-                # Patch BABYCARE per il bug enum di pyhOn (best-effort, una volta
-                # per processo): ora vive nell'adattatore-ponte client/.
-                ensure_enum_patch()
 
                 self._hon_instance = create_session(self._email, self._password)
                 _LOGGER.debug("Istanza Hon creata")

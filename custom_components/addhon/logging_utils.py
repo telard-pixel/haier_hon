@@ -21,29 +21,17 @@ from __future__ import annotations
 
 import logging
 
-# Namespace del pyhОn vendorizzato: i suoi moduli loggano sotto questo prefisso
-# (il nome del logger == __name__ del modulo). NON è coupling da rimuovere: sono
-# i nomi REALI dei logger di cui regoliamo il livello. Tenuto come UNICA costante
-# così, quando il transport nativo sostituirà pyhОn (vedi client/MIGRATION.md),
-# c'è un solo punto da aggiornare.
-_VENDOR_NS = "custom_components.addhon._vendor.pyhon"
-
-# Logger da alzare/abbassare quando serve diagnosticare discovery, setup,
-# reauth e polling. Il logger MQTT resta controllato separatamente sotto
-# MQTT_NOISE_LOGGERS, così il debug discovery non riaccende il rumore realtime.
+# Logger da alzare/abbassare quando serve diagnosticare discovery, setup, reauth e
+# polling. Tutto il client è ora nativo (pyhОn cancellato in Fase 4), quindi questo
+# è l'unico namespace. Il logger MQTT resta separato sotto MQTT_NOISE_LOGGERS, così
+# il debug discovery non riaccende il rumore realtime.
 INTEGRATION_DEBUG_LOGGERS: tuple[str, ...] = (
     "custom_components.addhon",
-    _VENDOR_NS,
-    "pyhon",
 )
 
-# Logger responsabili del rumore MQTT realtime. Dopo il transport nativo il client
-# MQTT è il NOSTRO (`client.transport.mqtt`); teniamo anche i nomi pyhОn finché il
-# vendor non sparisce, così il controllo del livello copre vecchio e nuovo.
+# Logger responsabili del rumore MQTT realtime: il client MQTT è il NOSTRO.
 MQTT_NOISE_LOGGERS: tuple[str, ...] = (
     "custom_components.addhon.client.transport.mqtt",
-    f"{_VENDOR_NS}.connection.mqtt",
-    "pyhon.connection.mqtt",
 )
 
 # Livello applicato di default: nasconde i tentativi INFO/DEBUG, lascia passare

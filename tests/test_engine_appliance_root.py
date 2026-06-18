@@ -1,69 +1,22 @@
-"""Differential del ROOT appliance NATIVO (Fase 4 slice 5) vs pyhОn.
-
-Copre la superficie del ROOT che i test cluster/per-tipo non toccano: le proprietà
-identificative (mac/unique_id/model/brand/nick/code/model_id/type/zone), il parsing di
-`info["attributes"]`, e load_commands/load_attributes/load_statistics end-to-end sul
-dump reale del frigo (settings/available_settings/data/command_parameters/attributi).
-Oracolo = `_vendor.pyhon.appliance.HonAppliance` (ultimo confronto prima di cancellare
-`_vendor` allo slice 5b). HA/aiohttp/yarl stubati.
+"""Golden test del ROOT appliance nativo (Fase 4). Congela proprietà + load end-to-end
+sul dump reale del frigo. Era differential vs pyhОn (slice 5a); con `_vendor/` cancellato
+è golden (output nativo provato == pyhОn al checkpoint 5a, commit 520f036).
 """
 from __future__ import annotations
 
 import asyncio
 import json
 import sys
-import types
 import unittest
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _golden import REPO, frozen, install_stubs, normalize  # noqa: E402
+
+install_stubs()
 _DUMP = REPO / "apk" / "dump" / "ref_10136"
 
-
-def _mod(name: str) -> types.ModuleType:
-    m = sys.modules.get(name)
-    if m is None:
-        m = types.ModuleType(name)
-        sys.modules[name] = m
-    return m
-
-
-def _install_stubs() -> None:
-    ce = _mod("homeassistant.config_entries")
-    ce.ConfigEntry = getattr(ce, "ConfigEntry", type("ConfigEntry", (), {}))
-    core = _mod("homeassistant.core")
-    core.HomeAssistant = getattr(core, "HomeAssistant", type("HomeAssistant", (), {}))
-    exc = _mod("homeassistant.exceptions")
-    base = getattr(exc, "HomeAssistantError", type("HomeAssistantError", (Exception,), {}))
-    exc.HomeAssistantError = base
-    exc.ConfigEntryNotReady = getattr(exc, "ConfigEntryNotReady", type("ConfigEntryNotReady", (base,), {}))
-    exc.ConfigEntryAuthFailed = getattr(exc, "ConfigEntryAuthFailed", type("ConfigEntryAuthFailed", (base,), {}))
-    uc = _mod("homeassistant.helpers.update_coordinator")
-    uc.DataUpdateCoordinator = getattr(uc, "DataUpdateCoordinator", type("DataUpdateCoordinator", (), {}))
-    uc.UpdateFailed = getattr(uc, "UpdateFailed", type("UpdateFailed", (Exception,), {}))
-    ha = _mod("homeassistant")
-    ha.config_entries, ha.core, ha.exceptions = ce, core, exc
-    ha.helpers = _mod("homeassistant.helpers")
-    ha.helpers.update_coordinator = uc
-    yarl = _mod("yarl")
-    if not hasattr(yarl, "URL"):
-        yarl.URL = type("URL", (), {"__init__": lambda self, s, encoded=False: None})
-    aio = _mod("aiohttp")
-    aio.ClientSession = getattr(aio, "ClientSession", type("ClientSession", (), {}))
-    aio.ClientResponse = getattr(aio, "ClientResponse", type("ClientResponse", (), {}))
-    aio.ContentTypeError = getattr(aio, "ContentTypeError", type("ContentTypeError", (Exception,), {}))
-    aio.client = _mod("aiohttp.client")
-    aio.client._RequestContextManager = type("_RCM", (), {})
-
-
-_install_stubs()
-
 from custom_components.addhon.client import pyhon_adapter  # noqa: E402
-
-pyhon_adapter.ensure_enum_patch()
-from custom_components.addhon._vendor.pyhon.appliance import HonAppliance as PyRoot  # noqa: E402
 
 NaRoot = pyhon_adapter._native_engine_appliance_cls()
 
@@ -93,87 +46,64 @@ class FakeApi:
 
 
 _INFO = {
-    "applianceTypeName": "REF",
-    "applianceModelId": "10136",
-    "macAddress": "11-22-33-44-55-66",
-    "modelName": "HDPW5620CNPK",
-    "brand": "haier",
-    "nickName": "Frigo",
-    "code": "ABC123",
-    "serialNumber": "0123456789",
+    "applianceTypeName": "REF", "applianceModelId": "10136",
+    "macAddress": "11-22-33-44-55-66", "modelName": "HDPW5620CNPK", "brand": "haier",
+    "nickName": "Frigo", "code": "ABC123", "serialNumber": "0123456789",
     "attributes": [{"parName": "a", "parValue": "1"}, {"parName": "b", "parValue": "2"}],
 }
 
-_PROPS = [
-    "appliance_type", "appliance_model_id", "mac_address", "unique_id", "model_name",
-    "brand", "nick_name", "code", "model_id", "zone", "connection",
-]
+_PROPS = ["appliance_type", "appliance_model_id", "mac_address", "unique_id", "model_name",
+          "brand", "nick_name", "code", "model_id", "zone", "connection"]
 
 
 def _run(coro):
     return asyncio.new_event_loop().run_until_complete(coro)
 
 
-class RootPropertiesTest(unittest.TestCase):
-    def _pair(self, zone=0):
-        py = PyRoot(FakeApi(), json.loads(json.dumps(_INFO)), zone=zone)
-        na = NaRoot(FakeApi(), json.loads(json.dumps(_INFO)), zone=zone)
-        return py, na
+def _snap_param(p):
+    s = {"value": p.value, "intern_value": p.intern_value, "values": list(p.values)}
+    if hasattr(p, "min"):
+        s["min"], s["max"], s["step"] = p.min, p.max, p.step
+    return s
 
-    def test_properties_parity(self) -> None:
-        for zone in (0, 1, 2):
-            py, na = self._pair(zone=zone)
-            for prop in _PROPS:
-                with self.subTest(zone=zone, prop=prop):
-                    self.assertEqual(getattr(na, prop), getattr(py, prop))
+
+def _native_snapshot():
+    out = {"props": {}}
+    for zone in (0, 1, 2):
+        app = NaRoot(FakeApi(), json.loads(json.dumps(_INFO)), zone=zone)
+        out["props"][str(zone)] = {p: getattr(app, p) for p in _PROPS}
+    app0 = NaRoot(FakeApi(), json.loads(json.dumps(_INFO)), zone=0)
+    out["info_attributes"] = app0.info["attributes"]
+    # load end-to-end
+    app = NaRoot(FakeApi(), json.loads(json.dumps(_INFO)), zone=0)
+    _run(app.load_commands())
+    _run(app.load_attributes())
+    _run(app.load_statistics())
+    out["commands"] = sorted(app.commands)
+    out["available_settings"] = sorted(app.available_settings)
+    out["options"] = app.options
+    out["additional_data"] = sorted(app.additional_data)
+    out["settings"] = {k: _snap_param(v) for k, v in sorted(app.settings.items())}
+    out["statistics"] = app.statistics
+    out["attr_param_keys"] = sorted(app.attributes.get("parameters", {}))
+    out["programName"] = app.attributes.get("programName")
+    out["available"] = app.attributes.get("available")
+    out["command_parameters"] = app.command_parameters
+    out["data_keys"] = sorted(app.data)
+    return out
+
+
+class RootGoldenTest(unittest.TestCase):
+    def test_native_root_matches_golden(self) -> None:
+        snap = _native_snapshot()
+        self.assertEqual(normalize(snap), frozen("engine_appliance_root", snap))
 
     def test_info_attributes_parsed(self) -> None:
-        py, na = self._pair()
-        self.assertEqual(na.info["attributes"], {"a": "1", "b": "2"})
-        self.assertEqual(na.info["attributes"], py.info["attributes"])
+        app = NaRoot(FakeApi(), json.loads(json.dumps(_INFO)), zone=0)
+        self.assertEqual(app.info["attributes"], {"a": "1", "b": "2"})
 
-    def test_native_root_not_pyhon_subclass(self) -> None:
-        self.assertFalse(issubclass(NaRoot, PyRoot))
-
-
-class RootLoadParityTest(unittest.TestCase):
-    def _built(self, cls):
-        app = cls(FakeApi(), json.loads(json.dumps(_INFO)), zone=0)
-        _run(app.load_commands())
-        _run(app.load_attributes())
-        _run(app.load_statistics())
-        return app
-
-    def _snap_param(self, p):
-        s = {"value": p.value, "intern_value": p.intern_value, "values": list(p.values)}
-        if hasattr(p, "min"):
-            s["min"], s["max"], s["step"] = p.min, p.max, p.step
-        return s
-
-    def test_load_endtoend_parity(self) -> None:
-        py = self._built(PyRoot)
-        na = self._built(NaRoot)
-        self.assertEqual(sorted(na.commands), sorted(py.commands))
-        self.assertEqual(sorted(na.available_settings), sorted(py.available_settings))
-        self.assertEqual(na.options, py.options)
-        self.assertEqual(sorted(na.additional_data), sorted(py.additional_data))
-        # settings (param) parità
-        na_s = {k: self._snap_param(v) for k, v in sorted(na.settings.items())}
-        py_s = {k: self._snap_param(v) for k, v in sorted(py.settings.items())}
-        self.assertEqual(na_s, py_s)
-        # statistics + attributi (shadow) chiavi + programName
-        self.assertEqual(na.statistics, py.statistics)
-        self.assertEqual(sorted(na.attributes.get("parameters", {})), sorted(py.attributes.get("parameters", {})))
-        self.assertEqual(na.attributes.get("programName"), py.attributes.get("programName"))
-        self.assertEqual(na.command_parameters, py.command_parameters)
-
-    def test_data_property_parity(self) -> None:
-        py = self._built(PyRoot)
-        na = self._built(NaRoot)
-        # `data` mescola attributi+command_parameters. UNICA differenza top-level: il
-        # nativo aggiunge `available` (campo first-class modellato sull'app, documentato).
-        self.assertEqual(set(na.data) - set(py.data), {"available"})
-        self.assertEqual(set(py.data) - set(na.data), set())
+    def test_root_module_is_native(self) -> None:
+        self.assertEqual(NaRoot.__module__, "custom_components.addhon.client.engine.appliance")
 
 
 if __name__ == "__main__":

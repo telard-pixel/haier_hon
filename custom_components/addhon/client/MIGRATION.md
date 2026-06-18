@@ -74,13 +74,15 @@ il transport; il motore (stabile e complesso) si tiene il più a lungo possibile
     pota il transport ai rigeneri (`_prune_transport` + costante `_ENGINE_ONLY_INIT`, blindata da
     `test_vendor_script.py`). Test migrati (device→valori congelati; protocol-live→`NativeHon`).
     Verificato: motore importabile SENZA awscrt; produzione e2e LIVE OK.
-- [~] **Fase 4 — motore parser nativo (= distacco TOTALE, la meta) — IN CORSO.** Riscrivere
-  `commands`/`command_loader`/`parameter/`/`rules`/`appliance.py` in `client/engine/` con un
-  modello NOSTRO, validato sui dump reali + sull'app decompilata, e cancellare l'ultimo
-  `_vendor/pyhon/`. Piano dettagliato in `diagnostics/FASE4-engine-plan.md` (modello autorevole
-  dall'app, grafo deps, vincolo isinstance, slicing). Scoperta chiave: l'app modella le rules via
-  `ancillaryParameters.programRules` (pyhОn le ricostruisce diversamente, forse SBAGLIATO) ->
-  al cluster l'oracolo delle rules è l'app/live-AC, non pyhОn.
+- [x] **Fase 4 — motore parser nativo (= distacco TOTALE, la meta) — COMPLETA.** Tutto il motore
+  (`parameter/`/`attributes`/`commands`/`command_loader`/`rules`/`appliances/`/`appliance.py`) è
+  riscritto NOSTRO in `client/engine/`, validato sui dump reali + sull'app decompilata, e
+  **`_vendor/pyhon/` è stato CANCELLATO**: l'integrazione non dipende più da pyhОn (manifest:
+  awsiotsdk/yarl/typing-extensions, nessun pyhon). I vecchi differential test (oracolo pyhОn) sono
+  diventati golden (output nativo congelato, provato == pyhОn). Piano/storia in
+  `diagnostics/FASE4-engine-plan.md` e `apk/analysis/`. Scoperta chiave: l'app modella le rules via
+  `ancillaryParameters.programRules` (pyhОn le ricostruisce diversamente) -> il modello rules dell'app
+  resta da adottare/validare sull'AC live (oggi le rules native riproducono pyhОn, frigo senza rules).
   - [x] **slice 1 — parametri nativi** `client/engine/parameter/{base,fixed,enum,range}.py` + **fix
     BABYCARE** (rende `ensure_enum_patch` obsoleto). Differential test sui 67 parametri reali del
     frigo. NESSUN flip in produzione: `rules.py` usa `isinstance` contro le classi pyhОn (11 siti),
@@ -121,7 +123,17 @@ il transport; il motore (stabile e complesso) si tiene il più a lungo possibile
     nativi), correttezza per-tipo HOLDS, test rinforzati (Z1/Z2 precedence + branch difensivi). Nota slice 5:
     `_vendor/printer.py` isinstance diventa cieco sui param nativi ma `appliance.diagnose` non è raggiungibile.
     290 test verdi.
-  - [ ] slice 5 — appliance ROOT nativo + attributi nativi (HonAttribute) + **cancellare `_vendor/`**.
+  - [x] **slice 5 — appliance ROOT nativo + attributi nativi + CANCELLATO `_vendor/`** (= meta).
+    5a: `client/engine/appliance.py` (`HonAppliance` nostro standalone, usa attributi/loader/per-tipo
+    nativi); `create_appliance` lo ritorna (non più sottoclasse pyhОn); droppati i metodi morti.
+    Differential ROOT vs pyhОn (proprietà/load/data) HOLDS. 5b: **cancellati `_vendor/` e
+    `scripts/vendor_pyhon.py`**, rimossa `ensure_enum_patch` (fix nativo nell'enum), ripulito
+    `logging_utils` (namespace solo nativi); i differential test (oracolo pyhОn) convertiti in GOLDEN
+    (`tests/golden/*.json` + `tests/_golden.py`), obsoleti cancellati, guard `test_session_adapter`
+    riscritta = ZERO import `_vendor` + `_vendor/` assente. Confutatori (2+2): distacco TOTALE HOLDS
+    (compile pulito, import e end-to-end senza pyhОn, CI/manifest puliti), golden integri (mutazioni
+    catturate; chiuso un buco range-probe). **248 test verdi senza pyhОn.** Restano solo menzioni
+    `_vendor` cosmetiche nei docstring (provenienza). LIVE-validation sul ferro non ancora fatta (serve password).
 
 ## Regole di confine
 

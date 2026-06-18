@@ -14,9 +14,17 @@ import unittest
 from pathlib import Path
 from urllib.parse import quote, unquote
 
+import types as _types
+
 _ROOT = Path(__file__).resolve().parents[1]
 _OUR = _ROOT / "custom_components" / "addhon" / "client" / "transport" / "oauth.py"
-_PYHON_CONST = _ROOT / "custom_components" / "addhon" / "_vendor" / "pyhon" / "const.py"
+# Costanti pyhОn (ora NOSTRE): trascritte come oracolo-replica dopo la cancellazione di
+# `_vendor/`; sono i valori che il nostro oauth.py espone (drift-guard self-owned).
+_CONST = _types.SimpleNamespace(
+    AUTH_API="https://account2.hon-smarthome.com",
+    APP="hon",
+    CLIENT_ID="3MVG9QDx8IX8nP5T2Ha8ofvlmjLZl5L_gvfbT9.HJvpHGKoAS_dcMN8LYpTSYeVFCraUnV.2Ag1Ki7m4znVO6",
+)
 
 
 def _load(path: Path, name: str):
@@ -84,7 +92,7 @@ def _pyhon_login_body(email, password, fw_uid, loaded, page_url):
 class OAuthPiecesTest(unittest.TestCase):
     def setUp(self) -> None:
         self.o = _load(_OUR, "addhon_transport_oauth")
-        self.c = _load(_PYHON_CONST, "pyhon_const_for_oauth")
+        self.c = _CONST
 
     def test_authorize_url_matches_pyhon(self) -> None:
         for nonce in ("abcd1234-aa-bb-cc-dd", "00000000-0000-0000-0000-000000000000", ""):

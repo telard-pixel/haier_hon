@@ -1,39 +1,26 @@
-"""Adattatore-ponte verso il pyhОn vendorizzato (transizione).
+"""Factory della sessione/appliance hОn native.
 
-Durante la migrazione questo è l'UNICO file di `client/` che importa
-`_vendor.pyhon` (vedi MIGRATION.md, regola 1). Il corpo dell'integrazione
-(`hon_client.py`) ottiene la sessione hОn DA QUI, non più con un import diretto
-di `_vendor.pyhon`: così è disaccoppiato da pyhОn dietro questa funzione, e
-quando arriverà il transport nativo si cambia solo qui.
+Storicamente era l'adattatore-ponte verso il pyhОn vendorizzato (l'unico file che
+importava `_vendor.pyhon`). Con la Fase 4 completata (`_vendor/` CANCELLATO) qui non
+c'è più alcun import di pyhОn: restano solo i due factory che costruiscono il client
+NOSTRO. Tenerli dietro queste funzioni mantiene `hon_client.py` disaccoppiato dai
+dettagli del client.
 
-`create_session` ritorna un oggetto conforme a `interfaces.HonSession`
-(oggi: `pyhon.Hon`; domani: il client nativo). Qui vive anche la patch BABYCARE
-di HonParameterEnum (anch'essa tocca `_vendor`, quindi sta nel ponte).
+`create_session` ritorna un oggetto conforme a `interfaces.HonSession` (il nostro
+`client.session.NativeHon`); `create_appliance` la `interfaces.Appliance`
+(`client.engine.appliance.HonAppliance`). Il fix del bug BABYCARE è nativo nella
+classe enum (`client.engine.parameter.enum`): la vecchia `ensure_enum_patch` che
+rattoppava l'enum di pyhОn è stata RIMOSSA con `_vendor/`.
 """
 from __future__ import annotations
 
 import logging
-import threading
 from typing import Any
 
 _LOGGER = logging.getLogger(__name__)
 
-# Stato della patch BABYCARE: globale di processo e thread-safe tra config entry
-# (la classe HonParameterEnum di pyhОn è condivisa). Vive qui perché questo è
-# l'unico file che importa _vendor.pyhon.parameter.enum.
-# NB: con il CLUSTER nativo (Fase 4 slice 3) il motore non istanzia più l'enum di
-# pyhОn (usa il nostro, che ha il fix BABYCARE alla radice): questa patch è ormai
-# un no-op innocuo, si rimuove con la cancellazione di _vendor (slice 5).
-_ENUM_PATCH_LOCK = threading.Lock()
-_ENUM_PATCH_APPLIED = False
-
-# Cache della sottoclasse appliance transitoria (Fase 4 slice 3). Costruita una
-# sola volta perché sottoclassa una classe pyhОn importata lazy.
+# Cache della classe ROOT appliance nativa (import lazy: l'engine importa senza awscrt).
 _NATIVE_APPLIANCE_CLS: Any = None
-
-# NB: il vecchio `install_native_auth` (FLIP-by-injection nell'handler pyhОn) è stato
-# RIMOSSO nel piece 4b: il transport pyhОn (connection/) non esiste più, la sessione
-# nativa (NativeHon) usa il nostro auth direttamente. Non serve più iniettare nulla.
 
 
 def create_session(email: str, password: str) -> Any:
@@ -79,47 +66,3 @@ def create_appliance(api: Any, appliance_data: dict, zone: int = 0) -> Any:
     Protocol `interfaces.Appliance` (duck-typing). Import lazy.
     """
     return _native_engine_appliance_cls()(api, appliance_data, zone=zone)
-
-
-def ensure_enum_patch() -> None:
-    """Applica una sola volta per processo la patch BABYCARE di HonParameterEnum.
-
-    pyhOn crasha su load_commands() dell'asciugatrice TD perché il valore
-    "BABYCARE" è nell'elenco dei valori ammessi ma il confronto stringa fallisce
-    per un bug interno del setter HonParameterEnum.value. La patch accetta il
-    valore se è già presente in _values.
-
-    È best-effort e idempotente: protetta da un lock di modulo (la classe pyhOn è
-    globale e condivisa tra tutte le config entry) e applicata al più una volta,
-    catturando il setter ORIGINALE una sola volta per non annidare le closure a
-    ogni reauth. In caso di errore il flag resta False, così un setup successivo
-    può ritentare.
-    """
-    global _ENUM_PATCH_APPLIED
-    with _ENUM_PATCH_LOCK:
-        if _ENUM_PATCH_APPLIED:
-            return
-        try:
-            from .._vendor.pyhon.parameter.enum import HonParameterEnum as _HonEnum
-
-            _orig_setter = _HonEnum.value.fset
-
-            def _patched_setter(instance, value):
-                try:
-                    _orig_setter(instance, value)
-                except ValueError:
-                    # Accetta il valore se è già presente nella lista (case-sensitive)
-                    if value in instance._values:
-                        instance._value = value
-                        _LOGGER.debug("Patch enum BABYCARE applicata per valore: %s", value)
-                    else:
-                        raise
-
-            _HonEnum.value = property(
-                _HonEnum.value.fget, _patched_setter, _HonEnum.value.fdel
-            )
-            _ENUM_PATCH_APPLIED = True
-            _LOGGER.debug("Patch HonParameterEnum applicata")
-        except Exception as patch_err:
-            # Best-effort: non impostiamo il flag così un setup successivo ritenta.
-            _LOGGER.warning("Impossibile applicare la patch HonParameterEnum: %s", patch_err)

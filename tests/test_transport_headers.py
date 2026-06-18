@@ -16,7 +16,8 @@ from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[1]
 _OUR_HEADERS = _ROOT / "custom_components" / "addhon" / "client" / "transport" / "headers.py"
-_PYHON_CONST = _ROOT / "custom_components" / "addhon" / "_vendor" / "pyhon" / "const.py"
+# USER_AGENT pyhОn (ora NOSTRO): trascritto dopo la cancellazione di `_vendor/`.
+_USER_AGENT = "Chrome/999.999.999.999"
 
 
 def _load(path: Path, name: str):
@@ -39,7 +40,7 @@ def _pyhon_headers(user_agent, cognito_token, id_token, extra=None):
 class BuildAuthHeadersTest(unittest.TestCase):
     def setUp(self) -> None:
         self.build = _load(_OUR_HEADERS, "addhon_transport_headers").build_auth_headers
-        self.ua = _load(_PYHON_CONST, "pyhon_const_for_headers").USER_AGENT
+        self.ua = _USER_AGENT
 
     def test_matches_pyhon(self) -> None:
         cases = [
