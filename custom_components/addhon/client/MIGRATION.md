@@ -46,9 +46,10 @@ il transport; il motore (stabile e complesso) si tiene il più a lungo possibile
   e iniettato nella macchina pyhОn (`pyhon_adapter.install_native_auth`). Il login
   di PRODUZIONE gira sul NOSTRO auth, **live-validato e2e**. Uccide lo strato dove
   ci rompevamo (unified-api, token) tenendo per ora il resto di pyhОn.
-- [~] **Fase 3 — transport nativo (sopra il nostro auth).** Sostituire connessione
-  + api HTTP, **riusando ancora il motore comandi/parametri di pyhОn** (gli si
-  inietta il nostro api). Pezzi:
+- [x] **Fase 3 — transport nativo (sopra il nostro auth) — COMPLETA.** Connessione,
+  api HTTP, MQTT e orchestrazione sono NOSTRI; **`_vendor/connection/` cancellato**.
+  Resta vendorizzato solo il motore comandi/parametri di pyhОn (gli si inietta il
+  nostro api) = bersaglio Fase 4. Pezzi:
   - [x] piece 1 — `transport/connection.py` (`HonConnection`): get/post autenticate
     con iniezione token + retry, live-validato.
   - [x] piece 2 — `transport/api.py` (`HonApi`): i metodi HTTP (`load_*`/`send_command`)
@@ -61,24 +62,32 @@ il transport; il motore (stabile e complesso) si tiene il più a lungo possibile
     `.appliances`/`subscribe_updates`/`notify` (il `MQTTClient` riusato li legge). MQTT
     gated da `enable_mqtt` (default True = pyhОn). Test offline + LIVE-validato: stessi 4
     appliance/fingerprint di pyhОn, MQTT smoke OK sopra la sessione nativa.
-  - [x] piece 4a — FULL FLIP: `pyhon_adapter.create_session` ora ritorna `NativeHon`
-    (non più `pyhon.Hon` con auth iniettato). **La produzione gira sul transport nativo**;
-    `_vendor/connection/{handler,api,auth,device}` sono codice MORTO a runtime. `install_native_auth`
-    non è più chiamato (legacy). Preservato il warning diagnostico "0 appliance" in `HonApi`.
-    `NativeHon.close()` ora FERMA il MQTT (fix leak pyhОn). Test + LIVE-validato e2e
-    (`apk/validate_flip_native_live.py`): create_session→NativeHon, 4 appliance con comandi,
-    MQTT attivo, `appliance.update()` (polling) OK.
-  - [ ] piece 4b — cancellare `_vendor/connection/`: BLOCCATO da due cose — (1) il `MQTTClient`
-    vive lì e lo riusiamo ancora (riscriverlo nativo in `transport/mqtt.py` o rilocarlo);
-    (2) `_vendor/pyhon/__init__.py` + `hon.py` importano `connection.api`/`mqtt` (rigenerati dal
-    vendor script → serve cambiare `scripts/vendor_pyhon.py` per non vendorizzarli + ripulire
-    `__init__`). Poi si elimina `connection/` (handler/api/auth/device-HTTP).
-- [ ] **Fase 4 — motore parser nativo (= distacco TOTALE, la meta).** Riscrivere
-  anche `commands`/`command_loader`/`parameter/`/`rules`/`appliance.py` con un
-  modello NOSTRO (più semplice/tipizzato/idiomatico HA), validato sui dump reali,
-  e cancellare l'ultimo `_vendor/pyhon/`. Era marcato "forse mai": ora è l'obiettivo
-  finale dichiarato. Si fa per ultimo perché è lo strato stabile a più alto rischio
-  di regressione: prima il transport (fragile), poi il motore.
+  - [x] piece 4a — FULL FLIP: `pyhon_adapter.create_session` ritorna `NativeHon`
+    (non più `pyhon.Hon` con auth iniettato). La produzione gira sul transport nativo;
+    `install_native_auth` dismesso. Warning diagnostico "0 appliance" portato in `HonApi`.
+    LIVE-validato (`apk/validate_flip_native_live.py`).
+  - [x] piece 4b-1 — MQTT nativo: `transport/mqtt.py` (`NativeMqttClient`, awscrt diretto),
+    con un vero `stop()` (no leak). `NativeHon._make_mqtt`/`close` lo usano; rimossi i factory
+    `pyhon_adapter.create_mqtt`/`stop_mqtt`. logging_utils silenzia il logger nativo. LIVE-validato.
+  - [x] piece 4b-2 — **CANCELLATO `_vendor/connection/`** + `hon.py` + `__main__.py`;
+    `_vendor/pyhon/__init__.py` minimale; `install_native_auth` rimosso. `scripts/vendor_pyhon.py`
+    pota il transport ai rigeneri (`_prune_transport` + costante `_ENGINE_ONLY_INIT`, blindata da
+    `test_vendor_script.py`). Test migrati (device→valori congelati; protocol-live→`NativeHon`).
+    Verificato: motore importabile SENZA awscrt; produzione e2e LIVE OK.
+- [~] **Fase 4 — motore parser nativo (= distacco TOTALE, la meta) — IN CORSO.** Riscrivere
+  `commands`/`command_loader`/`parameter/`/`rules`/`appliance.py` in `client/engine/` con un
+  modello NOSTRO, validato sui dump reali + sull'app decompilata, e cancellare l'ultimo
+  `_vendor/pyhon/`. Piano dettagliato in `diagnostics/FASE4-engine-plan.md` (modello autorevole
+  dall'app, grafo deps, vincolo isinstance, slicing). Scoperta chiave: l'app modella le rules via
+  `ancillaryParameters.programRules` (pyhОn le ricostruisce diversamente, forse SBAGLIATO) ->
+  al cluster l'oracolo delle rules è l'app/live-AC, non pyhОn.
+  - [x] **slice 1 — parametri nativi** `client/engine/parameter/{base,fixed,enum,range}.py` + **fix
+    BABYCARE** (rende `ensure_enum_patch` obsoleto). Differential test sui 67 parametri reali del
+    frigo. NESSUN flip in produzione: `rules.py` usa `isinstance` contro le classi pyhОn (11 siti),
+    quindi i parametri si flippano SOLO col cluster. Confutatori: HOLDS (le divergenze enum-edge
+    trovate = native più corretto del patch, documentate + pinnate).
+  - [ ] slice 2 — attributes nativo; slice 3 — cluster commands+command_loader+rules+program (FLIP);
+    slice 4 — appliances per-tipo (registry); slice 5 — appliance ROOT + **cancellare `_vendor/`**.
 
 ## Regole di confine
 
