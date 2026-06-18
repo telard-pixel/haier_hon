@@ -20,7 +20,7 @@
     "tempSelZ3",
     "transMode"
   ],
-  "available": true,
+  "available": false,
   "available_settings": [
     "settings.category",
     "settings.httpEndpoint",

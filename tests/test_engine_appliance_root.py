@@ -93,6 +93,54 @@ def _native_snapshot():
     return out
 
 
+class _ConnApi(FakeApi):
+    def __init__(self, category) -> None:
+        self._cat = category
+
+    async def load_attributes(self, a):
+        return {"shadow": {"parameters": {}}, "lastConnEvent": {"category": self._cat}}
+
+
+class ConnectivityTest(unittest.TestCase):
+    """`connection`/`available` derivati da lastConnEvent.category (modello app), accurati
+    sul polling (prima `connection` era stale-True; validato live: TD offline ora azzera)."""
+
+    def _build(self, category, type_name="REF"):
+        info = dict(_INFO)
+        info["applianceTypeName"] = type_name
+        app = NaRoot(_ConnApi(category), json.loads(json.dumps(info)), zone=0)
+        _run(app.load_commands())
+        _run(app.load_attributes())
+        return app
+
+    def test_disconnected(self) -> None:
+        a = self._build("DISCONNECTED")
+        self.assertFalse(a.connection)
+        self.assertFalse(a.attributes["available"])
+
+    def test_connected(self) -> None:
+        a = self._build("CONNECTED")
+        self.assertTrue(a.connection)
+        self.assertTrue(a.attributes["available"])
+
+    def test_available_universal_without_extra(self) -> None:
+        # un tipo senza layer per-tipo (es. AC) ottiene comunque `available` dal ROOT
+        a = self._build("CONNECTED", type_name="AC")
+        self.assertIsNone(a._extra)
+        self.assertTrue(a.attributes["available"])
+
+    def test_malformed_lastconnevent_no_crash(self) -> None:
+        class _BadApi(FakeApi):
+            async def load_attributes(self, a):
+                return {"shadow": {"parameters": {}}, "lastConnEvent": "OOPS"}
+
+        app = NaRoot(_BadApi(), json.loads(json.dumps(_INFO)), zone=0)
+        _run(app.load_commands())
+        _run(app.load_attributes())  # non deve sollevare su lastConnEvent non-dict
+        self.assertTrue(app.connection)  # stato invariato (default)
+        self.assertTrue(app.attributes["available"])
+
+
 class RootGoldenTest(unittest.TestCase):
     def test_native_root_matches_golden(self) -> None:
         snap = _native_snapshot()

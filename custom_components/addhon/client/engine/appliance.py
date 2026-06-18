@@ -166,6 +166,19 @@ class HonAppliance:
             else:
                 self._attributes.setdefault("parameters", {})[name] = HonAttribute(values)
         self._attributes |= attributes
+        # Connettività autorevole = lastConnEvent.category (modello app
+        # ApplianceConnectionState, vedi apk/analysis/per-type-derivations.md #5). pyhОn
+        # lasciava `_connection` stale-True sul polling (solo l'MQTT lo aggiornava) ->
+        # le per-tipo che azzerano in base a `self.connection` (td/wd/dw/ov) NON scattavano
+        # sul poll, a differenza di wm (che legge lastConnEvent). Aggiornarlo qui lo rende
+        # accurato e coerente. Validato live: TD offline mostrava machMode stantio=1, ora 0
+        # come WM. Non sovrascrive un eventuale stato MQTT più fresco se lastConnEvent manca.
+        lce = self._attributes.get("lastConnEvent")
+        if isinstance(lce, dict):  # difensivo: se assente/malformato, tieni lo stato (MQTT)
+            self._connection = lce.get("category", "") != "DISCONNECTED"
+        # `available` UNIVERSALE (anche per i tipi senza per-tipo, es. AC): la connettività
+        # è first-class come nell'app. Il layer per-tipo lo ri-setta (stesso valore).
+        self._attributes["available"] = self._connection
         if self._extra:
             self._attributes = self._extra.attributes(self._attributes)
 

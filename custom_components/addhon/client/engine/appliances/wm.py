@@ -14,7 +14,8 @@ class Appliance(ApplianceExtra):
     def attributes(self, data: dict[str, Any]) -> dict[str, Any]:
         data = super().attributes(data)
         params = data.get("parameters", {})
-        if data.get("lastConnEvent", {}).get("category", "") == "DISCONNECTED":
+        lce = data.get("lastConnEvent")
+        if isinstance(lce, dict) and lce.get("category", "") == "DISCONNECTED":
             self._set(params, "machMode", "0")
         data["active"] = bool(data.get("activity"))
         data["pause"] = self._is_value(params, "machMode", 3)
