@@ -12,8 +12,11 @@ L'orchestrazione HTTP che usa questi pezzi sta nel session/auth nativo (validato
 """
 from __future__ import annotations
 
+import json
 import re
-from urllib.parse import quote
+import secrets
+from typing import Any
+from urllib.parse import quote, unquote
 
 # Endpoint/identificatori (valori-dato che rispecchiano pyhon const).
 AUTH_API = "https://account2.hon-smarthome.com"
@@ -66,3 +69,45 @@ def extract_login_url(text: str) -> str | None:
     if url.startswith("/NewhOnLogin"):
         url = f"{AUTH_API}/s/login{url}"
     return url
+
+
+def generate_nonce() -> str:
+    """Nonce in formato 8-4-4-4-12 (come pyhОn)."""
+    nonce = secrets.token_hex(16)
+    return f"{nonce[:8]}-{nonce[8:12]}-{nonce[12:16]}-{nonce[16:20]}-{nonce[20:]}"
+
+
+def build_login_payload(
+    email: str, password: str, fw_uid: str, loaded: Any, page_url: str
+) -> tuple[str, dict[str, Any]]:
+    """(body, params) del POST di login Salesforce (/s/sfsites/aura).
+
+    Riscrittura del corpo di pyhon auth._login. EXACT-PRESERVING: la forma aura e
+    l'encoding `&`.join(f"{k}={quote(json.dumps(v))}") sono il contratto del server
+    (ordine chiavi incluso → il body è byte-identico).
+    """
+    start_url = page_url.rsplit("startURL=", maxsplit=1)[-1]
+    start_url = unquote(start_url).split("%3D")[0]
+    action = {
+        "id": "79;a",
+        "descriptor": "apex://LightningLoginCustomController/ACTION$login",
+        "callingDescriptor": "markup://c:loginForm",
+        "params": {"username": email, "password": password, "startUrl": start_url},
+    }
+    data = {
+        "message": {"actions": [action]},
+        "aura.context": {
+            "mode": "PROD",
+            "fwuid": fw_uid,
+            "app": "siteforce:loginApp2",
+            "loaded": loaded,
+            "dn": [],
+            "globals": {},
+            "uad": False,
+        },
+        "aura.pageURI": page_url,
+        "aura.token": None,
+    }
+    body = "&".join(f"{k}={quote(json.dumps(v))}" for k, v in data.items())
+    params: dict[str, Any] = {"r": 3, "other.LightningLoginCustom.login": 1}
+    return body, params

@@ -7,11 +7,12 @@ const.py (puro) → pinna anche il drift di AUTH_API/CLIENT_ID/APP.
 from __future__ import annotations
 
 import importlib.util
+import json
 import re
 import sys
 import unittest
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 
 _ROOT = Path(__file__).resolve().parents[1]
 _OUR = _ROOT / "custom_components" / "addhon" / "client" / "transport" / "oauth.py"
@@ -49,6 +50,35 @@ def _pyhon_extract_login(c, text):
     if login_url[0].startswith("/NewhOnLogin"):
         login_url[0] = f"{c.AUTH_API}/s/login{login_url[0]}"
     return login_url[0]
+
+
+def _pyhon_login_body(email, password, fw_uid, loaded, page_url):
+    """Verbatim del corpo di pyhon auth._login."""
+    start_url = page_url.rsplit("startURL=", maxsplit=1)[-1]
+    start_url = unquote(start_url).split("%3D")[0]
+    action = {
+        "id": "79;a",
+        "descriptor": "apex://LightningLoginCustomController/ACTION$login",
+        "callingDescriptor": "markup://c:loginForm",
+        "params": {"username": email, "password": password, "startUrl": start_url},
+    }
+    data = {
+        "message": {"actions": [action]},
+        "aura.context": {
+            "mode": "PROD",
+            "fwuid": fw_uid,
+            "app": "siteforce:loginApp2",
+            "loaded": loaded,
+            "dn": [],
+            "globals": {},
+            "uad": False,
+        },
+        "aura.pageURI": page_url,
+        "aura.token": None,
+    }
+    body = "&".join(f"{k}={quote(json.dumps(v))}" for k, v in data.items())
+    params = {"r": 3, "other.LightningLoginCustom.login": 1}
+    return body, params
 
 
 class OAuthPiecesTest(unittest.TestCase):
@@ -98,6 +128,23 @@ class OAuthPiecesTest(unittest.TestCase):
         self.assertEqual(self.o.AUTH_API, self.c.AUTH_API)
         self.assertEqual(self.o.APP, self.c.APP)
         self.assertEqual(self.o.CLIENT_ID, self.c.CLIENT_ID)
+
+    def test_login_payload_matches_pyhon(self) -> None:
+        cases = [
+            ("user@x.it", "p@ss&w=rd", "FWUID1", {"a": 1}, "/s/login/x?startURL=%2Fhome%3Dz&System=IoT"),
+            ("e", "p", "F", {"app": "siteforce:loginApp2", "x": [1, 2]}, "/p?foo=1"),
+        ]
+        for email, pw, fw, loaded, page in cases:
+            with self.subTest(page=page):
+                self.assertEqual(
+                    self.o.build_login_payload(email, pw, fw, loaded, page),
+                    _pyhon_login_body(email, pw, fw, loaded, page),
+                )
+
+    def test_nonce_format(self) -> None:
+        n = self.o.generate_nonce()
+        self.assertRegex(n, r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+        self.assertNotEqual(n, self.o.generate_nonce())  # casuale
 
 
 if __name__ == "__main__":
