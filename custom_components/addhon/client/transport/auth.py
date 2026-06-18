@@ -170,10 +170,18 @@ class HonAuth:
         self.id_token = tokens.id_token
 
     async def _api_auth(self) -> None:
+        # Shim di transizione: il nostro HonDevice espone payload(), quello di
+        # pyhОn (quando questo auth è iniettato nel suo handler durante il flip)
+        # espone get(). Stesso dizionario in entrambi i casi.
+        device_payload = (
+            self._device.payload()
+            if hasattr(self._device, "payload")
+            else self._device.get()
+        )
         async with self._session.post(
             f"{API_URL}/auth/v1/login",
             headers=self._ua({"id-token": self.id_token}),
-            json=self._device.payload(),
+            json=device_payload,
         ) as resp:
             data = await resp.json(content_type=None)
         self.cognito_token = data.get("cognitoUser", {}).get("Token", "")
