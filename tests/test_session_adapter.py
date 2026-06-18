@@ -36,7 +36,7 @@ class SessionAdapterTest(unittest.TestCase):
 
     def test_adapter_vendor_imports_are_lazy(self) -> None:
         # Gli import di _vendor stanno SOLO dentro le funzioni (lazy: create_session
-        # ->session, e i factory create_appliance/create_mqtt/ensure_enum_patch),
+        # ->session, e i factory create_appliance/ensure_enum_patch),
         # mai a livello di modulo: così il modulo resta importabile a secco e
         # l'adapter è l'unico ponte verso _vendor.
         tree = ast.parse(_ADAPTER.read_text(encoding="utf-8"))

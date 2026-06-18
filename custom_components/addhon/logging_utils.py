@@ -1,8 +1,9 @@
 """Controllo dei livelli di log diagnostici per l'integrazione.
 
-Il client MQTT di pyhOn (logger ``pyhon.connection.mqtt``) emette a livello INFO
-un messaggio per ogni tentativo di (ri)connessione realtime ("Lifecycle
-Attempting Connect / Connection Failure / Disconnection / Connection Success").
+Il client MQTT (ora il NOSTRO ``client.transport.mqtt``; prima pyhОn) emette a
+livello INFO un messaggio per ogni tentativo di (ri)connessione realtime
+("Lifecycle Attempting Connect / Connection Failure / Disconnection / Connection
+Success").
 Quando lo slot di push è conteso (es. l'elettrodomestico è condiviso e il
 proprietario tiene il canale), questi tentativi falliscono in un ciclo continuo
 e riempiono il log senza che ci sia nulla da fare lato integrazione: i dati
@@ -36,10 +37,11 @@ INTEGRATION_DEBUG_LOGGERS: tuple[str, ...] = (
     "pyhon",
 )
 
-# Logger di pyhOn responsabili del rumore MQTT realtime. NB: pyhОn è vendorizzato
-# sotto _VENDOR_NS, ma nei log HA reali alcune righe possono ancora arrivare come
-# il top-level pyhon.connection.mqtt; copriamo entrambi.
+# Logger responsabili del rumore MQTT realtime. Dopo il transport nativo il client
+# MQTT è il NOSTRO (`client.transport.mqtt`); teniamo anche i nomi pyhОn finché il
+# vendor non sparisce, così il controllo del livello copre vecchio e nuovo.
 MQTT_NOISE_LOGGERS: tuple[str, ...] = (
+    "custom_components.addhon.client.transport.mqtt",
     f"{_VENDOR_NS}.connection.mqtt",
     "pyhon.connection.mqtt",
 )

@@ -7,11 +7,12 @@ a cui inietta il nostro `api`. È il penultimo passo dello strangler: quando reg
 live, il piece 4 fa puntare `pyhon_adapter.create_session` qui e cancella
 `_vendor/connection/`.
 
-Confine: questo file è `_vendor`-free. La costruzione degli oggetti-motore di
-pyhОn (HonAppliance, MQTTClient) passa dall'UNICO ponte `pyhon_adapter`
-(MIGRATION.md regola 1). `NativeHon` soddisfa il Protocol `interfaces.HonSession`
-ed espone `.api`/`.appliances`/`subscribe_updates`/`notify` come il `Hon` di pyhОn
-(il `MQTTClient` riusato legge proprio quei membri).
+Confine: questo file è `_vendor`-free. La costruzione dell'oggetto-motore di pyhОn
+(HonAppliance) passa dall'UNICO ponte `pyhon_adapter` (MIGRATION.md regola 1); il
+MQTT è ora NATIVO (`transport.mqtt.NativeMqttClient`, import lazy in `_make_mqtt`).
+`NativeHon` soddisfa il Protocol `interfaces.HonSession` ed espone `.api`/
+`.appliances`/`subscribe_updates`/`notify` come il `Hon` di pyhОn (il client MQTT
+legge proprio quei membri).
 
 Sequenza di setup (fedele a pyhОn): create connessione → `api.load_appliances()`
 → per ogni appliance costruisci HonAppliance e carica commands/attributes/statistics
@@ -86,6 +87,8 @@ class NativeHon:
 
     @appliances.setter
     def appliances(self, appliances: list[Any]) -> None:
+        # NB: il client MQTT lega la lista per riferimento a __init__. Non rebindare
+        # dopo che il MQTT è avviato, o le subscribe non vedrebbero la nuova lista.
         self._appliances = appliances
 
     async def create(self) -> "NativeHon":
@@ -123,7 +126,13 @@ class NativeHon:
                     await self._create_appliance(appliance.copy(), zone=zone + 1)
             await self._create_appliance(appliance)
         if self._enable_mqtt and not self._mqtt_client:
-            self._mqtt_client = await pyhon_adapter.create_mqtt(self, self._mobile_id)
+            self._mqtt_client = await self._make_mqtt()
+
+    async def _make_mqtt(self) -> Any:
+        # Import lazy: transport.mqtt importa awscrt/awsiot (assenti a secco/CI).
+        from .transport.mqtt import NativeMqttClient
+
+        return await NativeMqttClient(self, self._mobile_id).create()
 
     def subscribe_updates(self, notify_function: Any) -> None:
         self._notify_function = notify_function
@@ -136,7 +145,7 @@ class NativeHon:
         # Ferma il MQTT PRIMA della connessione (il watchdog non deve ritentare su
         # una sessione in chiusura). pyhОn non lo faceva (leak): lo facciamo noi.
         if self._mqtt_client is not None:
-            await pyhon_adapter.stop_mqtt(self._mqtt_client)
+            await self._mqtt_client.stop()
             self._mqtt_client = None
         if self._api is not None:
             await self._api.close()

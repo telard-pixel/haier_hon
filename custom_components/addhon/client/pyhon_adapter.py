@@ -12,7 +12,6 @@ di HonParameterEnum (anch'essa tocca `_vendor`, quindi sta nel ponte).
 """
 from __future__ import annotations
 
-import asyncio
 import logging
 import threading
 from typing import Any
@@ -63,16 +62,16 @@ def install_native_auth() -> None:
 def create_session(email: str, password: str) -> Any:
     """Crea la sessione hОn NATIVA (`client.session.NativeHon`).
 
-    FLIP COMPLETO del transport (Fase 3 piece 4): auth, connessione, api e
+    FLIP COMPLETO del transport (Fase 3 piece 4): auth, connessione, api, MQTT e
     orchestrazione sono NOSTRI; di pyhОn resta solo il motore parser
-    (HonAppliance/HonCommandLoader, riusato dentro NativeHon) + il MQTTClient.
-    Prima qui si creava un `pyhon.Hon` col nostro auth INIETTATO
-    (`install_native_auth`, ora superato): il transport pyhОn non gira più in
-    produzione. Il chiamante la usa identica a prima (`__aenter__()` → `.appliances`).
+    (HonAppliance/HonCommandLoader, riusato dentro NativeHon). Prima qui si creava un
+    `pyhon.Hon` col nostro auth INIETTATO (`install_native_auth`, ora superato): il
+    transport pyhОn non gira più in produzione. Il chiamante la usa identica a prima
+    (`__aenter__()` → `.appliances`).
 
     Import lazy di `NativeHon`: evita il ciclo (session.py importa questo modulo) e
     tiene `pyhon_adapter` importabile a secco (gli import di _vendor restano lazy,
-    nei factory `create_appliance`/`create_mqtt`/`ensure_enum_patch`).
+    nei factory `create_appliance`/`ensure_enum_patch`).
     """
     from .session import NativeHon
 
@@ -91,50 +90,6 @@ def create_appliance(api: Any, appliance_data: dict, zone: int = 0) -> Any:
     from .._vendor.pyhon.appliance import HonAppliance
 
     return HonAppliance(api, appliance_data, zone=zone)
-
-
-async def create_mqtt(hon: Any, mobile_id: str) -> Any:
-    """Avvia il MQTTClient di pyhОn (push background AWS IoT) per la sessione nativa.
-
-    pyhОn lo crea in `Hon.setup()`; lo riusiamo finché non riscriviamo/decidiamo
-    il transport MQTT (è in `_vendor/connection/`, bersaglio del piece 4b). Import
-    lazy: `mqtt.py` importa awscrt/awsiot, assenti negli ambienti di test offline.
-    `MQTTClient` legge `hon.api`, `hon.appliances`, `hon.notify` dall'oggetto passato.
-    """
-    from .._vendor.pyhon.connection.mqtt import MQTTClient
-
-    return await MQTTClient(hon, mobile_id).create()
-
-
-async def stop_mqtt(mqtt_client: Any) -> None:
-    """Ferma best-effort il MQTTClient di pyhОn (watchdog + websocket awscrt).
-
-    pyhОn NON lo fa in `Hon.close()`: a ogni reload della config entry resta una
-    connessione AWS IoT orfana (il task watchdog viene poi cancellato dal teardown
-    del loop dedicato, ma la connessione nativa awscrt no). Ora che l'orchestrazione
-    è nostra (`NativeHon.close()`), la chiudiamo. pyhОn non espone un metodo stop
-    ufficiale → tocchiamo gli internals con cautela, tutto best-effort e guardato.
-    """
-    if mqtt_client is None:
-        return
-    # Cancella E ATTENDI il watchdog PRIMA di leggere/fermare il client: se fosse
-    # mid-`_start()` ricreerebbe `_client` (ne perderemmo uno). Awaitarlo garantisce
-    # che il coroutine si sia srotolato (ogni `_start()` in volo è concluso/abortito).
-    task = getattr(mqtt_client, "_watchdog_task", None)
-    if task is not None:
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
-        except Exception as err:  # pragma: no cover - difensivo
-            _LOGGER.debug("addhОn: attesa cancel watchdog MQTT fallita: %s", err)
-    client = getattr(mqtt_client, "_client", None)
-    if client is not None:
-        try:
-            client.stop()
-        except Exception as err:  # pragma: no cover - difensivo
-            _LOGGER.debug("addhОn: stop client MQTT fallito: %s", err)
 
 
 def ensure_enum_patch() -> None:

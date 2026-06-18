@@ -61,6 +61,11 @@ class ApplyMqttLevelTest(unittest.TestCase):
         # In Home Assistant reale alcune righe arrivano ancora col nome logger
         # top-level pyhon.connection.mqtt; va silenziato insieme al vendorizzato.
         self.assertIn("pyhon.connection.mqtt", lu.MQTT_NOISE_LOGGERS)
+        # Dopo il transport nativo il client MQTT è il NOSTRO: il suo logger va
+        # silenziato come gli altri.
+        self.assertIn(
+            "custom_components.addhon.client.transport.mqtt", lu.MQTT_NOISE_LOGGERS
+        )
 
     def test_levels_map_to_logging_constants(self) -> None:
         self.assertEqual(lu.MQTT_LOG_LEVELS["debug"], logging.DEBUG)

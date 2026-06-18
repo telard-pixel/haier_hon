@@ -105,8 +105,18 @@ class FakeApi:
         self.closed = True
 
 
+class FakeMqtt:
+    def __init__(self, harness) -> None:
+        self._harness = harness
+        self.stopped = False
+
+    async def stop(self) -> None:
+        self.stopped = True
+        self._harness.stop_calls.append(self)
+
+
 class _Harness:
-    """Patcha i factory di pyhon_adapter + HonConnection/HonApi di session."""
+    """Patcha create_appliance (pyhon_adapter) + NativeHon._make_mqtt + HonConnection/HonApi."""
 
     def __init__(self, test, appliances, fail_macs=()):
         self.test = test
@@ -116,26 +126,25 @@ class _Harness:
         self.api = FakeApi(appliances, self.events)
         self.mqtt_calls: list = []
         self.stop_calls: list = []
-        self.mqtt_sentinel = object()
+        self.mqtt_instance = None
 
     def install(self):
+        h = self  # harness (evita collisione col self=NativeHon dei metodi patchati)
         t = self.test
         events = self.events
 
         def fake_create_appliance(api, data, zone=0):
-            return FakeAppliance(api, data, zone, events, fail=data.get("macAddress") in self.fail_macs)
+            return FakeAppliance(api, data, zone, events, fail=data.get("macAddress") in h.fail_macs)
 
-        async def fake_create_mqtt(hon, mobile_id):
+        async def fake_make_mqtt(hon):  # hon = istanza NativeHon (metodo bound)
             events.append("mqtt")
-            self.mqtt_calls.append((hon, mobile_id))
-            return self.mqtt_sentinel
-
-        async def fake_stop_mqtt(mqtt_client):
-            self.stop_calls.append(mqtt_client)
+            m = FakeMqtt(h)
+            h.mqtt_calls.append((hon, hon._mobile_id))
+            h.mqtt_instance = m
+            return m
 
         t._patch(pyhon_adapter, "create_appliance", fake_create_appliance)
-        t._patch(pyhon_adapter, "create_mqtt", fake_create_mqtt)
-        t._patch(pyhon_adapter, "stop_mqtt", fake_stop_mqtt)
+        t._patch(NativeHon, "_make_mqtt", fake_make_mqtt)
 
 
 class NativeSessionSetupTest(unittest.TestCase):
@@ -308,14 +317,15 @@ class NativeSessionSetupTest(unittest.TestCase):
         h.install()
         nh = self._nh_with_api(h)
         _run(nh.setup())
-        self.assertIs(nh._mqtt_client, h.mqtt_sentinel)
+        self.assertIs(nh._mqtt_client, h.mqtt_instance)
         _run(nh.close())
-        self.assertEqual(h.stop_calls, [h.mqtt_sentinel])
+        self.assertEqual(h.stop_calls, [h.mqtt_instance])
+        self.assertTrue(h.mqtt_instance.stopped)
         self.assertIsNone(nh._mqtt_client)
         self.assertTrue(h.api.closed)
 
     def test_close_without_mqtt_no_stop(self) -> None:
-        # enable_mqtt=False: niente mqtt -> close() non chiama stop_mqtt.
+        # enable_mqtt=False: niente mqtt -> close() non ferma nessun client.
         h = _Harness(self, [])
         h.install()
         nh = self._nh_with_api(h, enable_mqtt=False)
@@ -323,36 +333,6 @@ class NativeSessionSetupTest(unittest.TestCase):
         _run(nh.close())
         self.assertEqual(h.stop_calls, [])
         self.assertTrue(h.api.closed)
-
-    def test_real_stop_mqtt_cancels_watchdog_and_stops_client(self) -> None:
-        # Esercita la stop_mqtt REALE (non mockata): cattura un eventuale rename
-        # degli attributi del vendor (_watchdog_task/_client) che la renderebbe no-op.
-        class FakeClient:
-            def __init__(self) -> None:
-                self.stopped = False
-
-            def stop(self) -> None:
-                self.stopped = True
-
-        async def body():
-            async def _forever():
-                while True:
-                    await asyncio.sleep(3600)
-
-            task = asyncio.ensure_future(_forever())
-            await asyncio.sleep(0)  # lascia partire il watchdog
-            client = FakeClient()
-            m = types.SimpleNamespace(_watchdog_task=task, _client=client)
-            await pyhon_adapter.stop_mqtt(m)
-            return task, client
-
-        task, client = _run(body())
-        self.assertTrue(task.cancelled())  # cancellato E awaitato
-        self.assertTrue(client.stopped)
-
-    def test_real_stop_mqtt_none_and_missing_attrs_no_crash(self) -> None:
-        _run(pyhon_adapter.stop_mqtt(None))  # non deve sollevare
-        _run(pyhon_adapter.stop_mqtt(types.SimpleNamespace()))  # senza _watchdog_task/_client
 
     def test_api_property_raises_before_create(self) -> None:
         nh = NativeHon("u@x", "p")
