@@ -95,8 +95,23 @@ il transport; il motore (stabile e complesso) si tiene il più a lungo possibile
     5). Confutatori: parità HOLDS, sicurezza naive->aware HOLDS; l'audit del test ha trovato buchi di
     copertura (corpus tutto stringhe-intere) -> chiusi con casi sintetici (fallback non-numerico, virgola,
     parNewVal mancante su update, non-stringa, lock in `_snap`).
-  - [ ] slice 3 — cluster commands+command_loader+rules+program (FLIP);
-    slice 4 — appliances per-tipo (registry); slice 5 — appliance ROOT + **cancellare `_vendor/`**.
+  - [x] **slice 3 — cluster comandi nativo (commands+command_loader+rules+program)**
+    `client/engine/{commands,command_loader,rules}.py` + `parameter/program.py` + `exceptions.py`,
+    riusando i parametri dello slice 1. Differential test end-to-end sui dati reali del frigo
+    (load_commands + sync) + send-path + RULES su fixture sintetiche (il frigo non ha rules, l'AC è
+    offline -> oracolo sintetico, parità con pyhОn NON col modello `programRules` dell'app, rimandato
+    a live-AC) + conformità Protocol. **FLIP RIMANDATO**: il pool confutatori ha scoperto che i
+    parametri nativi rompono le appliance per-tipo `_extra` di pyhОn (`appliances/base.py`/`td.py`
+    fanno `isinstance` contro le classi parametro di pyhОn a ogni poll: programName, dryLevel) -> quei
+    siti isinstance NON erano negli "11" del ROOT, stanno nelle per-tipo = **slice 4**. Quindi cluster
+    (3) e per-tipo (4) devono flippare INSIEME: `create_appliance` ritorna ancora il ROOT pyhОn; la
+    sottoclasse nativa `_native_engine_appliance_cls` è pronta+differential-testata ma usata solo dai
+    test. Divergenze enum-casing su favourites/recover/rule-default documentate+pinnate (eredità slice 1,
+    da rivalidare live). Confutatori (4+2 round): cluster/rules parità HOLDS, flip-deferral safe, test
+    rinforzati (24/26 mutanti uccisi, 2 equivalenti).
+  - [ ] slice 4 — appliances per-tipo (registry nativo) + **FLIP del cluster+per-tipo insieme** (qui
+    `create_appliance` passerà a `_native_engine_appliance_cls`); slice 5 — appliance ROOT +
+    **cancellare `_vendor/`**.
 
 ## Regole di confine
 
