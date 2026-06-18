@@ -201,9 +201,9 @@ class ClusterEndToEndTest(unittest.TestCase):
         na.sync_params_to_command("settings")
         self.assertEqual(_snap_appliance(na), _snap_appliance(py))
 
-    def test_native_appliance_is_subclass_of_root(self) -> None:
-        # transizione: il ROOT è ancora pyhОn (slice 5 lo riscrive)
-        self.assertTrue(issubclass(pyhon_adapter._native_engine_appliance_cls(), PyAppliance))
+    def test_native_appliance_is_standalone_root(self) -> None:
+        # slice 5: il ROOT nativo è standalone, NON più sottoclasse del ROOT pyhОn
+        self.assertFalse(issubclass(pyhon_adapter._native_engine_appliance_cls(), PyAppliance))
 
 
 class SendPathParityTest(unittest.TestCase):
