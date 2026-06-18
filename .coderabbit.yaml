@@ -1,15 +1,15 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
-# Config letta da CodeRabbit dal branch in review (head). Gli esclusi sotto non
-# contano verso il limite di file di una PR, cosi le PR grandi restano recensibili
-# e la review resta focalizzata sul codice vero (non su deletions e dati generati).
-language: it-IT
+# CodeRabbit reads this config from the branch under review (head). Excluded paths
+# below do not count toward a PR's file limit, so large PRs stay reviewable and the
+# review stays focused on real code (not deletions or generated data).
+language: en-US
 reviews:
   path_filters:
-    # Vecchia integrazione: cancellata dal rename haier_hon -> addhon. Solo deletions, nessun valore di review.
+    # Old integration: deleted by the haier_hon -> addhon rename. Deletions only, no review value.
     - "!custom_components/haier_hon/**"
-    # Libreria vendorizzata (rimossa dal distacco da pyhОn): codice di terzi, niente review.
+    # Vendored library (removed in the pyhon detachment): third-party code, skip review.
     - "!**/_vendor/**"
-    # Snapshot golden generati con GEN_GOLDEN=1: dati, non codice.
+    # Golden snapshots generated with GEN_GOLDEN=1: data, not code.
     - "!tests/golden/**"
-    # Dump REF reale anonimizzato usato come fixture: dati di test, non codice.
+    # Anonymized real REF dump used as a fixture: test data, not code.
     - "!tests/fixtures/**"
