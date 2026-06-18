@@ -33,6 +33,21 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VENDOR_DIR = os.path.join(REPO_ROOT, "custom_components", "addhon", "_vendor")
 DST_PKG = os.path.join(VENDOR_DIR, "pyhon")
 
+# Contenuto ESATTO di _vendor/pyhon/__init__.py dopo la potatura del transport
+# (Fase 3 piece 4b). Deve combaciare byte-a-byte col file committato, altrimenti un
+# rigenero lo modificherebbe: lo blinda tests/test_vendor_script.py.
+_ENGINE_ONLY_INIT = '''"""pyhОn vendorizzato — SOLO il motore parser (commands/parameter/rules/appliance/
+command_loader/attributes/diagnose).
+
+Lo strato TRANSPORT di pyhОn (connection/auth/api/handler/device/mqtt + l'orchestratore
+hon.Hon + la CLI __main__) è stato RIMOSSO: riscritto nativamente in
+custom_components/addhon/client/ (vedi client/MIGRATION.md, Fase 3). Resta solo il
+motore parser, bersaglio della Fase 4 (riscrittura finale = distacco totale).
+
+Rigenerato da scripts/vendor_pyhon.py: non modificare a mano.
+"""
+'''
+
 
 def _resolve_source(ref: str, source: str | None) -> tuple[str, str, str]:
     """Restituisce (path_radice_sorgente, ref, commit_sha)."""
@@ -85,6 +100,31 @@ def _rewrite_imports() -> int:
     return touched
 
 
+def _prune_transport() -> list[str]:
+    """Rimuove lo strato TRANSPORT di pyhОn, riscritto nativamente in
+    custom_components/addhon/client/ (vedi client/MIGRATION.md, Fase 3 piece 4b).
+
+    Vendorizziamo SOLO il motore parser (commands/parameter/rules/appliance/
+    command_loader/attributes/diagnose...). Vanno via: `connection/` (auth/api/
+    handler/device/mqtt), l'orchestratore `hon.py` e la CLI `__main__.py`. Il
+    `__init__.py` originale importa Hon/HonAPI dal transport rimosso: lo
+    sovrascriviamo con uno minimale. Idempotente.
+    """
+    removed: list[str] = []
+    conn = os.path.join(DST_PKG, "connection")
+    if os.path.isdir(conn):
+        shutil.rmtree(conn)
+        removed.append("connection/")
+    for fn in ("hon.py", "__main__.py"):
+        path = os.path.join(DST_PKG, fn)
+        if os.path.isfile(path):
+            os.remove(path)
+            removed.append(fn)
+    with open(os.path.join(DST_PKG, "__init__.py"), "w", encoding="utf-8") as fh:
+        fh.write(_ENGINE_ONLY_INIT)
+    return removed
+
+
 def _sanity_check() -> list[str]:
     """Cerca riferimenti a `pyhon` non namespacizzati (esclude i falsi positivi)."""
     leftovers: list[str] = []
@@ -122,6 +162,7 @@ def main() -> None:
     if os.path.isfile(src_license):
         shutil.copy(src_license, os.path.join(DST_PKG, "LICENSE"))
 
+    pruned = _prune_transport()
     touched = _rewrite_imports()
     leftovers = _sanity_check()
     if leftovers:
@@ -140,7 +181,7 @@ def main() -> None:
 
     n_py = sum(1 for r, _, fs in os.walk(DST_PKG) for f in fs if f.endswith(".py"))
     print(f"OK: vendorizzato pyhon @ {ref} ({sha[:10]})")
-    print(f"    file .py: {n_py} | import riscritti: {touched}")
+    print(f"    file .py: {n_py} | import riscritti: {touched} | transport rimosso: {pruned}")
     print(f"    -> {os.path.relpath(DST_PKG, REPO_ROOT)}")
 
 

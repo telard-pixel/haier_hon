@@ -1,15 +1,15 @@
-"""Verifica LIVE che il vero pyhon.Hon soddisfi il Protocol HonSession del seam.
+"""Verifica LIVE che il vero `NativeHon` soddisfi il Protocol HonSession del seam.
 
-È il controllo "carico-portante" dello strangle della sessione: l'adapter ritorna
-un pyhon.Hon, e tutto il piano si regge sul fatto che quell'oggetto sia conforme a
-client/interfaces.HonSession.
+È il controllo "carico-portante" della sessione: l'adapter ritorna un `NativeHon`
+(piece 4a) e tutto il piano si regge sul fatto che quell'oggetto sia conforme a
+client/interfaces.HonSession. (La conformità è anche testata offline in
+test_native_session; qui la verifichiamo sull'oggetto reale, con le dipendenze vere.)
 
-Richiede aiohttp/awsiotsdk (le dipendenze runtime di pyhОn): se assenti (es. CI
-unit senza HA), il test si SALTA in modo pulito. Quando le dipendenze ci sono
-(ambiente HA reale, o il venv /tmp/hon-dump-venv), gira davvero. L'import del Hon
-reale avviene in un SUBPROCESS isolato per non inquinare sys.modules del processo
-pytest condiviso (il trucco pre-registra package vuoti per saltare il pesante
-__init__ dell'integrazione).
+Richiede aiohttp/awsiotsdk (le dipendenze runtime del transport nativo): se assenti
+(es. CI unit senza HA), il test si SALTA in modo pulito. Quando ci sono (HA reale, o
+il venv /tmp/hon-dump-venv), gira davvero. L'import avviene in un SUBPROCESS isolato
+per non inquinare sys.modules del processo pytest (il trucco pre-registra package
+vuoti per saltare il pesante __init__ dell'integrazione).
 """
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ def _deps_available() -> bool:
     # altri test (un altro modulo di test può registrare un finto `aiohttp` in
     # sys.modules: find_spec su un modulo senza __spec__ solleva ValueError, e un
     # modulo reale ha sempre spec.origin) → in dubbio: non disponibile, skip.
-    for name in ("aiohttp", "awscrt"):
+    for name in ("aiohttp", "awscrt", "yarl"):
         try:
             spec = importlib.util.find_spec(name)
         except (ValueError, ImportError):
@@ -56,9 +56,9 @@ class LiveSessionProtocolTest(unittest.TestCase):
             spec = importlib.util.spec_from_file_location(
                 "ifc", root / "custom_components/addhon/client/interfaces.py")
             ifc = importlib.util.module_from_spec(spec); spec.loader.exec_module(ifc)
-            from custom_components.addhon._vendor.pyhon import Hon
-            h = Hon(email="x@example.com", password="y")
-            assert isinstance(h, ifc.HonSession), "Hon NON conforme a HonSession"
+            from custom_components.addhon.client.session import NativeHon
+            h = NativeHon(email="x@example.com", password="y")
+            assert isinstance(h, ifc.HonSession), "NativeHon NON conforme a HonSession"
             print("CONFORME")
             """
         )

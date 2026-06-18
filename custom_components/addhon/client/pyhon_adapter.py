@@ -24,39 +24,9 @@ _LOGGER = logging.getLogger(__name__)
 _ENUM_PATCH_LOCK = threading.Lock()
 _ENUM_PATCH_APPLIED = False
 
-# FLIP dell'auth: stato del monkeypatch che fa usare alla macchina pyhОn il
-# NOSTRO HonAuth nativo (drop-in). Idempotente, thread-safe.
-_NATIVE_AUTH_LOCK = threading.Lock()
-_NATIVE_AUTH_INSTALLED = False
-
-
-def install_native_auth() -> None:
-    """LEGACY (pre-flip): sostituisce l'HonAuth di pyhОn col NOSTRO auth nativo.
-
-    Superato dal FLIP completo: `create_session` ora ritorna `NativeHon`, che usa
-    il nostro auth/transport nativamente, senza iniettarsi in pyhОn. Mantenuto
-    (non chiamato da create_session) per il percorso ibrido e i test.
-
-    Il nostro `client.transport.auth.HonAuth` è un drop-in (stessa interfaccia:
-    cognito_token/id_token/refresh_token/authenticate/refresh/clear/token_*). Lo
-    iniettiamo nel namespace dell'handler di pyhОn (`HonConnectionHandler.create`
-    fa `self._auth = HonAuth(...)` con lookup del nome a runtime), così il login
-    di produzione gira sul NOSTRO flusso (validato live), tenendo api+parser di
-    pyhОn. Stesso meccanismo della patch enum; idempotente e best-effort.
-    """
-    global _NATIVE_AUTH_INSTALLED
-    with _NATIVE_AUTH_LOCK:
-        if _NATIVE_AUTH_INSTALLED:
-            return
-        try:
-            from .._vendor.pyhon.connection.handler import hon as _hon_handler
-            from .transport.auth import HonAuth as _NativeHonAuth
-
-            _hon_handler.HonAuth = _NativeHonAuth
-            _NATIVE_AUTH_INSTALLED = True
-            _LOGGER.info("addhОn: auth nativo iniettato in pyhОn (flip)")
-        except Exception as err:  # pragma: no cover - difensivo
-            _LOGGER.warning("addhОn: impossibile installare l'auth nativo: %s", err)
+# NB: il vecchio `install_native_auth` (FLIP-by-injection nell'handler pyhОn) è stato
+# RIMOSSO nel piece 4b: il transport pyhОn (connection/) non esiste più, la sessione
+# nativa (NativeHon) usa il nostro auth direttamente. Non serve più iniettare nulla.
 
 
 def create_session(email: str, password: str) -> Any:
