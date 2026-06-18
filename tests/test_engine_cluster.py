@@ -381,6 +381,56 @@ class NativeEnumEdgeBehaviorTest(unittest.TestCase):
         self.assertEqual(na.intern_value, "DASHBOARD")
 
 
+# Rule `$installationType` REALE (AC IOT_SELF_CLEAN, anonimizzata): config statica del
+# device. Validata sull'AC live (unitConfiguration='1to1' -> inerte) + modello app.
+_AC_SELF_CLEAN = {
+    "description": "d", "protocolType": "MQTT",
+    "ancillaryParameters": {
+        "remoteActionable": {"typology": "range", "category": "general", "mandatory": 0,
+                             "defaultValue": "1", "minimumValue": "0", "maximumValue": "1", "incrementValue": "1"},
+        "remoteVisible": {"typology": "range", "category": "general", "mandatory": 0,
+                          "defaultValue": "1", "minimumValue": "0", "maximumValue": "1", "incrementValue": "1"},
+        "programRules": {"category": "rule", "typology": "fixed", "mandatory": 0, "fixedValue": {
+            "remoteActionable": {"$installationType": {"1toN": {"fixedValue": "0", "typology": "fixed"}}},
+            "remoteVisible": {"$installationType": {"1toN": {"fixedValue": "0", "typology": "fixed"}}},
+        }},
+    },
+}
+
+
+class _ConfigApp:
+    zone = 0
+    options: dict = {}
+    commands: dict = {}
+
+    def __init__(self, unit_config) -> None:
+        self.info = {"unitConfiguration": unit_config} if unit_config is not None else {}
+
+
+class ConfigRuleTest(unittest.TestCase):
+    """Rules `$installationType`: config statica del device, modello app risolto contro
+    `appliance.info['unitConfiguration']` (mappa app $installationType->unitConfiguration).
+    AC reale = 1to1 -> nessun ramo -> inerte (corretto); 1toN -> la rule scatta."""
+
+    def _build(self, unit_config):
+        return NaCommand("c", json.loads(json.dumps(_AC_SELF_CLEAN)), _ConfigApp(unit_config),
+                         category_name="PROGRAMS.AC.IOT_SELF_CLEAN")
+
+    def test_1to1_inert(self) -> None:
+        c = self._build("1to1")  # device reale: solo ramo 1toN -> niente match -> default
+        self.assertEqual(c.parameters["remoteActionable"].value, 1)
+        self.assertEqual(c.parameters["remoteVisible"].value, 1)
+
+    def test_1toN_fires(self) -> None:
+        c = self._build("1toN")  # multi-split: la rule scatta
+        self.assertEqual(c.parameters["remoteActionable"].value, 0)
+        self.assertEqual(c.parameters["remoteVisible"].value, 0)
+
+    def test_missing_unitconfig_inert(self) -> None:
+        c = self._build(None)  # campo assente -> non scatta (fallback come l'app)
+        self.assertEqual(c.parameters["remoteActionable"].value, 1)
+
+
 class ProtocolConformanceTest(unittest.TestCase):
     def test_native_objects_satisfy_protocols(self) -> None:
         na = _build(NaAppliance, FakeApi())

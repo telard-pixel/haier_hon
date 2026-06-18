@@ -43,10 +43,18 @@ class HonRule:
     extras: Optional[dict[str, str]] = None
 
 
+# Trigger key `$<x>` = variabile di CONFIG del device (sigil dell'app), non un
+# parametro runtime. Mappatura -> campo del record appliance (da app decompilata,
+# `getMappedParamName`): l'app conosce SOLO `$installationType` -> `unitConfiguration`.
+_DOLLAR_FIELDS = {"$installationType": "unitConfiguration"}
+
+
 class HonRuleSet:
     def __init__(self, command: Any, rule: dict[str, Any]) -> None:
         self._command = command
         self._rules: dict[str, list[HonRule]] = {}
+        # rules "di config" (trigger `$...`): risolte staticamente, non via trigger.
+        self._config_rules: list[tuple[str, str, dict[str, Any]]] = []
         self._parse_rule(rule)
 
     @property
@@ -66,6 +74,12 @@ class HonRuleSet:
         trigger_data: dict[str, Any],
         extra: Optional[dict[str, str]] = None,
     ) -> None:
+        if extra is None and trigger_key.startswith("$"):
+            # CONFIG-rule (modello app): il trigger `$installationType` non è un
+            # parametro ma un campo del device (unitConfiguration). Risolta staticamente
+            # in `patch()` contro il record appliance, non come trigger runtime.
+            self._config_rules.append((param_key, trigger_key, trigger_data))
+            return
         trigger_key = trigger_key.replace("@", "")
         trigger_key = self._command.appliance.options.get(trigger_key, trigger_key)
         for multi_trigger_value, param_data in trigger_data.items():
@@ -172,6 +186,34 @@ class HonRuleSet:
 
         parameter.add_trigger(data.trigger_value, apply, data)
 
+    def _apply_config_rules(self) -> None:
+        """Applica le rules con trigger `$...` (config statica del device) come fa l'app:
+        risolve il campo del record appliance (es. `$installationType`->`unitConfiguration`),
+        indicizza il ramo col valore del device e ne scrive il `fixedValue`/enum nel target.
+        Statico (il valore è una proprietà persistente del device, non cambia operando).
+        Se il device non ha quel campo o non c'è un ramo per il suo valore -> non scatta
+        (come l'app: `if(!r5) return`). Validato live: AC `unitConfiguration='1to1'` -> nessun
+        ramo (le rules hanno solo 1to2/1toN) -> non scatta, corretto."""
+        if not self._config_rules:
+            return
+        info = getattr(self._command.appliance, "info", {}) or {}
+        for param_key, dollar_key, branch_map in self._config_rules:
+            field = _DOLLAR_FIELDS.get(dollar_key, dollar_key)
+            device_value = info.get(field)
+            if device_value is None:
+                continue
+            action = branch_map.get(str(device_value))
+            if not isinstance(action, dict):
+                continue
+            if not (param := self._command.parameters.get(param_key)):
+                continue
+            if fixed_value := action.get("fixedValue", ""):
+                self._apply_fixed(param, fixed_value)
+            elif action.get("typology") == "enum":
+                self._apply_enum(
+                    param, HonRule(dollar_key, str(device_value), param_key, action)
+                )
+
     def patch(self) -> None:
         self._duplicate_for_extra_conditions()
         for name, parameter in self._command.parameters.items():
@@ -179,3 +221,4 @@ class HonRuleSet:
                 continue
             for data in self._rules.get(name, []):
                 self._add_trigger(parameter, data)
+        self._apply_config_rules()
