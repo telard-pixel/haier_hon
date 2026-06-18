@@ -89,11 +89,15 @@ class HonRuleSet:
                         param_key, trigger_key, trigger_value, param_data, extra
                     )
                 elif isinstance(param_data, dict):
-                    if extra is None:
-                        extra = {}
-                    extra[trigger_key] = trigger_value
+                    # Copia per ramo: `extra` non va mutato/condiviso tra le iterazioni
+                    # del loop, altrimenti una rule gia' creata in un ramo precedente
+                    # vedrebbe la condizione di un ramo successivo (es. ecoMode 1 -> 2).
+                    branch_extra = dict(extra or {})
+                    branch_extra[trigger_key] = trigger_value
                     for extra_key, extra_data in param_data.items():
-                        self._parse_conditions(param_key, extra_key, extra_data, extra)
+                        self._parse_conditions(
+                            param_key, extra_key, extra_data, branch_extra
+                        )
                 else:
                     param_data = {"typology": "fixed", "fixedValue": param_data}
                     self._create_rule(
@@ -111,7 +115,13 @@ class HonRuleSet:
         if param_data.get("fixedValue") == f"@{param_key}":
             return
         self._rules.setdefault(trigger_key, []).append(
-            HonRule(trigger_key, trigger_value, param_key, param_data, extras)
+            HonRule(
+                trigger_key,
+                trigger_value,
+                param_key,
+                param_data,
+                extras.copy() if extras is not None else None,
+            )
         )
 
     def _duplicate_for_extra_conditions(self) -> None:

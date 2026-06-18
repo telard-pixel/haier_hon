@@ -22,6 +22,7 @@ _DUMP = REPO / "tests" / "fixtures" / "ref_10136"
 
 from custom_components.addhon.client import pyhon_adapter  # noqa: E402
 from custom_components.addhon.client.engine.commands import HonCommand as NaCommand  # noqa: E402
+from custom_components.addhon.client.engine.rules import HonRuleSet  # noqa: E402
 from custom_components.addhon.client import interfaces  # noqa: E402
 
 NaAppliance = pyhon_adapter._native_engine_appliance_cls()
@@ -353,6 +354,40 @@ class ClusterBehaviorTest(unittest.TestCase):
 
     def test_favourite_added(self) -> None:
         self.assertIn("MyFav", _native_snapshot()["rich_favourites_categories"])
+
+    def test_nested_rule_extras_not_cross_contaminated(self) -> None:
+        # ORACOLO: due rami dello stesso trigger (ecoMode 1 e 2), ognuno con una
+        # condizione annidata su machMode, devono restare indipendenti. Bug: `extra`
+        # era mutato e condiviso tra iterazioni -> la rule del ramo ecoMode=1 veniva
+        # corrotta a ecoMode=2, quindi impostando ecoMode=1 non scattava piu'.
+        attrs = {
+            "parameters": {
+                "ecoMode": _range(default="0", lo="0", hi="2", inc="1"),
+                "machMode": {"typology": "fixed", "category": "command", "mandatory": 1, "fixedValue": "5"},
+                "temp": _range(default="20", lo="16", hi="30", inc="1"),
+            },
+            "rules": {"r": _rule({"temp": {"ecoMode": {
+                "1": {"machMode": {"5": {"typology": "fixed", "fixedValue": "25"}}},
+                "2": {"machMode": {"5": {"typology": "fixed", "fixedValue": "28"}}},
+            }}})},
+        }
+        c1 = NaCommand("c", json.loads(json.dumps(attrs)), FakeAppliance())
+        c1.parameters["ecoMode"].value = "1"
+        self.assertEqual(c1.parameters["temp"].value, 25)  # bug: restava 20
+        c2 = NaCommand("c", json.loads(json.dumps(attrs)), FakeAppliance())
+        c2.parameters["ecoMode"].value = "2"
+        self.assertEqual(c2.parameters["temp"].value, 28)
+        # White-box: i due rule machMode-trigger devono avere extras DISTINTI e con il
+        # valore giusto del proprio ramo (pinna la copia per ramo, non solo l'end-to-end).
+        class _Cmd:
+            appliance = FakeAppliance()
+        rs = HonRuleSet(_Cmd(), {"temp": {"ecoMode": {
+            "1": {"machMode": {"5": {"typology": "fixed", "fixedValue": "25"}}},
+            "2": {"machMode": {"5": {"typology": "fixed", "fixedValue": "28"}}},
+        }}})
+        mach_rules = rs.rules["machMode"]
+        self.assertEqual([r.extras for r in mach_rules], [{"ecoMode": "1"}, {"ecoMode": "2"}])
+        self.assertIsNot(mach_rules[0].extras, mach_rules[1].extras)
 
     def test_range_rule_preserves_decimal(self) -> None:
         # ORACOLO: una rule fixedValue decimale ("22.5") su un range con step decimale
