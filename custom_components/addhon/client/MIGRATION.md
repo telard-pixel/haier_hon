@@ -86,7 +86,16 @@ il transport; il motore (stabile e complesso) si tiene il più a lungo possibile
     frigo. NESSUN flip in produzione: `rules.py` usa `isinstance` contro le classi pyhОn (11 siti),
     quindi i parametri si flippano SOLO col cluster. Confutatori: HOLDS (le divergenze enum-edge
     trovate = native più corretto del patch, documentate + pinnate).
-  - [ ] slice 2 — attributes nativo; slice 3 — cluster commands+command_loader+rules+program (FLIP);
+  - [x] **slice 2 — attributes nativo** `client/engine/attributes.py` (`HonAttribute`). Leaf (solo
+    `client/helpers.str_to_float`). UNICA divergenza voluta = fix deprecazione: lock con
+    `datetime.now(timezone.utc)` (aware) invece del deprecato `utcnow()` (naive); è interno (scritto/letto
+    solo nella classe, mai mischiato con `last_update`), comportamento osservabile identico. Differential
+    test sui dati shadow reali del frigo + sintetici (tests/test_engine_attributes.py). NESSUN flip
+    (`appliance.py` di pyhОn costruisce ancora il SUO `HonAttribute`; il flip arriva con l'appliance, slice
+    5). Confutatori: parità HOLDS, sicurezza naive->aware HOLDS; l'audit del test ha trovato buchi di
+    copertura (corpus tutto stringhe-intere) -> chiusi con casi sintetici (fallback non-numerico, virgola,
+    parNewVal mancante su update, non-stringa, lock in `_snap`).
+  - [ ] slice 3 — cluster commands+command_loader+rules+program (FLIP);
     slice 4 — appliances per-tipo (registry); slice 5 — appliance ROOT + **cancellare `_vendor/`**.
 
 ## Regole di confine
