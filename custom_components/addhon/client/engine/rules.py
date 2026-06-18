@@ -153,11 +153,15 @@ class HonRuleSet:
             param.values = [str(value)]
             param.value = str(value)
         elif isinstance(param, HonParameterRange):
-            if float(value) < param.min:
-                param.min = float(value)
-            elif float(value) > param.max:
-                param.max = float(value)
-            param.value = float(value)
+            numeric = float(value)
+            if numeric < param.min:
+                param.min = numeric
+            elif numeric > param.max:
+                param.max = numeric
+            # Passa una STRINGA al setter: str_to_float fa int() per primo e un float
+            # come 22.5 verrebbe troncato a 22 (vedi helpers.str_to_float). La stringa
+            # preserva i decimali (stesso motivo per cui number.py invia i setpoint come str).
+            param.value = str(value)
             return
         param.value = str(value)
 

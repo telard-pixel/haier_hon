@@ -354,6 +354,22 @@ class ClusterBehaviorTest(unittest.TestCase):
     def test_favourite_added(self) -> None:
         self.assertIn("MyFav", _native_snapshot()["rich_favourites_categories"])
 
+    def test_range_rule_preserves_decimal(self) -> None:
+        # ORACOLO: una rule fixedValue decimale ("22.5") su un range con step decimale
+        # deve impostare 22.5, non 22. Bug: _apply_fixed passava float(value) al setter,
+        # che fa str_to_float(22.5)=int(22.5)=22 -> tronca silenziosamente (con step 0.5
+        # il 22 troncato passa pure il check off-step, quindi nessun errore).
+        attrs = {
+            "parameters": {
+                "mode": _enum("cold", ["cold", "hot"]),
+                "temp": _range(default="20", lo="16", hi="30", inc="0.5"),
+            },
+            "rules": {"r": _rule({"temp": {"mode": {"hot": {"typology": "fixed", "fixedValue": "22.5"}}}})},
+        }
+        c = NaCommand("c", json.loads(json.dumps(attrs)), FakeAppliance())
+        c.parameters["mode"].value = "hot"
+        self.assertEqual(c.parameters["temp"].value, 22.5)
+
     def test_ac_eco_nested_rule_fires(self) -> None:
         # struttura REALE dell'AC (apk/dump/ac_live): ecoMode=1 con machMode fisso=1
         # deve vincolare tempSel a 26 e le wind-direction (condizione-extra annidata).
