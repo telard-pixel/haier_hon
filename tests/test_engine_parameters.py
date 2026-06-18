@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _golden import REPO, frozen, install_stubs  # noqa: E402
 
 install_stubs()
-_DUMP = REPO / "apk" / "dump" / "ref_10136" / "commands.json"
+_DUMP = REPO / "tests" / "fixtures" / "ref_10136" / "commands.json"
 
 from custom_components.addhon.client.engine.parameter.range import HonParameterRange as NaRange  # noqa: E402
 from custom_components.addhon.client.engine.parameter.enum import HonParameterEnum as NaEnum  # noqa: E402

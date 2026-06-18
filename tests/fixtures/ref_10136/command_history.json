@@ -1,0 +1,64 @@
+[
+    {
+        "PK": "xxxx#xx-xxxx-1:x1x111x1-xxxx-xxxx-1x11-1xxxxx11111x#xxx#xx-xx-xx-xx-xx-xx",
+        "SK_Secondary": "xxxXxxxxxx#1111-11-11X11:11:11.1X",
+        "command": {
+            "macAddress": "xx-xx-xx-xx-xx-xx",
+            "commandName": "startProgram",
+            "applianceOptions": {},
+            "ancillaryParameters": {},
+            "applianceType": "REF",
+            "attributes": {
+                "channel": "mobileApp",
+                "origin": "standardProgram"
+            },
+            "device": {
+                "appVersion": "2.12.9",
+                "deviceModel": "BVL",
+                "osVersion": "34",
+                "mobileId": "1xx1x1xx1x1xx1x1",
+                "mobileOs": "android"
+            },
+            "parameters": {
+                "intelligenceMode": "1"
+            },
+            "transactionId": "xx-xx-xx-xx-xx-xx_1970-01-01T00:00:00.0Z",
+            "timestamp": "1970-01-01T00:00:00.0Z"
+        },
+        "lastUpdate": "1970-01-01T00:00:00.0Z",
+        "timestampAccepted": "1970-01-01T00:00:00.0Z",
+        "timestampExecuted": "1970-01-01T00:00:00.0Z",
+        "SK": "xxxXxxxxxx#xxxxxXxxxxxx#1111-11-11X11:11:11.1X"
+    },
+    {
+        "PK": "xxxx#xx-xxxx-1:x1x111x1-xxxx-xxxx-1x11-1xxxxx11111x#xxx#xx-xx-xx-xx-xx-xx",
+        "SK_Secondary": "xxxXxxxxxx#1111-11-11X11:11:11.1X",
+        "command": {
+            "macAddress": "xx-xx-xx-xx-xx-xx",
+            "commandName": "startProgram",
+            "applianceOptions": {},
+            "ancillaryParameters": {},
+            "applianceType": "REF",
+            "attributes": {
+                "channel": "mobileApp",
+                "origin": "standardProgram"
+            },
+            "device": {
+                "appVersion": "2.10.6",
+                "deviceModel": "BVL",
+                "osVersion": "34",
+                "mobileId": "1xx1x1xx1x1xx1x1",
+                "mobileOs": "android"
+            },
+            "parameters": {
+                "quickModeZ1": "1"
+            },
+            "transactionId": "xx-xx-xx-xx-xx-xx_1970-01-01T00:00:00.0Z",
+            "timestamp": "1970-01-01T00:00:00.0Z"
+        },
+        "lastUpdate": "1970-01-01T00:00:00.0Z",
+        "timestampAccepted": "1970-01-01T00:00:00.0Z",
+        "timestampExecuted": "1970-01-01T00:00:00.0Z",
+        "SK": "xxxXxxxxxx#xxxxxXxxxxxx#1111-11-11X11:11:11.1X"
+    }
+]

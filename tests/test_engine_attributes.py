@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _golden import REPO, frozen, install_stubs, normalize  # noqa: E402
 
 install_stubs()
-_DUMP = REPO / "apk" / "dump" / "ref_10136" / "attributes.json"
+_DUMP = REPO / "tests" / "fixtures" / "ref_10136" / "attributes.json"
 
 from custom_components.addhon.client.engine.attributes import HonAttribute as NaAttr  # noqa: E402
 

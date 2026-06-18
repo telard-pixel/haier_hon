@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _golden import REPO, frozen, install_stubs, normalize  # noqa: E402
 
 install_stubs()
-_DUMP = REPO / "apk" / "dump" / "ref_10136"
+_DUMP = REPO / "tests" / "fixtures" / "ref_10136"
 
 from custom_components.addhon.client import pyhon_adapter  # noqa: E402
 from custom_components.addhon.client.engine.commands import HonCommand as NaCommand  # noqa: E402
