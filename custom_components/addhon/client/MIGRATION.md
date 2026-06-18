@@ -5,6 +5,14 @@ non più mantenuto a monte) sostituendolo **un pezzo alla volta** con codice
 nostro qui in `client/`. `_vendor/pyhon/` si svuota progressivamente fino a
 sparire; nessun big-bang.
 
+**Stella polare (obiettivo finale, esplicito):** distacco **TOTALE** da pyhОn.
+Non lo si COPIA: si scrive codice NOSTRO, più moderno, efficiente, aggiornabile
+e meglio integrato con HA. La fedeltà a pyhОn vale solo dove i byte vanno al
+cloud e non sono validabili offline (richieste HTTP, payload comando); ovunque
+pyhОn abbia un bug o una fragilità e sappiamo fare meglio, **divergiamo e lo
+documentiamo** (es. parse difensivo, timestamp comando corretto). Alla fine
+sparisce anche il motore parser: la "Fase 4" NON è più "forse mai", è la meta.
+
 ## La realtà a strati (perché NON si stacca "tutto e subito")
 
 pyhОn ≈ 3066 LOC, ma sono tre strati con profili opposti:
@@ -29,16 +37,34 @@ il transport; il motore (stabile e complesso) si tiene il più a lungo possibile
   il client nativo (domani).
 - [x] **Fase 1b — adattatore-ponte sessione.** `pyhon_adapter.create_session`
   è creato: `hon_client.py` ottiene la sessione hОn da `client/`, NON più con
-  `from ._vendor.pyhon import Hon`. Coupling residuo nel corpo dell'integrazione:
-  la patch enum BABYCARE (`hon_client.py` ~r255, ancora import diretto di
-  `_vendor.pyhon.parameter.enum`) + stringhe logger `_vendor.pyhon.*` — prossimo step.
-- [ ] **Fase 2 — transport nativo.** Dietro la seam, sostituire SOLO auth +
-  appliance-list + send con la nostra implementazione (flusso AWS Cognito ricavato
-  dalla decompilazione dell'APK), **riusando il motore comandi/parametri di
-  pyhОn**. Uccide la rottura ricorrente senza buttare i 890 LOC stabili.
-  Prerequisito ideale: un device online per validare (oggi il frigo è offline).
-- [ ] **Fase 3 — parser nativo (forse mai).** Sostituire anche commands/parameter/
-  rules, solo se ci blocca. È stabile: bassa priorità.
+  `from ._vendor.pyhon import Hon`. La patch enum BABYCARE è stata spostata dietro
+  il seam (`pyhon_adapter.ensure_enum_patch()`): oggi `hon_client.py` ha **ZERO
+  import di `_vendor`** (solo nomi-logger stringa), blindato da una guard `ast` in
+  `tests/test_session_adapter.py`. `pyhon_adapter.py` resta l'UNICO ponte verso `_vendor`.
+- [x] **Fase 2 — auth nativo + FLIP.** Riscritto il flusso di login hОn (Salesforce
+  OAuth) in `transport/` (`device`, `parse`, `tokens`, `headers`, `oauth`, `auth`)
+  e iniettato nella macchina pyhОn (`pyhon_adapter.install_native_auth`). Il login
+  di PRODUZIONE gira sul NOSTRO auth, **live-validato e2e**. Uccide lo strato dove
+  ci rompevamo (unified-api, token) tenendo per ora il resto di pyhОn.
+- [~] **Fase 3 — transport nativo (sopra il nostro auth).** Sostituire connessione
+  + api HTTP, **riusando ancora il motore comandi/parametri di pyhОn** (gli si
+  inietta il nostro api). Pezzi:
+  - [x] piece 1 — `transport/connection.py` (`HonConnection`): get/post autenticate
+    con iniezione token + retry, live-validato.
+  - [x] piece 2 — `transport/api.py` (`HonApi`): i metodi HTTP (`load_*`/`send_command`)
+    sopra `HonConnection`, drop-in del `HonAPI` pyhОn per il motore parser.
+    Richieste byte-identiche al cloud, estrazione difensiva, differential test offline.
+  - [ ] piece 3 — orchestrazione `Hon` nativa: `__aenter__` → auth + load_appliances →
+    costruisce gli appliance RIUSANDO `HonAppliance`/`HonCommandLoader` di pyhОn,
+    espone il Protocol `HonSession` (+ `.api`/`.appliances` per MQTT).
+  - [ ] piece 4 — FULL FLIP: `create_session` ritorna il `Hon` nativo → si cancella
+    `_vendor/connection/` (handler/api/auth/device-HTTP/mqtt) + `scripts/vendor_pyhon.py`.
+- [ ] **Fase 4 — motore parser nativo (= distacco TOTALE, la meta).** Riscrivere
+  anche `commands`/`command_loader`/`parameter/`/`rules`/`appliance.py` con un
+  modello NOSTRO (più semplice/tipizzato/idiomatico HA), validato sui dump reali,
+  e cancellare l'ultimo `_vendor/pyhon/`. Era marcato "forse mai": ora è l'obiettivo
+  finale dichiarato. Si fa per ultimo perché è lo strato stabile a più alto rischio
+  di regressione: prima il transport (fragile), poi il motore.
 
 ## Regole di confine
 
@@ -46,8 +72,10 @@ il transport; il motore (stabile e complesso) si tiene il più a lungo possibile
    l'UNICO adattatore-ponte `pyhon_adapter.py` (già creato): è il solo file di
    `client/` con un import di `_vendor` (lazy, dentro `create_session`).
 2. Il resto dell'integrazione dipende dai **Protocol** di `interfaces.py`, non
-   dagli oggetti concreti di pyhОn. La sessione passa già per il ponte; l'aggancio
-   diretto residuo in `hon_client.py` è la patch enum (r255), da spostare poi.
+   dagli oggetti concreti di pyhОn. La sessione e la patch enum passano entrambe
+   per il ponte `pyhon_adapter.py`; `hon_client.py` è già `_vendor`-free.
+   Anche `client/transport/` è `_vendor`-free (è la riscrittura nativa: non importa
+   pyhОn, l'`appliance` che riceve è duck-typed).
 3. `_vendor/pyhon/` è **rigenerato** da `scripts/vendor_pyhon.py` (vedi
    `_vendor/VENDOR.md`): NON si modifica a mano. Le patch finché serve pyhОn
    vivono nel fork `telard-pixel/pyhon` e si ri-vendorizzano.
