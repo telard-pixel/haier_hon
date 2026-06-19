@@ -224,8 +224,11 @@ class ProgramNameEndToEndTest(unittest.TestCase):
         from custom_components.addhon.client import pyhon_adapter
         app = pyhon_adapter._native_engine_appliance_cls()(DictApi(_PN_COMMANDS, attrs), dict(_PN_INFO), zone=0)
         loop = asyncio.new_event_loop()
-        loop.run_until_complete(app.load_commands())
-        loop.run_until_complete(app.load_attributes())
+        try:
+            loop.run_until_complete(app.load_commands())
+            loop.run_until_complete(app.load_attributes())
+        finally:
+            loop.close()
         return app
 
     def test_prcode5_is_super_freeze(self) -> None:

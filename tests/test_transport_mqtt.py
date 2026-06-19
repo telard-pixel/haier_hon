@@ -242,7 +242,7 @@ class PublishReceivedTest(unittest.TestCase):
         topic = "haier/things/MAC/event/connected"
         app = FakeAppliance(topic)
         app.connection = False
-        m, hon = self._client(app)
+        m, _ = self._client(app)
         m._on_publish_received(_packet(topic, {}))
         self.assertTrue(app.connection)
 

@@ -38,8 +38,12 @@ def _native_snapshot() -> dict:
     new = {"parNewVal": "7", "lastUpdate": "2024-05-01T12:00:00"}
     for name, data in params.items():
         out["construct"][name] = _snap(NaAttr(dict(data)))
-        a = NaAttr(dict(data)); a.update("42"); out["str_update"][name] = _snap(a)
-        b = NaAttr(dict(data)); b.update(dict(new)); out["dict_update"][name] = _snap(b)
+        a = NaAttr(dict(data))
+        a.update("42")
+        out["str_update"][name] = _snap(a)
+        b = NaAttr(dict(data))
+        b.update(dict(new))
+        out["dict_update"][name] = _snap(b)
     # casi sintetici
     out["synthetic_values"] = {
         v: _snap(NaAttr({"parNewVal": v}))
