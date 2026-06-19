@@ -262,7 +262,7 @@ class HonClient:
         self._hon_thread: threading.Thread | None = None
         self._lifecycle_lock = threading.RLock()
 
-    # ── Dedicated loop management ─────────────────────────────────────────────
+    # -- Dedicated loop management ---------------------------------------------
 
     def _start_hon_loop(self) -> None:
         """Start the dedicated loop on a background thread."""
@@ -422,7 +422,7 @@ class HonClient:
                     _LOGGER.debug("Error closing hOn session: %s", err)
             self._stop_hon_loop()
 
-    # ── Setup ─────────────────────────────────────────────────────────────────
+    # -- Setup -----------------------------------------------------------------
 
     def setup_sync(self) -> None:
         """Full pyhOn setup in executor (NOT on HA's event loop).
@@ -462,7 +462,7 @@ class HonClient:
         """
         return self._run_on_hon_loop(coro)
 
-    # ── Appliances ───────────────────────────────────────────────────────────
+    # -- Appliances -----------------------------------------------------------
 
     async def async_get_appliances(self) -> list:
         if self._api is None:
@@ -549,7 +549,7 @@ class HonClient:
 
         self._run_on_hon_loop(_do_update())
 
-    # ── Re-auth ───────────────────────────────────────────────────────────────
+    # -- Re-auth ---------------------------------------------------------------
 
     async def _async_reauth(self) -> bool:
         """Re-authenticate in case of an expired token."""
@@ -564,7 +564,7 @@ class HonClient:
             _LOGGER.error("hOn re-authentication failed: %s", err)
             return False
 
-    # ── Data polling ──────────────────────────────────────────────────────────
+    # -- Data polling ----------------------------------------------------------
 
     async def async_get_appliances_data(self) -> dict[str, Any]:
         reauth_attempted = False
@@ -701,7 +701,7 @@ class HonClient:
             _LOGGER.info("Loaded %d hOn devices with data", len(data))
             return data
 
-    # ── Closing ───────────────────────────────────────────────────────────────
+    # -- Closing ---------------------------------------------------------------
 
     async def async_close(self) -> None:
         await asyncio.get_running_loop().run_in_executor(None, self._close_sync)

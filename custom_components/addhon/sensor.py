@@ -349,7 +349,7 @@ _AC: tuple[HonSensorEntityDescription, ...] = (
     ),
 )
 
-# ─── Tier 2: read-only sensors (capability-gated) ────────────────────────────
+# --- Tier 2: read-only sensors (capability-gated) ----------------------------
 # Types mapped from the official app but not validated on real devices. Each
 # description has gated=True: the entity is created only if the device exposes
 # the attribute (see async_setup_entry). The `attr_key` values are the hOn

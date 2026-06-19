@@ -16,7 +16,7 @@ APPLIANCE_WM = "WM"       # Washing Machine
 APPLIANCE_TD = "TD"       # Tumble Dryer
 APPLIANCE_WD = "WD"       # Washer-dryer
 
-# ─── Tier 2: read-only types ──────────────────────────────────────────────────
+# --- Tier 2: read-only types --------------------------------------------------
 # Additional types exposed as read-only sensors. The parameters come from the
 # official app mapping but are NOT validated on real devices (none of the test
 # devices are of these types): for this reason the sensors of these types are
@@ -71,7 +71,7 @@ ATTR_LEVEL = "level"
 CONF_ENABLE_DEBUG = "enable_debug"
 CONF_ENABLE_MQTT_DEBUG = "enable_mqtt_debug"
 
-# ─── Air conditioner attributes ───────────────────────────────────────────────
+# --- Air conditioner attributes -----------------------------------------------
 # Confirmed from the diagnostics of the AS35PBPHRA-PRE device
 AC_ATTR_MODE         = "settings.machMode"
 AC_ATTR_TEMP         = "settings.tempSel"
@@ -133,7 +133,7 @@ AC_FAN_MAP = {
 }
 AC_FAN_MAP_REVERSE = {v: k for k, v in AC_FAN_MAP.items()}
 
-# ─── Washing machine attributes ───────────────────────────────────────────────
+# --- Washing machine attributes -----------------------------------------------
 # Confirmed from the diagnostics of the HW80-B14959TU1IT device
 WM_ATTR_STATUS        = "machMode"
 WM_ATTR_REMAINING     = "remainingTimeMM"
@@ -152,12 +152,12 @@ WM_ATTR_DOOR          = "doorLockStatus"            # Door lock (0=unlocked, 1=l
 WM_ATTR_DOOR_OPEN     = "doorStatus"                # Physical door (0=closed, 1=open)
 WM_ATTR_ERRORS        = "errors"
 
-# ─── Tumble dryer attributes (TD) ─────────────────────────────────────────────
+# --- Tumble dryer attributes (TD) ---------------------------------------------
 # The tumble dryer does NOT expose totalWashCycle; the cycle counter comes from
 # programsCounter (statistics container). Confirmed on the HD100-C367GU1-IT device.
 TD_ATTR_CYCLES = "programsCounter"
 
-# ─── Washing machine / tumble dryer states ────────────────────────────────────
+# --- Washing machine / tumble dryer states ------------------------------------
 WM_STATE_MAP = {
     "0": "In attesa",
     "1": "In esecuzione",
@@ -169,7 +169,7 @@ WM_STATE_MAP = {
     "7": "Mezzo carico",
 }
 
-# ─── Additional sensors/binary for the washing group ──────────────────────────
+# --- Additional sensors/binary for the washing group --------------------------
 # Keys CONFIRMED live on Roberto's devices: washing machine HW80-B14959TU1IT and
 # tumble dryer HD100-C367GU1-IT. They are direct attributes (not in settings).
 WM_ATTR_DIRT_LEVEL       = "dirtyLevel"          # selected soil level (1..3)
@@ -220,7 +220,7 @@ TUMBLE_DRYER_PHASE_MAP = {
     "20": "Asciugatura",
 }
 
-# ─── value→label maps for the Tier 2 types (read-only) ────────────────────────
+# --- value->label maps for the Tier 2 types (read-only) ------------------------
 # Decodings of the hOn enums for the sensors of the additional types. Values not
 # in the map -> fallback string (handled by the value_fn in sensor.py).
 

@@ -109,7 +109,7 @@ _DRY_BINARY: tuple[HonBinarySensorEntityDescription, ...] = (
 )
 
 
-# ─── Tier 2: binary sensors (capability-gated like all binary sensors) ───────
+# --- Tier 2: binary sensors (capability-gated like all binary sensors) -------
 # Inline keys = hOn parameter names (0/1 telemetry) of the types mapped but not
 # validated live. The per-attribute gate (already active for all binary sensors)
 # automatically drops those that a given model does not report.
