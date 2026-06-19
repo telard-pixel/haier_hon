@@ -68,7 +68,17 @@
   "entity": {
     "sensor": {
       "state": {
-        "name": "Stato"
+        "name": "Stato",
+        "state": {
+          "waiting": "In attesa",
+          "running": "In esecuzione",
+          "paused": "In pausa",
+          "completed": "Completato",
+          "error": "Errore",
+          "scheduled": "Programmato",
+          "delayed_start": "Ritardo avvio",
+          "half_load": "Mezzo carico"
+        }
       },
       "remaining_time": {
         "name": "Tempo Rimanente"
@@ -92,7 +102,19 @@
         "name": "Programma"
       },
       "program_phase": {
-        "name": "Fase"
+        "name": "Fase",
+        "state": {
+          "ready": "Pronto",
+          "washing": "Lavaggio",
+          "phase_skip": "Salto fase",
+          "rinsing": "Risciacquo",
+          "drying": "Asciugatura",
+          "steam": "Vapore",
+          "spinning": "Centrifuga",
+          "weighing": "Pesatura",
+          "rotation_start": "Avvio rotazione",
+          "refresh": "Rinfresco"
+        }
       },
       "errors": {
         "name": "Errori"
@@ -176,10 +198,22 @@
         "name": "Temperatura Sonda 2"
       },
       "salt_level": {
-        "name": "Livello Sale"
+        "name": "Livello Sale",
+        "state": {
+          "ok": "OK",
+          "low": "Basso",
+          "critical": "Critico",
+          "empty": "Non presente"
+        }
       },
       "rinse_aid_level": {
-        "name": "Livello Brillantante"
+        "name": "Livello Brillantante",
+        "state": {
+          "ok": "OK",
+          "low": "Basso",
+          "critical": "Critico",
+          "empty": "Non presente"
+        }
       },
       "fan_speed": {
         "name": "Velocità Ventola"
@@ -215,13 +249,64 @@
         "name": "Batteria"
       },
       "power_mode": {
-        "name": "Potenza Aspirazione"
+        "name": "Potenza Aspirazione",
+        "state": {
+          "auto": "Auto",
+          "turbo": "Turbo",
+          "quiet": "Silenzioso"
+        }
       },
       "last_work_area": {
         "name": "Area Ultima Pulizia"
       },
       "total_work_area": {
         "name": "Area Totale Pulita"
+      },
+      "machine_mode": {
+        "name": "Stato",
+        "state": {
+          "idle": "Inattivo",
+          "selection": "Selezione",
+          "running": "In esecuzione",
+          "paused": "In pausa",
+          "delayed_start": "Avvio ritardato",
+          "delayed_start_running": "Avvio ritardato (in corso)",
+          "error": "Errore",
+          "finished": "Terminato",
+          "test": "Test",
+          "stopped": "Arresto",
+          "keep_fresh": "Mantieni fresco"
+        }
+      },
+      "vacuum_state": {
+        "name": "Stato",
+        "state": {
+          "waiting": "In attesa",
+          "auto_cleaning": "Pulizia automatica",
+          "spot_cleaning": "Pulizia localizzata",
+          "paused": "In pausa",
+          "full_and_go": "Full & Go",
+          "cleaning_completed": "Pulizia completata",
+          "charging": "In carica"
+        }
+      },
+      "dryer_phase": {
+        "name": "Fase",
+        "state": {
+          "ready": "Pronto",
+          "heating": "Riscaldamento",
+          "drying": "Asciugatura",
+          "cooling": "Raffreddamento",
+          "rotation": "Rotazione"
+        }
+      },
+      "heater_phase": {
+        "name": "Fase",
+        "state": {
+          "ready": "Pronto",
+          "heating": "Riscaldamento",
+          "holding": "Mantenimento"
+        }
       }
     },
     "binary_sensor": {

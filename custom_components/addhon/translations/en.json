@@ -68,7 +68,17 @@
   "entity": {
     "sensor": {
       "state": {
-        "name": "Status"
+        "name": "Status",
+        "state": {
+          "waiting": "Waiting",
+          "running": "Running",
+          "paused": "Paused",
+          "completed": "Completed",
+          "error": "Error",
+          "scheduled": "Scheduled",
+          "delayed_start": "Delayed start",
+          "half_load": "Half load"
+        }
       },
       "remaining_time": {
         "name": "Remaining time"
@@ -92,7 +102,19 @@
         "name": "Program"
       },
       "program_phase": {
-        "name": "Phase"
+        "name": "Phase",
+        "state": {
+          "ready": "Ready",
+          "washing": "Washing",
+          "phase_skip": "Phase skip",
+          "rinsing": "Rinsing",
+          "drying": "Drying",
+          "steam": "Steam",
+          "spinning": "Spinning",
+          "weighing": "Weighing",
+          "rotation_start": "Rotation start",
+          "refresh": "Refresh"
+        }
       },
       "errors": {
         "name": "Errors"
@@ -176,10 +198,22 @@
         "name": "Probe 2 temperature"
       },
       "salt_level": {
-        "name": "Salt level"
+        "name": "Salt level",
+        "state": {
+          "ok": "OK",
+          "low": "Low",
+          "critical": "Critical",
+          "empty": "Empty"
+        }
       },
       "rinse_aid_level": {
-        "name": "Rinse aid level"
+        "name": "Rinse aid level",
+        "state": {
+          "ok": "OK",
+          "low": "Low",
+          "critical": "Critical",
+          "empty": "Empty"
+        }
       },
       "fan_speed": {
         "name": "Fan speed"
@@ -215,13 +249,64 @@
         "name": "Battery"
       },
       "power_mode": {
-        "name": "Suction power"
+        "name": "Suction power",
+        "state": {
+          "auto": "Auto",
+          "turbo": "Turbo",
+          "quiet": "Quiet"
+        }
       },
       "last_work_area": {
         "name": "Last cleaned area"
       },
       "total_work_area": {
         "name": "Total cleaned area"
+      },
+      "machine_mode": {
+        "name": "Status",
+        "state": {
+          "idle": "Idle",
+          "selection": "Selection",
+          "running": "Running",
+          "paused": "Paused",
+          "delayed_start": "Delayed start",
+          "delayed_start_running": "Delayed start (running)",
+          "error": "Error",
+          "finished": "Finished",
+          "test": "Test",
+          "stopped": "Stopped",
+          "keep_fresh": "Keep fresh"
+        }
+      },
+      "vacuum_state": {
+        "name": "Status",
+        "state": {
+          "waiting": "Waiting",
+          "auto_cleaning": "Auto cleaning",
+          "spot_cleaning": "Spot cleaning",
+          "paused": "Paused",
+          "full_and_go": "Full & Go",
+          "cleaning_completed": "Cleaning completed",
+          "charging": "Charging"
+        }
+      },
+      "dryer_phase": {
+        "name": "Phase",
+        "state": {
+          "ready": "Ready",
+          "heating": "Heating",
+          "drying": "Drying",
+          "cooling": "Cooling",
+          "rotation": "Rotation"
+        }
+      },
+      "heater_phase": {
+        "name": "Phase",
+        "state": {
+          "ready": "Ready",
+          "heating": "Heating",
+          "holding": "Holding"
+        }
       }
     },
     "binary_sensor": {

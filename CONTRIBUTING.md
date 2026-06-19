@@ -24,15 +24,17 @@ This project separates **code** from **interface**:
     `HomeAssistantError(translation_domain=DOMAIN, translation_key=..., translation_placeholders=...)`
     and add the message to the `exceptions` block. The `{placeholders}` in the
     message must match the keys passed in code.
+  - **Sensor states**: sensors with a fixed value set use
+    `SensorDeviceClass.ENUM`. The value function returns a stable English machine
+    key (or `None` for unknown), and the labels live under
+    `entity.sensor.<key>.state.<machine_key>`. Keep the description `options` in
+    sync with the `state` keys in both languages (enforced by
+    `tests/test_entity_translation_keys.py`). Free-text values (program names,
+    raw error codes) are device data and stay unmapped.
 
 `en.json` and `it.json` must keep an identical key structure (enforced by
 `tests/test_translations.py` and `tests/test_entity_translation_keys.py`). Add a
 key to both languages at once. Use plain text: no emoji, no long dashes.
-
-> Sensor **state labels** (the textual values some sensors return, e.g. washer
-> phases) are not yet localized; they are tracked as a follow-up (they need the
-> `enum` device class plus `state` translations, which changes stored state
-> values).
 
 ## Running the tests
 

@@ -89,12 +89,11 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 
-def _wm_state(raw) -> str:
-    """Translate machMode into the state text (historic behavior, unchanged)."""
+def _wm_state(raw) -> str | None:
+    """Map machMode to the washer/dryer ENUM state key (None if missing/unknown)."""
     if raw is None:
-        return "Non disponibile"
-    code = str(raw)
-    return WM_STATE_MAP.get(code, f"Sconosciuto ({code})")
+        return None
+    return WM_STATE_MAP.get(str(raw))
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -122,6 +121,8 @@ _STATE = HonSensorEntityDescription(
     key="state",
     icon="mdi:washing-machine",
     attr_key=WM_ATTR_STATUS,
+    device_class=SensorDeviceClass.ENUM,
+    options=sorted(set(WM_STATE_MAP.values())),
     value_fn=_wm_state,
 )
 _REMAINING = HonSensorEntityDescription(
@@ -176,17 +177,17 @@ def _as_text(raw) -> str | None:
 
 
 def _phase_wash(raw) -> str | None:
-    """prPhase -> phase label (washer/washer-dryer)."""
+    """prPhase -> washing-phase ENUM key (None if missing/unknown)."""
     if raw is None:
         return None
-    return WASHING_PHASE_MAP.get(str(raw), f"Fase {raw}")
+    return WASHING_PHASE_MAP.get(str(raw))
 
 
 def _phase_dry(raw) -> str | None:
-    """prPhase -> phase label (tumble dryer)."""
+    """prPhase -> tumble-dryer phase ENUM key (None if missing/unknown)."""
     if raw is None:
         return None
-    return TUMBLE_DRYER_PHASE_MAP.get(str(raw), f"Fase {raw}")
+    return TUMBLE_DRYER_PHASE_MAP.get(str(raw))
 
 
 _PROGRAM_NAME = HonSensorEntityDescription(
@@ -199,12 +200,17 @@ _PHASE_WASH = HonSensorEntityDescription(
     key="program_phase",
     icon="mdi:washing-machine",
     attr_key=WM_ATTR_PROGRAM_PHASE,
+    device_class=SensorDeviceClass.ENUM,
+    options=sorted(set(WASHING_PHASE_MAP.values())),
     value_fn=_phase_wash,
 )
 _PHASE_DRY = HonSensorEntityDescription(
     key="program_phase",
+    translation_key="dryer_phase",
     icon="mdi:tumble-dryer",
     attr_key=WM_ATTR_PROGRAM_PHASE,
+    device_class=SensorDeviceClass.ENUM,
+    options=sorted(set(TUMBLE_DRYER_PHASE_MAP.values())),
     value_fn=_phase_dry,
 )
 _ERRORS = HonSensorEntityDescription(
@@ -357,16 +363,16 @@ _AC: tuple[HonSensorEntityDescription, ...] = (
 # strings (unlike the historic types, which share keys across several platforms).
 
 
-def _mapped(mapping: dict[str, str], prefix: str) -> Callable[[object], object]:
-    """Build a value_fn that translates the raw value via `mapping`.
+def _mapped(mapping: dict[str, str]) -> Callable[[object], object]:
+    """Build a value_fn that maps the raw value to an ENUM key via `mapping`.
 
-    None value -> None; value not in the map -> "<prefix> <raw>" (so an
-    unexpected code stays visible instead of disappearing)."""
+    None / unknown value -> None (the sensor reports "unknown" rather than an
+    out-of-options value)."""
 
     def _fn(raw):
         if raw is None:
             return None
-        return mapping.get(str(raw), f"{prefix} {raw}")
+        return mapping.get(str(raw))
 
     return _fn
 
@@ -400,6 +406,23 @@ def _g_text(key: str, attr: str, icon: str | None = None,
     )
 
 
+def _g_enum(key: str, attr: str, mapping: dict[str, str], *,
+            translation_key: str | None = None,
+            icon: str | None = None) -> HonSensorEntityDescription:
+    """Capability-gated ENUM sensor: native_value is a machine key from `mapping`,
+    rendered per-language via the entity state translations."""
+    return HonSensorEntityDescription(
+        key=key,
+        translation_key=translation_key,
+        attr_key=attr,
+        icon=icon,
+        device_class=SensorDeviceClass.ENUM,
+        options=sorted(set(mapping.values())),
+        value_fn=_mapped(mapping),
+        gated=True,
+    )
+
+
 # Fridge / fridge-freezer / freezer (REF/FR/FRE): per-zone temperatures +
 # ambient. Doors / ice-maker / eco are binary sensors (binary_sensor.py).
 _COOLING: tuple[HonSensorEntityDescription, ...] = (
@@ -422,8 +445,8 @@ _COOLING: tuple[HonSensorEntityDescription, ...] = (
 
 # Oven (OV): state, cavity temperature, remaining time, meat probes.
 _OVEN: tuple[HonSensorEntityDescription, ...] = (
-    _g_text("state", "machMode", icon="mdi:stove",
-            value_fn=_mapped(MACHINE_MODE_MAP, "Modo")),
+    _g_enum("state", "machMode", MACHINE_MODE_MAP,
+            translation_key="machine_mode", icon="mdi:stove"),
     _g_temp("temp_cavity", "temp"),
     _g_minutes("remaining_time", "remainingTimeMM"),
     _g_temp("probe_temp_1", "tempEmployedProbe1"),
@@ -433,14 +456,13 @@ _OVEN: tuple[HonSensorEntityDescription, ...] = (
 # Dishwasher (DW): state, program, time, salt/rinse-aid levels,
 # temperature, errors. The door is a binary sensor.
 _DISHWASHER: tuple[HonSensorEntityDescription, ...] = (
-    _g_text("state", "machMode", icon="mdi:dishwasher",
-            value_fn=_mapped(MACHINE_MODE_MAP, "Modo")),
+    _g_enum("state", "machMode", MACHINE_MODE_MAP,
+            translation_key="machine_mode", icon="mdi:dishwasher"),
     _g_text("program_name", "programName", icon="mdi:format-list-bulleted"),
     _g_minutes("remaining_time", "remainingTimeMM"),
-    _g_text("salt_level", "saltStatus", icon="mdi:shaker-outline",
-            value_fn=_mapped(DW_LEVEL_MAP, "Livello")),
-    _g_text("rinse_aid_level", "rinseAidStatus",
-            icon="mdi:water-opacity", value_fn=_mapped(DW_LEVEL_MAP, "Livello")),
+    _g_enum("salt_level", "saltStatus", DW_LEVEL_MAP, icon="mdi:shaker-outline"),
+    _g_enum("rinse_aid_level", "rinseAidStatus", DW_LEVEL_MAP,
+            icon="mdi:water-opacity"),
     HonSensorEntityDescription(
         key="wash_temperature",
         attr_key="temperature",
@@ -528,8 +550,8 @@ _WATER_HEATER: tuple[HonSensorEntityDescription, ...] = (
         gated=True,
     ),
     _g_minutes("heating_remaining", "remainingTimeMMHeating"),
-    _g_text("program_phase", "prPhase", icon="mdi:water-boiler",
-            value_fn=_mapped(WH_PHASE_MAP, "Fase")),
+    _g_enum("program_phase", "prPhase", WH_PHASE_MAP,
+            translation_key="heater_phase", icon="mdi:water-boiler"),
 )
 
 # Robot vacuum (RVC): battery, state, time, power, areas, errors.
@@ -542,11 +564,10 @@ _VACUUM: tuple[HonSensorEntityDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         gated=True,
     ),
-    _g_text("state", "prPhase", icon="mdi:robot-vacuum",
-            value_fn=_mapped(RVC_STATE_MAP, "Stato")),
+    _g_enum("state", "prPhase", RVC_STATE_MAP,
+            translation_key="vacuum_state", icon="mdi:robot-vacuum"),
     _g_minutes("remaining_time", "remainingTimeMM"),
-    _g_text("power_mode", "power", icon="mdi:fan",
-            value_fn=_mapped(RVC_POWER_MAP, "Potenza")),
+    _g_enum("power_mode", "power", RVC_POWER_MAP, icon="mdi:fan"),
     HonSensorEntityDescription(
         key="last_work_area",
         attr_key="lastWorkArea",

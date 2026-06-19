@@ -159,14 +159,14 @@ TD_ATTR_CYCLES = "programsCounter"
 
 # --- Washing machine / tumble dryer states ------------------------------------
 WM_STATE_MAP = {
-    "0": "In attesa",
-    "1": "In esecuzione",
-    "2": "In pausa",
-    "3": "Completato",
-    "4": "Errore",
-    "5": "Programmato",
-    "6": "Ritardo avvio",
-    "7": "Mezzo carico",
+    "0": "waiting",
+    "1": "running",
+    "2": "paused",
+    "3": "completed",
+    "4": "error",
+    "5": "scheduled",
+    "6": "delayed_start",
+    "7": "half_load",
 }
 
 # --- Additional sensors/binary for the washing group --------------------------
@@ -184,92 +184,96 @@ WM_ATTR_FILTER_CLEAN     = "filterCleaning"      # recommended filter cleaning
 WM_ATTR_DRY_CLEAN_NEEDED = "dryCleaningNeeded"   # recommended condenser cleaning
 
 # Cycle phase (prPhase, raw numeric attribute). The maps translate prPhase ->
-# phase label; washing machine/washer-dryer and tumble dryer use distinct tables.
-# Values not in the map -> "Fase N".
+# an ENUM machine key (rendered per-language via the sensor state translations);
+# washing machine/washer-dryer and tumble dryer use distinct tables. Values not
+# in the map -> None (the sensor reports "unknown").
 WASHING_PHASE_MAP = {
-    "0": "Pronto",
-    "1": "Lavaggio",
-    "2": "Lavaggio",
-    "3": "Salto fase",
-    "4": "Risciacquo",
-    "5": "Risciacquo",
-    "6": "Risciacquo",
-    "7": "Asciugatura",
-    "8": "Salto fase",
-    "9": "Vapore",
-    "10": "Pronto",
-    "11": "Centrifuga",
-    "12": "Pesatura",
-    "14": "Lavaggio",
-    "15": "Lavaggio",
-    "16": "Lavaggio",
-    "20": "Avvio rotazione",
-    "24": "Rinfresco",
+    "0": "ready",
+    "1": "washing",
+    "2": "washing",
+    "3": "phase_skip",
+    "4": "rinsing",
+    "5": "rinsing",
+    "6": "rinsing",
+    "7": "drying",
+    "8": "phase_skip",
+    "9": "steam",
+    "10": "ready",
+    "11": "spinning",
+    "12": "weighing",
+    "14": "washing",
+    "15": "washing",
+    "16": "washing",
+    "20": "rotation_start",
+    "24": "refresh",
 }
 TUMBLE_DRYER_PHASE_MAP = {
-    "0": "Pronto",
-    "1": "Riscaldamento",
-    "2": "Asciugatura",
-    "3": "Raffreddamento",
-    "13": "Raffreddamento",
-    "14": "Riscaldamento",
-    "15": "Riscaldamento",
-    "16": "Raffreddamento",
-    "18": "Rotazione",
-    "19": "Asciugatura",
-    "20": "Asciugatura",
+    "0": "ready",
+    "1": "heating",
+    "2": "drying",
+    "3": "cooling",
+    "13": "cooling",
+    "14": "heating",
+    "15": "heating",
+    "16": "cooling",
+    "18": "rotation",
+    "19": "drying",
+    "20": "drying",
 }
 
-# --- value->label maps for the Tier 2 types (read-only) ------------------------
-# Decodings of the hOn enums for the sensors of the additional types. Values not
-# in the map -> fallback string (handled by the value_fn in sensor.py).
+# --- value->machine-key maps for the Tier 2 types (read-only) -----------------
+# Decodings of the hOn enums into ENUM machine keys for the sensors of the
+# additional types (rendered per-language via the sensor state translations).
+# Values not in the map -> None (handled by the value_fn in sensor.py).
 
 # Authoritative app machMode (0-10), used by the types that share MachineMode
-# (oven, dishwasher, ...). NOTE: it is distinct from WM_STATE_MAP, which stays a
-# historic local 0-7 map of the washing group and must not be modified.
+# (oven, dishwasher, ...). NOTE: distinct from WM_STATE_MAP (the washing group's
+# own 0-7 codes); both now hold ENUM machine keys, exposed under distinct
+# translation_keys ("machine_mode" vs "state") so their state vocabularies stay
+# separate.
 MACHINE_MODE_MAP = {
-    "0": "Inattivo",
-    "1": "Selezione",
-    "2": "In esecuzione",
-    "3": "In pausa",
-    "4": "Avvio ritardato",
-    "5": "Avvio ritardato (in corso)",
-    "6": "Errore",
-    "7": "Terminato",
-    "8": "Test",
-    "9": "Arresto",
-    "10": "Mantieni fresco",
+    "0": "idle",
+    "1": "selection",
+    "2": "running",
+    "3": "paused",
+    "4": "delayed_start",
+    "5": "delayed_start_running",
+    "6": "error",
+    "7": "finished",
+    "8": "test",
+    "9": "stopped",
+    "10": "keep_fresh",
 }
 
 # Dishwasher salt / rinse-aid level (saltStatus / rinseAidStatus).
 DW_LEVEL_MAP = {
-    "0": "OK",
-    "1": "Basso",
-    "2": "Critico",
-    "3": "Non presente",
+    "0": "ok",
+    "1": "low",
+    "2": "critical",
+    "3": "empty",
 }
 
 # Water heater phase (prPhase -> reduced EnumWaterHeaterPhase).
 WH_PHASE_MAP = {
-    "0": "Pronto",
-    "1": "Riscaldamento",
-    "2": "Mantenimento",
+    "0": "ready",
+    "1": "heating",
+    "2": "holding",
 }
 
 # Robot vacuum state (prPhase/machMode -> RVCMachModes).
 RVC_STATE_MAP = {
-    "0": "In attesa",
-    "1": "Pulizia automatica",
-    "2": "Pulizia localizzata",
-    "3": "In pausa",
-    "4": "Full & Go",
-    "5": "Pulizia completata",
-    "6": "In carica",
+    "0": "waiting",
+    "1": "auto_cleaning",
+    "2": "spot_cleaning",
+    "3": "paused",
+    "4": "full_and_go",
+    "5": "cleaning_completed",
+    "6": "charging",
 }
 
 # Robot suction power (power).
 RVC_POWER_MAP = {
-    "0": "Auto",
-    "1": "Turbo",
-    "2": "Silenzioso",
+    "0": "auto",
+    "1": "turbo",
+    "2": "quiet",
 }

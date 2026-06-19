@@ -90,13 +90,14 @@ def _install_stubs() -> None:
         native_unit_of_measurement: str | None = None
         device_class: object | None = None
         state_class: object | None = None
+        options: object | None = None
 
     sensor_mod.SensorEntityDescription = getattr(sensor_mod, "SensorEntityDescription", SensorEntityDescription)
     sensor_mod.SensorEntity = getattr(sensor_mod, "SensorEntity", type("SensorEntity", (), {}))
     sensor_mod.SensorDeviceClass = getattr(sensor_mod, "SensorDeviceClass", type("SensorDeviceClass", (), {
         "TEMPERATURE": "temperature", "HUMIDITY": "humidity", "ENERGY": "energy",
         "WATER": "water", "DURATION": "duration", "PM25": "pm25", "CO2": "co2",
-        "BATTERY": "battery", "POWER": "power",
+        "BATTERY": "battery", "POWER": "power", "ENUM": "enum",
     }))
     sensor_mod.SensorStateClass = getattr(sensor_mod, "SensorStateClass", type("SensorStateClass", (), {
         "MEASUREMENT": "measurement", "TOTAL": "total", "TOTAL_INCREASING": "total_increasing",
@@ -300,6 +301,65 @@ class ExceptionPlaceholderTest(unittest.TestCase):
                 )
                 checked += 1
             self.assertGreater(checked, 0, "no exception raise sites were checked")
+
+
+def _collect_sensor_state_options() -> dict[str, set[str]]:
+    """Per translation_key, the union of `options` across ENUM sensor descriptions."""
+    from custom_components.addhon import sensor
+
+    by_tk: dict[str, set[str]] = {}
+    for descs in sensor.SENSORS.values():
+        for d in descs:
+            options = getattr(d, "options", None)
+            if not options:
+                continue
+            by_tk.setdefault(_tk(d), set()).update(options)
+    return by_tk
+
+
+class SensorStateTranslationTest(unittest.TestCase):
+    """Every ENUM sensor's `options` (the machine keys it can report) must have a
+    matching `entity.sensor.<tk>.state.<key>` label in BOTH languages, with no
+    extras. Without this an ENUM state would show as a raw key in the UI."""
+
+    def test_enum_options_match_state_translations(self) -> None:
+        by_tk = _collect_sensor_state_options()
+        self.assertTrue(by_tk, "no ENUM sensor options were collected")
+        for lang in ("en", "it"):
+            data = json.loads((COMPONENT / "translations" / f"{lang}.json").read_text(encoding="utf-8"))
+            sensor_block = data.get("entity", {}).get("sensor", {})
+            for tk, options in by_tk.items():
+                state = set(sensor_block.get(tk, {}).get("state", {}))
+                self.assertEqual(
+                    options,
+                    state,
+                    f"[{lang}] entity.sensor.{tk}.state keys {sorted(state)} != "
+                    f"ENUM options used in code {sorted(options)}",
+                )
+
+    def test_same_translation_key_descriptions_share_options(self) -> None:
+        # ENUM sensors that share a translation_key must declare IDENTICAL options,
+        # so the single per-tk state block is unambiguous (the cross-check above
+        # unions options; this rules out divergent same-tk option sets).
+        from custom_components.addhon import sensor
+
+        seen: dict[str, tuple[str, ...]] = {}
+        for descs in sensor.SENSORS.values():
+            for d in descs:
+                options = getattr(d, "options", None)
+                if not options:
+                    continue
+                tk = _tk(d)
+                opts = tuple(sorted(options))
+                if tk in seen:
+                    self.assertEqual(
+                        seen[tk],
+                        opts,
+                        f"translation_key '{tk}' has ENUM descriptions with differing "
+                        f"options: {seen[tk]} vs {opts}",
+                    )
+                else:
+                    seen[tk] = opts
 
 
 if __name__ == "__main__":
