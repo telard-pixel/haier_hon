@@ -1,0 +1,145 @@
+{
+  "dw": {
+    "active": true,
+    "available": true,
+    "machMode": 2,
+    "modeZ1": null,
+    "modeZ2": null,
+    "onOffStatus": null,
+    "pause": null,
+    "programName": "No Program",
+    "temp": null
+  },
+  "ov_off": {
+    "active": true,
+    "available": false,
+    "machMode": null,
+    "modeZ1": null,
+    "modeZ2": null,
+    "onOffStatus": 1,
+    "pause": null,
+    "programName": "No Program",
+    "temp": 50
+  },
+  "ov_on": {
+    "active": true,
+    "available": true,
+    "machMode": null,
+    "modeZ1": null,
+    "modeZ2": null,
+    "onOffStatus": 1,
+    "pause": null,
+    "programName": "No Program",
+    "temp": 50
+  },
+  "ref_autoset": {
+    "active": null,
+    "available": true,
+    "machMode": null,
+    "modeZ1": "auto_set",
+    "modeZ2": "auto_set",
+    "onOffStatus": null,
+    "pause": null,
+    "programName": "No Program",
+    "temp": null
+  },
+  "ref_both_z1": {
+    "active": null,
+    "available": true,
+    "machMode": null,
+    "modeZ1": "holiday",
+    "modeZ2": "no_mode",
+    "onOffStatus": null,
+    "pause": null,
+    "programName": "No Program",
+    "temp": null
+  },
+  "ref_freeze": {
+    "active": null,
+    "available": true,
+    "machMode": null,
+    "modeZ1": "no_mode",
+    "modeZ2": "super_freeze",
+    "onOffStatus": null,
+    "pause": null,
+    "programName": "No Program",
+    "temp": null
+  },
+  "ref_freeze_vs_autoset": {
+    "active": null,
+    "available": true,
+    "machMode": null,
+    "modeZ1": "auto_set",
+    "modeZ2": "super_freeze",
+    "onOffStatus": null,
+    "pause": null,
+    "programName": "No Program",
+    "temp": null
+  },
+  "ref_holiday": {
+    "active": null,
+    "available": true,
+    "machMode": null,
+    "modeZ1": "holiday",
+    "modeZ2": "no_mode",
+    "onOffStatus": null,
+    "pause": null,
+    "programName": "No Program",
+    "temp": null
+  },
+  "ref_off": {
+    "active": null,
+    "available": true,
+    "machMode": null,
+    "modeZ1": "no_mode",
+    "modeZ2": "no_mode",
+    "onOffStatus": null,
+    "pause": null,
+    "programName": "No Program",
+    "temp": null
+  },
+  "td_offline": {
+    "active": false,
+    "available": false,
+    "machMode": 5,
+    "modeZ1": null,
+    "modeZ2": null,
+    "onOffStatus": null,
+    "pause": false,
+    "programName": "No Program",
+    "temp": null
+  },
+  "td_online": {
+    "active": true,
+    "available": true,
+    "machMode": 3,
+    "modeZ1": null,
+    "modeZ2": null,
+    "onOffStatus": null,
+    "pause": true,
+    "programName": "No Program",
+    "temp": null
+  },
+  "wh": {
+    "active": true,
+    "available": true,
+    "machMode": null,
+    "modeZ1": null,
+    "modeZ2": null,
+    "onOffStatus": 1,
+    "pause": null,
+    "programName": "No Program",
+    "temp": null
+  },
+  "wm_disc": {
+    "active": false,
+    "available": false,
+    "machMode": 3,
+    "modeZ1": null,
+    "modeZ2": null,
+    "onOffStatus": null,
+    "pause": true,
+    "programName": "No Program",
+    "temp": null
+  }
+}

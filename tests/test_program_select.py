@@ -263,8 +263,8 @@ class ProgramSelectTest(unittest.IsolatedAsyncioTestCase):
         entity.hass = FakeHass()
 
     async def test_select_created_for_start_program_only_appliance(self) -> None:
-        from custom_components.haier_hon.const import DOMAIN
-        from custom_components.haier_hon import select
+        from custom_components.addhon.const import DOMAIN
+        from custom_components.addhon import select
 
         commands = {
             "startProgram": RecordingCommand(
@@ -282,7 +282,7 @@ class ProgramSelectTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(["Cotone", "Sintetici"], added[0]._attr_options)
 
     async def test_select_option_records_pending_without_starting(self) -> None:
-        from custom_components.haier_hon.select import HonProgramSelect
+        from custom_components.addhon.select import HonProgramSelect
 
         start = RecordingCommand({"program": Param(values={"1": "Cotone", "2": "Sintetici"})})
         coordinator = FakeCoordinator(_washer({"startProgram": start}))
@@ -301,8 +301,8 @@ class ProgramSelectTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("Sintetici", entity.current_option)
 
     async def test_start_button_applies_pending_and_clears_it(self) -> None:
-        from custom_components.haier_hon.select import HonProgramSelect
-        from custom_components.haier_hon.button import HonProgramCommandButton
+        from custom_components.addhon.select import HonProgramSelect
+        from custom_components.addhon.button import HonProgramCommandButton
 
         start = RecordingCommand({"program": Param(values={"1": "Cotone", "2": "Sintetici"})})
         coordinator = FakeCoordinator(_washer({"startProgram": start}))
@@ -331,7 +331,7 @@ class ProgramSelectTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(1, coordinator.refreshes)
 
     async def test_stop_button_ignores_pending_program(self) -> None:
-        from custom_components.haier_hon.button import HonProgramCommandButton
+        from custom_components.addhon.button import HonProgramCommandButton
 
         stop = RecordingCommand({"onOffStatus": Param("1")})
         coordinator = FakeCoordinator(_washer({"stopProgram": stop}))
@@ -355,7 +355,7 @@ class ProgramSelectTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual({"washer-1": "2"}, coordinator.pending_programs)
 
     async def test_current_option_reads_device_state_when_no_pending(self) -> None:
-        from custom_components.haier_hon.select import HonProgramSelect
+        from custom_components.addhon.select import HonProgramSelect
 
         start = RecordingCommand({"program": Param(values={"1": "Cotone", "2": "Sintetici"})})
         coordinator = FakeCoordinator(_washer({"startProgram": start}, attributes={"prCode": "1"}))
@@ -365,7 +365,7 @@ class ProgramSelectTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("Cotone", entity.current_option)
 
     async def test_current_option_matches_human_label_from_device(self) -> None:
-        from custom_components.haier_hon.select import HonProgramSelect
+        from custom_components.addhon.select import HonProgramSelect
 
         start = RecordingCommand({"program": Param(values={"1": "Cotone", "2": "Sintetici"})})
         # Il device espone direttamente il NOME del programma, non il codice.
@@ -387,8 +387,8 @@ class ProgramSelectTest(unittest.IsolatedAsyncioTestCase):
         Regressione: in precedenza le chiavi prCode venivano provate prima di
         startProgram.program, generando centinaia di righe DEBUG fuorvianti.
         """
-        from custom_components.haier_hon import select
-        from custom_components.haier_hon.select import HonProgramSelect
+        from custom_components.addhon import select
+        from custom_components.addhon.select import HonProgramSelect
 
         start = RecordingCommand({"program": Param(values=["hqd_smart", "hqd_eco"])})
         # Il nome programma è raggiungibile SOLO via startProgram (non come
@@ -418,7 +418,7 @@ class ProgramSelectTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_start_button_keeps_pending_when_program_not_applicable(self) -> None:
         from homeassistant.exceptions import HomeAssistantError
-        from custom_components.haier_hon.button import HonProgramCommandButton
+        from custom_components.addhon.button import HonProgramCommandButton
 
         # startProgram senza parametro programma: il programma scelto non è
         # applicabile, quindi NON si avvia e la scelta in attesa resta.
@@ -444,7 +444,7 @@ class ProgramSelectTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_unknown_option_raises(self) -> None:
         from homeassistant.exceptions import HomeAssistantError
-        from custom_components.haier_hon.select import HonProgramSelect
+        from custom_components.addhon.select import HonProgramSelect
 
         start = RecordingCommand({"program": Param(values={"1": "Cotone"})})
         coordinator = FakeCoordinator(_washer({"startProgram": start}))
@@ -458,7 +458,7 @@ class ProgramSelectTest(unittest.IsolatedAsyncioTestCase):
 class LegacyPowerCleanupTest(unittest.TestCase):
     def test_removes_only_power_entities(self) -> None:
         from homeassistant.helpers import entity_registry as er
-        from custom_components.haier_hon import _remove_legacy_entities
+        from custom_components.addhon import _remove_legacy_entities
 
         class RegEntry:
             def __init__(self, entity_id, unique_id):
@@ -496,7 +496,7 @@ class LegacyPowerCleanupTest(unittest.TestCase):
 
 class GetAttributesStatisticsTest(unittest.TestCase):
     def test_statistics_are_merged_into_attributes(self) -> None:
-        from custom_components.haier_hon.hon_client import _get_attributes
+        from custom_components.addhon.hon_client import _get_attributes
 
         appliance = types.SimpleNamespace(
             attributes={"parameters": {"machMode": "1"}, "lastConnEvent": "x"},
@@ -519,7 +519,7 @@ class GetAttributesStatisticsTest(unittest.TestCase):
         self.assertEqual("40", attrs["tempSel"])
 
     def test_realtime_attributes_win_over_statistics_on_conflict(self) -> None:
-        from custom_components.haier_hon.hon_client import _get_attributes
+        from custom_components.addhon.hon_client import _get_attributes
 
         appliance = types.SimpleNamespace(
             attributes={"parameters": {"totalElectricityUsed": "999"}},
@@ -533,7 +533,7 @@ class GetAttributesStatisticsTest(unittest.TestCase):
         self.assertEqual("999", attrs["totalElectricityUsed"])
 
     def test_missing_statistics_is_tolerated(self) -> None:
-        from custom_components.haier_hon.hon_client import _get_attributes
+        from custom_components.addhon.hon_client import _get_attributes
 
         appliance = types.SimpleNamespace(
             attributes={"parameters": {"machMode": "2"}},
@@ -545,7 +545,7 @@ class GetAttributesStatisticsTest(unittest.TestCase):
         self.assertEqual("2", attrs["machMode"])
 
     def test_update_refreshes_statistics_even_when_attributes_exist(self) -> None:
-        from custom_components.haier_hon.hon_client import HonClient, _get_attributes
+        from custom_components.addhon.hon_client import HonClient, _get_attributes
 
         class Appliance:
             nick_name = "Dryer"
@@ -581,7 +581,7 @@ class GetAttributesStatisticsTest(unittest.TestCase):
 
 class DebugUtilsTest(unittest.TestCase):
     def test_debug_utils_exports_key_sample_and_rich_param_snapshot(self) -> None:
-        from custom_components.haier_hon.debug_utils import (
+        from custom_components.addhon.debug_utils import (
             DEBUG_KEY_SAMPLE_LIMIT,
             command_names,
             debug_key_sample,
@@ -606,8 +606,8 @@ class DebugUtilsTest(unittest.TestCase):
 
 class DiagnosticsTest(unittest.IsolatedAsyncioTestCase):
     async def test_config_entry_diagnostics_redacts_email_from_title(self) -> None:
-        from custom_components.haier_hon.const import DOMAIN
-        from custom_components.haier_hon.diagnostics import (
+        from custom_components.addhon.const import DOMAIN
+        from custom_components.addhon.diagnostics import (
             async_get_config_entry_diagnostics,
         )
 
@@ -629,8 +629,8 @@ class DiagnosticsTest(unittest.IsolatedAsyncioTestCase):
 
 class SwitchLoggingTest(unittest.IsolatedAsyncioTestCase):
     async def test_added_switch_log_only_emitted_when_entity_is_created(self) -> None:
-        from custom_components.haier_hon import switch
-        from custom_components.haier_hon.const import DOMAIN
+        from custom_components.addhon import switch
+        from custom_components.addhon.const import DOMAIN
 
         missing_resume = {"pauseProgram": RecordingCommand()}
         coordinator = FakeCoordinator(_washer(missing_resume))
@@ -687,7 +687,7 @@ class DebugLoggingGuardTest(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(setattr, module, name, original)
 
     async def test_button_does_not_build_param_snapshot_when_debug_is_disabled(self) -> None:
-        from custom_components.haier_hon import button
+        from custom_components.addhon import button
 
         start = RecordingCommand({"program": Param(values={"1": "Cotone"})})
         coordinator = FakeCoordinator(_washer({"startProgram": start}))
@@ -709,7 +709,7 @@ class DebugLoggingGuardTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(1, start.send_calls)
 
     async def test_climate_does_not_build_param_snapshot_when_debug_is_disabled(self) -> None:
-        from custom_components.haier_hon import climate
+        from custom_components.addhon import climate
 
         settings = RecordingCommand({"tempSel": Param("20")})
         appliance = types.SimpleNamespace(commands={"settings": settings})

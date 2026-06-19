@@ -5,7 +5,7 @@ shared redact_email helper turns 'a@b.com' into '***@b.com'.
 
 Loads debug_utils.py DIRECTLY by file path with importlib: the module has no
 intra-package imports and pulls in nothing from homeassistant, so this avoids
-triggering custom_components.haier_hon.__init__ (which would need HA stubs).
+triggering custom_components.addhon.__init__ (which would need HA stubs).
 Stdlib unittest, no Home Assistant install required.
 """
 from __future__ import annotations
@@ -17,14 +17,14 @@ from pathlib import Path
 _DEBUG_UTILS_PATH = (
     Path(__file__).resolve().parents[1]
     / "custom_components"
-    / "haier_hon"
+    / "addhon"
     / "debug_utils.py"
 )
 
 
 def _load_debug_utils():
     spec = importlib.util.spec_from_file_location(
-        "haier_hon_debug_utils_standalone", _DEBUG_UTILS_PATH
+        "addhon_debug_utils_standalone", _DEBUG_UTILS_PATH
     )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

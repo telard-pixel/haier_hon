@@ -1,0 +1,700 @@
+{
+    "applianceModel": {
+        "id": 10136,
+        "name": "HDPW5620CNPK",
+        "code": "XX11X1X1111",
+        "applianceTypeId": 14,
+        "applianceTypeName": "REF",
+        "brand": "haier",
+        "connectivity": "wifi|ble",
+        "attributes": [
+            {
+                "id": 37138,
+                "parName": "zones",
+                "parValue": "fridge|freezer|vtRoom1",
+                "status": 1,
+                "lastUpdate": "1970-01-01T00:00:00.0Z"
+            },
+            {
+                "id": 37154,
+                "parName": "vtZone",
+                "parValue": "1",
+                "status": 1,
+                "lastUpdate": "1970-01-01T00:00:00.0Z"
+            },
+            {
+                "id": 37170,
+                "parName": "technology",
+                "parValue": "st",
+                "status": 1,
+                "lastUpdate": "1970-01-01T00:00:00.0Z"
+            },
+            {
+                "id": 37186,
+                "parName": "seriesVersion",
+                "parValue": "2d60Series3bis",
+                "status": 1,
+                "lastUpdate": "1970-01-01T00:00:00.0Z"
+            },
+            {
+                "id": 37202,
+                "parName": "series",
+                "parValue": "romania",
+                "status": 1,
+                "lastUpdate": "1970-01-01T00:00:00.0Z"
+            },
+            {
+                "id": 37218,
+                "parName": "sensor",
+                "parValue": "doorAlarmFridge",
+                "status": 1,
+                "lastUpdate": "1970-01-01T00:00:00.0Z"
+            },
+            {
+                "id": 37234,
+                "parName": "option",
+                "parValue": "ecoMode|superCool|superFreeze|holiday",
+                "status": 1,
+                "lastUpdate": "1970-01-01T00:00:00.0Z"
+            },
+            {
+                "id": 37250,
+                "parName": "lowerBarrierDate",
+                "parValue": "2210",
+                "status": 1,
+                "lastUpdate": "1970-01-01T00:00:00.0Z"
+            },
+            {
+                "id": 37266,
+                "parName": "interfaceType",
+                "parValue": "series|seriesVersion|installationType|doorNumber",
+                "status": 1,
+                "lastUpdate": "1970-01-01T00:00:00.0Z"
+            },
+            {
+                "id": 37282,
+                "parName": "installationType",
+                "parValue": "fs",
+                "status": 1,
+                "lastUpdate": "1970-01-01T00:00:00.0Z"
+            },
+            {
+                "id": 37314,
+                "parName": "doorNumber",
+                "parValue": "2",
+                "status": 1,
+                "lastUpdate": "1970-01-01T00:00:00.0Z"
+            },
+            {
+                "id": 39798,
+                "parName": "serviceability",
+                "parValue": "none",
+                "status": 1,
+                "lastUpdate": "1970-01-01T00:00:00.0Z"
+            },
+            {
+                "id": 61459,
+                "parName": "fwLabel",
+                "parValue": "iotfw_epp",
+                "status": 1,
+                "lastUpdate": "1970-01-01T00:00:00.0Z"
+            },
+            {
+                "id": 79233,
+                "parName": "plmCode",
+                "parValue": "34005470",
+                "status": 1,
+                "lastUpdate": "1970-01-01T00:00:00.0Z"
+            },
+            {
+                "id": 167068,
+                "parName": "iot",
+                "parValue": "hOn",
+                "status": 1,
+                "lastUpdate": "1970-01-01T00:00:00.0Z"
+            }
+        ],
+        "options": {}
+    },
+    "settings": {
+        "setParameters": {
+            "description": "The message allows to change parameters values to enable/disable specific features ",
+            "protocolType": "MQTT",
+            "parameters": {
+                "tempSelZ1": {
+                    "category": "command",
+                    "typology": "range",
+                    "mandatory": 0,
+                    "defaultValue": "5",
+                    "minimumValue": "2",
+                    "maximumValue": "8",
+                    "incrementValue": "1"
+                },
+                "tempSelZ2": {
+                    "category": "command",
+                    "typology": "range",
+                    "mandatory": 0,
+                    "defaultValue": "-18",
+                    "minimumValue": "-24",
+                    "maximumValue": "-16",
+                    "incrementValue": "1"
+                },
+                "tempSelZ3": {
+                    "category": "command",
+                    "typology": "range",
+                    "mandatory": 0,
+                    "defaultValue": "1",
+                    "minimumValue": "0",
+                    "maximumValue": "5",
+                    "incrementValue": "1"
+                }
+            }
+        },
+        "setConfig": {
+            "description": "The message allows to set platform parameters",
+            "protocolType": "MQTT",
+            "parameters": {
+                "httpEndpoint": {
+                    "category": "command",
+                    "typology": "fixed",
+                    "mandatory": 0
+                },
+                "mqttEndpoint": {
+                    "category": "command",
+                    "typology": "fixed",
+                    "mandatory": 0
+                }
+            }
+        }
+    },
+    "stopProgram": {
+        "description": "The message allows to stop the program",
+        "protocolType": "MQTT",
+        "parameters": {
+            "holidayMode": {
+                "category": "command",
+                "typology": "fixed",
+                "mandatory": 0,
+                "fixedValue": "0"
+            },
+            "intelligenceMode": {
+                "category": "command",
+                "typology": "fixed",
+                "mandatory": 0,
+                "fixedValue": "0"
+            },
+            "quickModeZ1": {
+                "category": "command",
+                "typology": "fixed",
+                "mandatory": 0,
+                "fixedValue": "0"
+            },
+            "quickModeZ2": {
+                "category": "command",
+                "typology": "fixed",
+                "mandatory": 0,
+                "fixedValue": "0"
+            }
+        }
+    },
+    "startProgram": {
+        "PROGRAMS.REF.AUTO_SET": {
+            "description": "Automatical temperature setting : fridge at +5\u00b0C and freezer at -18\u00b0C",
+            "protocolType": "MQTT",
+            "parameters": {
+                "intelligenceMode": {
+                    "category": "command",
+                    "typology": "fixed",
+                    "mandatory": 1,
+                    "fixedValue": "1"
+                }
+            },
+            "ancillaryParameters": {
+                "nameVariants": {
+                    "category": "general",
+                    "typology": "fixed",
+                    "mandatory": 0,
+                    "fixedValue": "series"
+                },
+                "programFamily": {
+                    "category": "cluster",
+                    "typology": "enum",
+                    "mandatory": 1,
+                    "enumValues": [
+                        "dashboard"
+                    ],
+                    "defaultValue": "[dashboard]"
+                },
+                "remoteActionable": {
+                    "category": "general",
+                    "typology": "fixed",
+                    "mandatory": 0,
+                    "fixedValue": "1"
+                },
+                "remoteVisible": {
+                    "category": "general",
+                    "typology": "fixed",
+                    "mandatory": 0,
+                    "fixedValue": "1"
+                },
+                "zone": {
+                    "category": "cluster",
+                    "typology": "enum",
+                    "mandatory": 1,
+                    "enumValues": [
+                        "fridge",
+                        "freezer"
+                    ],
+                    "defaultValue": "[fridge|freezer]"
+                }
+            }
+        },
+        "PROGRAMS.REF.SUPER_COOL": {
+            "description": "Accelerate cooling achieving quickly nearly 1\u00b0C when you need to store a large quantity of food.",
+            "protocolType": "MQTT",
+            "parameters": {
+                "quickModeZ1": {
+                    "category": "command",
+                    "typology": "fixed",
+                    "mandatory": 1,
+                    "fixedValue": "1"
+                }
+            },
+            "ancillaryParameters": {
+                "programFamily": {
+                    "category": "cluster",
+                    "typology": "enum",
+                    "mandatory": 1,
+                    "enumValues": [
+                        "dashboard"
+                    ],
+                    "defaultValue": "[dashboard]"
+                },
+                "remoteActionable": {
+                    "category": "general",
+                    "typology": "fixed",
+                    "mandatory": 0,
+                    "fixedValue": "1"
+                },
+                "remoteVisible": {
+                    "category": "general",
+                    "typology": "fixed",
+                    "mandatory": 0,
+                    "fixedValue": "1"
+                },
+                "zone": {
+                    "category": "cluster",
+                    "typology": "enum",
+                    "mandatory": 1,
+                    "enumValues": [
+                        "fridge"
+                    ],
+                    "defaultValue": "[fridge]"
+                }
+            }
+        },
+        "PROGRAMS.REF.SUPER_FREEZE": {
+            "description": "Accelerate freezing achieving quickly -24\u00b0C at your convenience. The function will automatically stop after 50 hours restoring the original freezer temperature",
+            "protocolType": "MQTT",
+            "parameters": {
+                "quickModeZ2": {
+                    "category": "command",
+                    "typology": "fixed",
+                    "mandatory": 1,
+                    "fixedValue": "1"
+                }
+            },
+            "ancillaryParameters": {
+                "programFamily": {
+                    "category": "cluster",
+                    "typology": "enum",
+                    "mandatory": 1,
+                    "enumValues": [
+                        "dashboard"
+                    ],
+                    "defaultValue": "[dashboard]"
+                },
+                "remoteActionable": {
+                    "category": "general",
+                    "typology": "fixed",
+                    "mandatory": 0,
+                    "fixedValue": "1"
+                },
+                "remoteVisible": {
+                    "category": "general",
+                    "typology": "fixed",
+                    "mandatory": 0,
+                    "fixedValue": "1"
+                },
+                "zone": {
+                    "category": "cluster",
+                    "typology": "enum",
+                    "mandatory": 1,
+                    "enumValues": [
+                        "freezer"
+                    ],
+                    "defaultValue": "[freezer]"
+                }
+            }
+        },
+        "PROGRAMS.REF.HOLIDAY": {
+            "description": "Set the refrigerator at 17\u00b0C and keep the freezer running for long period of absence.",
+            "protocolType": "MQTT",
+            "parameters": {
+                "holidayMode": {
+                    "category": "command",
+                    "typology": "fixed",
+                    "mandatory": 1,
+                    "fixedValue": "1"
+                }
+            },
+            "ancillaryParameters": {
+                "programFamily": {
+                    "category": "cluster",
+                    "typology": "enum",
+                    "mandatory": 1,
+                    "enumValues": [
+                        "dashboard"
+                    ],
+                    "defaultValue": "[dashboard]"
+                },
+                "remoteActionable": {
+                    "category": "general",
+                    "typology": "fixed",
+                    "mandatory": 0,
+                    "fixedValue": "1"
+                },
+                "remoteVisible": {
+                    "category": "general",
+                    "typology": "fixed",
+                    "mandatory": 0,
+                    "fixedValue": "1"
+                },
+                "zone": {
+                    "category": "cluster",
+                    "typology": "enum",
+                    "mandatory": 1,
+                    "enumValues": [
+                        "fridge"
+                    ],
+                    "defaultValue": "[fridge]"
+                }
+            }
+        },
+        "PROGRAMS.REF.IOT_EXTRA_COLD": {
+            "description": "The command allows to start a program",
+            "protocolType": "MQTT",
+            "parameters": {
+                "tempSelZ1": {
+                    "category": "command",
+                    "typology": "fixed",
+                    "mandatory": 1,
+                    "fixedValue": "2"
+                },
+                "tempSelZ2": {
+                    "category": "command",
+                    "typology": "fixed",
+                    "mandatory": 1,
+                    "fixedValue": "-24"
+                },
+                "tempSelZ3": {
+                    "category": "command",
+                    "typology": "fixed",
+                    "mandatory": 1,
+                    "fixedValue": "2"
+                }
+            },
+            "ancillaryParameters": {
+                "programFamily": {
+                    "category": "cluster",
+                    "typology": "enum",
+                    "mandatory": 1,
+                    "enumValues": [
+                        "download"
+                    ],
+                    "defaultValue": "[download]"
+                },
+                "remoteActionable": {
+                    "category": "general",
+                    "typology": "fixed",
+                    "mandatory": 0,
+                    "fixedValue": "1"
+                },
+                "remoteVisible": {
+                    "category": "general",
+                    "typology": "fixed",
+                    "mandatory": 0,
+                    "fixedValue": "1"
+                },
+                "zone": {
+                    "category": "cluster",
+                    "typology": "enum",
+                    "mandatory": 1,
+                    "enumValues": [
+                        "fridge",
+                        "freezer",
+                        "vtRoom1"
+                    ],
+                    "defaultValue": "[fridge|freezer|vtRoom1]"
+                }
+            }
+        },
+        "PROGRAMS.REF.IOT_EXTRA_COLD_WATER": {
+            "description": "The command allows to start a program",
+            "protocolType": "MQTT",
+            "parameters": {
+                "tempSelZ1": {
+                    "category": "command",
+                    "typology": "fixed",
+                    "mandatory": 1,
+                    "fixedValue": "1"
+                },
+                "tempSelZ3": {
+                    "category": "command",
+                    "typology": "fixed",
+                    "mandatory": 1,
+                    "fixedValue": "2"
+                }
+            },
+            "ancillaryParameters": {
+                "programFamily": {
+                    "category": "cluster",
+                    "typology": "enum",
+                    "mandatory": 1,
+                    "enumValues": [
+                        "download"
+                    ],
+                    "defaultValue": "[download]"
+                },
+                "remoteActionable": {
+                    "category": "general",
+                    "typology": "fixed",
+                    "mandatory": 0,
+                    "fixedValue": "1"
+                },
+                "remoteVisible": {
+                    "category": "general",
+                    "typology": "fixed",
+                    "mandatory": 0,
+                    "fixedValue": "1"
+                },
+                "zone": {
+                    "category": "cluster",
+                    "typology": "enum",
+                    "mandatory": 1,
+                    "enumValues": [
+                        "fridge",
+                        "vtRoom1"
+                    ],
+                    "defaultValue": "[fridge|vtRoom1]"
+                }
+            }
+        },
+        "PROGRAMS.REF.IOT_EXTRA_ICE": {
+            "description": "The command allows to start a program",
+            "protocolType": "MQTT",
+            "parameters": {
+                "tempSelZ2": {
+                    "category": "command",
+                    "typology": "fixed",
+                    "mandatory": 1,
+                    "fixedValue": "-24"
+                }
+            },
+            "ancillaryParameters": {
+                "programFamily": {
+                    "category": "cluster",
+                    "typology": "enum",
+                    "mandatory": 1,
+                    "enumValues": [
+                        "download"
+                    ],
+                    "defaultValue": "[download]"
+                },
+                "remoteActionable": {
+                    "category": "general",
+                    "typology": "fixed",
+                    "mandatory": 0,
+                    "fixedValue": "1"
+                },
+                "remoteVisible": {
+                    "category": "general",
+                    "typology": "fixed",
+                    "mandatory": 0,
+                    "fixedValue": "1"
+                },
+                "zone": {
+                    "category": "cluster",
+                    "typology": "enum",
+                    "mandatory": 1,
+                    "enumValues": [
+                        "freezer"
+                    ],
+                    "defaultValue": "[freezer]"
+                }
+            }
+        },
+        "PROGRAMS.REF.IOT_DAILY_USE": {
+            "description": "The command allows to start a program",
+            "protocolType": "MQTT",
+            "parameters": {
+                "tempSelZ1": {
+                    "category": "command",
+                    "typology": "fixed",
+                    "mandatory": 1,
+                    "fixedValue": "4"
+                },
+                "tempSelZ2": {
+                    "category": "command",
+                    "typology": "fixed",
+                    "mandatory": 1,
+                    "fixedValue": "-18"
+                },
+                "tempSelZ3": {
+                    "category": "command",
+                    "typology": "fixed",
+                    "mandatory": 1,
+                    "fixedValue": "5"
+                }
+            },
+            "ancillaryParameters": {
+                "programFamily": {
+                    "category": "cluster",
+                    "typology": "enum",
+                    "mandatory": 1,
+                    "enumValues": [
+                        "download"
+                    ],
+                    "defaultValue": "[download]"
+                },
+                "remoteActionable": {
+                    "category": "general",
+                    "typology": "fixed",
+                    "mandatory": 0,
+                    "fixedValue": "1"
+                },
+                "remoteVisible": {
+                    "category": "general",
+                    "typology": "fixed",
+                    "mandatory": 0,
+                    "fixedValue": "1"
+                },
+                "zone": {
+                    "category": "cluster",
+                    "typology": "enum",
+                    "mandatory": 1,
+                    "enumValues": [
+                        "fridge",
+                        "freezer",
+                        "vtRoom1"
+                    ],
+                    "defaultValue": "[fridge|freezer|vtRoom1]"
+                }
+            }
+        },
+        "PROGRAMS.REF.IOT_HIGH_EFFICIENCY": {
+            "description": "The command allows to start a program",
+            "protocolType": "MQTT",
+            "parameters": {
+                "tempSelZ1": {
+                    "category": "command",
+                    "typology": "fixed",
+                    "mandatory": 1,
+                    "fixedValue": "6"
+                },
+                "tempSelZ2": {
+                    "category": "command",
+                    "typology": "fixed",
+                    "mandatory": 1,
+                    "fixedValue": "-18"
+                },
+                "tempSelZ3": {
+                    "category": "command",
+                    "typology": "fixed",
+                    "mandatory": 1,
+                    "fixedValue": "5"
+                }
+            },
+            "ancillaryParameters": {
+                "programFamily": {
+                    "category": "cluster",
+                    "typology": "enum",
+                    "mandatory": 1,
+                    "enumValues": [
+                        "download"
+                    ],
+                    "defaultValue": "[download]"
+                },
+                "remoteActionable": {
+                    "category": "general",
+                    "typology": "fixed",
+                    "mandatory": 0,
+                    "fixedValue": "1"
+                },
+                "remoteVisible": {
+                    "category": "general",
+                    "typology": "fixed",
+                    "mandatory": 0,
+                    "fixedValue": "1"
+                },
+                "zone": {
+                    "category": "cluster",
+                    "typology": "enum",
+                    "mandatory": 1,
+                    "enumValues": [
+                        "fridge",
+                        "freezer",
+                        "vtRoom1"
+                    ],
+                    "defaultValue": "[fridge|freezer|vtRoom1]"
+                }
+            }
+        },
+        "PROGRAMS.REF.IOT_SPECIAL_FOOD_CORE": {
+            "description": "The command allows to start a program",
+            "protocolType": "MQTT",
+            "parameters": {
+                "tempSelZ3": {
+                    "category": "command",
+                    "typology": "fixed",
+                    "mandatory": 1,
+                    "fixedValue": "5"
+                }
+            },
+            "ancillaryParameters": {
+                "programFamily": {
+                    "category": "cluster",
+                    "typology": "enum",
+                    "mandatory": 1,
+                    "enumValues": [
+                        "download"
+                    ],
+                    "defaultValue": "[download]"
+                },
+                "remoteActionable": {
+                    "category": "general",
+                    "typology": "fixed",
+                    "mandatory": 0,
+                    "fixedValue": "1"
+                },
+                "remoteVisible": {
+                    "category": "general",
+                    "typology": "fixed",
+                    "mandatory": 0,
+                    "fixedValue": "1"
+                },
+                "zone": {
+                    "category": "cluster",
+                    "typology": "enum",
+                    "mandatory": 1,
+                    "enumValues": [
+                        "vtRoom1"
+                    ],
+                    "defaultValue": "[vtRoom1]"
+                }
+            }
+        }
+    },
+    "options": {},
+    "dictionaryId": 343
+}

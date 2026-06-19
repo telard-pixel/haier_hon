@@ -107,7 +107,7 @@ def _appliance_data() -> dict:
 
 class AvailabilityTest(unittest.TestCase):
     def _make_entity(self, coordinator):
-        from custom_components.haier_hon.base_entity import HonBaseEntity
+        from custom_components.addhon.base_entity import HonBaseEntity
 
         class _Concrete(HonBaseEntity):
             pass
@@ -133,6 +133,25 @@ class AvailabilityTest(unittest.TestCase):
         # Defensive: data None/unset must not raise, just be unavailable.
         entity = self._make_entity(FakeCoordinator(None))
         self.assertFalse(entity.available)
+
+    def test_unavailable_when_device_disconnected(self) -> None:
+        # Modello app: device offline (available=False da lastConnEvent) -> entità
+        # unavailable invece di valori stantii (sostituisce il vecchio zeroing).
+        data = {"washer-1": {"type": "WM", "name": "Washer",
+                             "attributes": {"available": False}, "settings": {}}}
+        entity = self._make_entity(FakeCoordinator(data))
+        self.assertFalse(entity.available)
+
+    def test_available_when_device_connected(self) -> None:
+        data = {"washer-1": {"type": "WM", "name": "Washer",
+                             "attributes": {"available": True}, "settings": {}}}
+        entity = self._make_entity(FakeCoordinator(data))
+        self.assertTrue(entity.available)
+
+    def test_available_when_flag_absent_defaults_true(self) -> None:
+        # `available` assente (es. load fallito) -> non nascondere a sproposito.
+        entity = self._make_entity(FakeCoordinator(_appliance_data()))
+        self.assertTrue(entity.available)
 
 
 if __name__ == "__main__":

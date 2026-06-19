@@ -1,0 +1,73 @@
+"""Verifica LIVE che il vero `NativeHon` soddisfi il Protocol HonSession del seam.
+
+È il controllo "carico-portante" della sessione: l'adapter ritorna un `NativeHon`
+(piece 4a) e tutto il piano si regge sul fatto che quell'oggetto sia conforme a
+client/interfaces.HonSession. (La conformità è anche testata offline in
+test_native_session; qui la verifichiamo sull'oggetto reale, con le dipendenze vere.)
+
+Richiede aiohttp/awsiotsdk (le dipendenze runtime del transport nativo): se assenti
+(es. CI unit senza HA), il test si SALTA in modo pulito. Quando ci sono (HA reale, o
+il venv /tmp/hon-dump-venv), gira davvero. L'import avviene in un SUBPROCESS isolato
+per non inquinare sys.modules del processo pytest (il trucco pre-registra package
+vuoti per saltare il pesante __init__ dell'integrazione).
+"""
+from __future__ import annotations
+
+import importlib.util
+import subprocess
+import sys
+import textwrap
+import unittest
+from pathlib import Path
+
+_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _deps_available() -> bool:
+    # Importare il Hon reale richiede aiohttp E awscrt (hon.py importa mqtt.py
+    # che fa `from awscrt import mqtt5`). Servono entrambi o il subprocess
+    # fallirebbe l'import invece di saltare. Robusto contro moduli STUBATI da
+    # altri test (un altro modulo di test può registrare un finto `aiohttp` in
+    # sys.modules: find_spec su un modulo senza __spec__ solleva ValueError, e un
+    # modulo reale ha sempre spec.origin) → in dubbio: non disponibile, skip.
+    for name in ("aiohttp", "awscrt", "yarl"):
+        try:
+            spec = importlib.util.find_spec(name)
+        except (ValueError, ImportError):
+            return False
+        if spec is None or spec.origin is None:
+            return False
+    return True
+
+
+class LiveSessionProtocolTest(unittest.TestCase):
+    def test_real_hon_satisfies_honsession(self) -> None:
+        if not _deps_available():
+            self.skipTest("aiohttp/awscrt non disponibili: salto la verifica del Hon reale")
+        script = textwrap.dedent(
+            f"""
+            import sys, types, importlib.util
+            from pathlib import Path
+            root = Path({str(_ROOT)!r}); sys.path.insert(0, str(root))
+            for pkg in ("custom_components", "custom_components.addhon"):
+                m = types.ModuleType(pkg)
+                m.__path__ = [str(root / pkg.replace(".", "/"))]
+                sys.modules[pkg] = m
+            spec = importlib.util.spec_from_file_location(
+                "ifc", root / "custom_components/addhon/client/interfaces.py")
+            ifc = importlib.util.module_from_spec(spec); spec.loader.exec_module(ifc)
+            from custom_components.addhon.client.session import NativeHon
+            h = NativeHon(email="x@example.com", password="y")
+            assert isinstance(h, ifc.HonSession), "NativeHon NON conforme a HonSession"
+            print("CONFORME")
+            """
+        )
+        res = subprocess.run(
+            [sys.executable, "-c", script], capture_output=True, text=True, timeout=60
+        )
+        self.assertEqual(res.returncode, 0, f"stderr:\n{res.stderr}")
+        self.assertIn("CONFORME", res.stdout)
+
+
+if __name__ == "__main__":
+    unittest.main()

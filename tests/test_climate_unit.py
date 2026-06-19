@@ -13,7 +13,7 @@ from pathlib import Path
 CLIMATE = (
     Path(__file__).resolve().parents[1]
     / "custom_components"
-    / "haier_hon"
+    / "addhon"
     / "climate.py"
 )
 

@@ -1,0 +1,1597 @@
+{
+  "by_typ": {
+    "enum": 20,
+    "fixed": 44,
+    "range": 3
+  },
+  "items": [
+    {
+      "construct": {
+        "category": "command",
+        "group": "grp",
+        "intern_value": "5",
+        "key": "k",
+        "mandatory": 0,
+        "max": 8,
+        "min": 2,
+        "step": 1,
+        "typology": "range",
+        "value": 5,
+        "values": [
+          "2",
+          "3",
+          "4",
+          "5",
+          "6",
+          "7",
+          "8"
+        ]
+      },
+      "range_probes": {
+        "off_step": "ValueError",
+        "out_of_range": "ValueError"
+      },
+      "setter_invalid": "ValueError",
+      "setter_valid": [
+        [
+          2,
+          "2"
+        ],
+        [
+          3,
+          "3"
+        ],
+        [
+          4,
+          "4"
+        ],
+        [
+          5,
+          "5"
+        ],
+        [
+          6,
+          "6"
+        ],
+        [
+          7,
+          "7"
+        ],
+        [
+          8,
+          "8"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "command",
+        "group": "grp",
+        "intern_value": "-18",
+        "key": "k",
+        "mandatory": 0,
+        "max": -16,
+        "min": -24,
+        "step": 1,
+        "typology": "range",
+        "value": -18,
+        "values": [
+          "-24",
+          "-23",
+          "-22",
+          "-21",
+          "-20",
+          "-19",
+          "-18",
+          "-17",
+          "-16"
+        ]
+      },
+      "range_probes": {
+        "off_step": "ValueError",
+        "out_of_range": "ValueError"
+      },
+      "setter_invalid": "ValueError",
+      "setter_valid": [
+        [
+          -24,
+          "-24"
+        ],
+        [
+          -23,
+          "-23"
+        ],
+        [
+          -22,
+          "-22"
+        ],
+        [
+          -21,
+          "-21"
+        ],
+        [
+          -20,
+          "-20"
+        ],
+        [
+          -19,
+          "-19"
+        ],
+        [
+          -18,
+          "-18"
+        ],
+        [
+          -17,
+          "-17"
+        ],
+        [
+          -16,
+          "-16"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "command",
+        "group": "grp",
+        "intern_value": "1",
+        "key": "k",
+        "mandatory": 0,
+        "max": 5,
+        "min": 0,
+        "step": 1,
+        "typology": "range",
+        "value": 1,
+        "values": [
+          "0",
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+        ]
+      },
+      "range_probes": {
+        "off_step": "ValueError",
+        "out_of_range": "ValueError"
+      },
+      "setter_invalid": "ValueError",
+      "setter_valid": [
+        [
+          0,
+          "0"
+        ],
+        [
+          1,
+          "1"
+        ],
+        [
+          2,
+          "2"
+        ],
+        [
+          3,
+          "3"
+        ],
+        [
+          4,
+          "4"
+        ],
+        [
+          5,
+          "5"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "command",
+        "group": "grp",
+        "intern_value": "0",
+        "key": "k",
+        "mandatory": 0,
+        "typology": "fixed",
+        "value": "0",
+        "values": [
+          "0"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "0",
+          "0"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "command",
+        "group": "grp",
+        "intern_value": "0",
+        "key": "k",
+        "mandatory": 0,
+        "typology": "fixed",
+        "value": "0",
+        "values": [
+          "0"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "0",
+          "0"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "command",
+        "group": "grp",
+        "intern_value": "0",
+        "key": "k",
+        "mandatory": 0,
+        "typology": "fixed",
+        "value": "0",
+        "values": [
+          "0"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "0",
+          "0"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "command",
+        "group": "grp",
+        "intern_value": "0",
+        "key": "k",
+        "mandatory": 0,
+        "typology": "fixed",
+        "value": "0",
+        "values": [
+          "0"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "0",
+          "0"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "command",
+        "group": "grp",
+        "intern_value": "0",
+        "key": "k",
+        "mandatory": 0,
+        "typology": "fixed",
+        "value": "0",
+        "values": [
+          "0"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "0",
+          "0"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "command",
+        "group": "grp",
+        "intern_value": "0",
+        "key": "k",
+        "mandatory": 0,
+        "typology": "fixed",
+        "value": "0",
+        "values": [
+          "0"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "0",
+          "0"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "command",
+        "group": "grp",
+        "intern_value": "1",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "fixed",
+        "value": "1",
+        "values": [
+          "1"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "1",
+          "1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "general",
+        "group": "grp",
+        "intern_value": "series",
+        "key": "k",
+        "mandatory": 0,
+        "typology": "fixed",
+        "value": "series",
+        "values": [
+          "series"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "series",
+          "series"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "cluster",
+        "group": "grp",
+        "intern_value": "[dashboard]",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "enum",
+        "value": "dashboard",
+        "values": [
+          "dashboard"
+        ]
+      },
+      "setter_invalid": "ValueError",
+      "setter_valid": [
+        [
+          "dashboard",
+          "dashboard"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "general",
+        "group": "grp",
+        "intern_value": "1",
+        "key": "k",
+        "mandatory": 0,
+        "typology": "fixed",
+        "value": "1",
+        "values": [
+          "1"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "1",
+          "1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "general",
+        "group": "grp",
+        "intern_value": "1",
+        "key": "k",
+        "mandatory": 0,
+        "typology": "fixed",
+        "value": "1",
+        "values": [
+          "1"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "1",
+          "1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "cluster",
+        "group": "grp",
+        "intern_value": "[fridge|freezer]",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "enum",
+        "value": "fridge_freezer",
+        "values": [
+          "fridge",
+          "freezer",
+          "fridge_freezer"
+        ]
+      },
+      "setter_invalid": "ValueError",
+      "setter_valid": [
+        [
+          "fridge",
+          "fridge"
+        ],
+        [
+          "freezer",
+          "freezer"
+        ],
+        [
+          "fridge_freezer",
+          "fridge_freezer"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "command",
+        "group": "grp",
+        "intern_value": "1",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "fixed",
+        "value": "1",
+        "values": [
+          "1"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "1",
+          "1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "cluster",
+        "group": "grp",
+        "intern_value": "[dashboard]",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "enum",
+        "value": "dashboard",
+        "values": [
+          "dashboard"
+        ]
+      },
+      "setter_invalid": "ValueError",
+      "setter_valid": [
+        [
+          "dashboard",
+          "dashboard"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "general",
+        "group": "grp",
+        "intern_value": "1",
+        "key": "k",
+        "mandatory": 0,
+        "typology": "fixed",
+        "value": "1",
+        "values": [
+          "1"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "1",
+          "1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "general",
+        "group": "grp",
+        "intern_value": "1",
+        "key": "k",
+        "mandatory": 0,
+        "typology": "fixed",
+        "value": "1",
+        "values": [
+          "1"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "1",
+          "1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "cluster",
+        "group": "grp",
+        "intern_value": "[fridge]",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "enum",
+        "value": "fridge",
+        "values": [
+          "fridge"
+        ]
+      },
+      "setter_invalid": "ValueError",
+      "setter_valid": [
+        [
+          "fridge",
+          "fridge"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "command",
+        "group": "grp",
+        "intern_value": "1",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "fixed",
+        "value": "1",
+        "values": [
+          "1"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "1",
+          "1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "cluster",
+        "group": "grp",
+        "intern_value": "[dashboard]",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "enum",
+        "value": "dashboard",
+        "values": [
+          "dashboard"
+        ]
+      },
+      "setter_invalid": "ValueError",
+      "setter_valid": [
+        [
+          "dashboard",
+          "dashboard"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "general",
+        "group": "grp",
+        "intern_value": "1",
+        "key": "k",
+        "mandatory": 0,
+        "typology": "fixed",
+        "value": "1",
+        "values": [
+          "1"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "1",
+          "1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "general",
+        "group": "grp",
+        "intern_value": "1",
+        "key": "k",
+        "mandatory": 0,
+        "typology": "fixed",
+        "value": "1",
+        "values": [
+          "1"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "1",
+          "1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "cluster",
+        "group": "grp",
+        "intern_value": "[freezer]",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "enum",
+        "value": "freezer",
+        "values": [
+          "freezer"
+        ]
+      },
+      "setter_invalid": "ValueError",
+      "setter_valid": [
+        [
+          "freezer",
+          "freezer"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "command",
+        "group": "grp",
+        "intern_value": "1",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "fixed",
+        "value": "1",
+        "values": [
+          "1"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "1",
+          "1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "cluster",
+        "group": "grp",
+        "intern_value": "[dashboard]",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "enum",
+        "value": "dashboard",
+        "values": [
+          "dashboard"
+        ]
+      },
+      "setter_invalid": "ValueError",
+      "setter_valid": [
+        [
+          "dashboard",
+          "dashboard"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "general",
+        "group": "grp",
+        "intern_value": "1",
+        "key": "k",
+        "mandatory": 0,
+        "typology": "fixed",
+        "value": "1",
+        "values": [
+          "1"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "1",
+          "1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "general",
+        "group": "grp",
+        "intern_value": "1",
+        "key": "k",
+        "mandatory": 0,
+        "typology": "fixed",
+        "value": "1",
+        "values": [
+          "1"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "1",
+          "1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "cluster",
+        "group": "grp",
+        "intern_value": "[fridge]",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "enum",
+        "value": "fridge",
+        "values": [
+          "fridge"
+        ]
+      },
+      "setter_invalid": "ValueError",
+      "setter_valid": [
+        [
+          "fridge",
+          "fridge"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "command",
+        "group": "grp",
+        "intern_value": "2",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "fixed",
+        "value": "2",
+        "values": [
+          "2"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "2",
+          "2"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "command",
+        "group": "grp",
+        "intern_value": "-24",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "fixed",
+        "value": "-24",
+        "values": [
+          "-24"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "-24",
+          "-24"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "command",
+        "group": "grp",
+        "intern_value": "2",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "fixed",
+        "value": "2",
+        "values": [
+          "2"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "2",
+          "2"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "cluster",
+        "group": "grp",
+        "intern_value": "[download]",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "enum",
+        "value": "download",
+        "values": [
+          "download"
+        ]
+      },
+      "setter_invalid": "ValueError",
+      "setter_valid": [
+        [
+          "download",
+          "download"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "general",
+        "group": "grp",
+        "intern_value": "1",
+        "key": "k",
+        "mandatory": 0,
+        "typology": "fixed",
+        "value": "1",
+        "values": [
+          "1"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "1",
+          "1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "general",
+        "group": "grp",
+        "intern_value": "1",
+        "key": "k",
+        "mandatory": 0,
+        "typology": "fixed",
+        "value": "1",
+        "values": [
+          "1"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "1",
+          "1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "cluster",
+        "group": "grp",
+        "intern_value": "[fridge|freezer|vtRoom1]",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "enum",
+        "value": "fridge_freezer_vtroom1",
+        "values": [
+          "fridge",
+          "freezer",
+          "vtroom1",
+          "fridge_freezer_vtroom1"
+        ]
+      },
+      "setter_invalid": "ValueError",
+      "setter_valid": [
+        [
+          "fridge",
+          "fridge"
+        ],
+        [
+          "freezer",
+          "freezer"
+        ],
+        [
+          "vtroom1",
+          "vtroom1"
+        ],
+        [
+          "fridge_freezer_vtroom1",
+          "fridge_freezer_vtroom1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "command",
+        "group": "grp",
+        "intern_value": "1",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "fixed",
+        "value": "1",
+        "values": [
+          "1"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "1",
+          "1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "command",
+        "group": "grp",
+        "intern_value": "2",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "fixed",
+        "value": "2",
+        "values": [
+          "2"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "2",
+          "2"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "cluster",
+        "group": "grp",
+        "intern_value": "[download]",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "enum",
+        "value": "download",
+        "values": [
+          "download"
+        ]
+      },
+      "setter_invalid": "ValueError",
+      "setter_valid": [
+        [
+          "download",
+          "download"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "general",
+        "group": "grp",
+        "intern_value": "1",
+        "key": "k",
+        "mandatory": 0,
+        "typology": "fixed",
+        "value": "1",
+        "values": [
+          "1"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "1",
+          "1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "general",
+        "group": "grp",
+        "intern_value": "1",
+        "key": "k",
+        "mandatory": 0,
+        "typology": "fixed",
+        "value": "1",
+        "values": [
+          "1"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "1",
+          "1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "cluster",
+        "group": "grp",
+        "intern_value": "[fridge|vtRoom1]",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "enum",
+        "value": "fridge_vtroom1",
+        "values": [
+          "fridge",
+          "vtroom1",
+          "fridge_vtroom1"
+        ]
+      },
+      "setter_invalid": "ValueError",
+      "setter_valid": [
+        [
+          "fridge",
+          "fridge"
+        ],
+        [
+          "vtroom1",
+          "vtroom1"
+        ],
+        [
+          "fridge_vtroom1",
+          "fridge_vtroom1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "command",
+        "group": "grp",
+        "intern_value": "-24",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "fixed",
+        "value": "-24",
+        "values": [
+          "-24"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "-24",
+          "-24"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "cluster",
+        "group": "grp",
+        "intern_value": "[download]",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "enum",
+        "value": "download",
+        "values": [
+          "download"
+        ]
+      },
+      "setter_invalid": "ValueError",
+      "setter_valid": [
+        [
+          "download",
+          "download"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "general",
+        "group": "grp",
+        "intern_value": "1",
+        "key": "k",
+        "mandatory": 0,
+        "typology": "fixed",
+        "value": "1",
+        "values": [
+          "1"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "1",
+          "1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "general",
+        "group": "grp",
+        "intern_value": "1",
+        "key": "k",
+        "mandatory": 0,
+        "typology": "fixed",
+        "value": "1",
+        "values": [
+          "1"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "1",
+          "1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "cluster",
+        "group": "grp",
+        "intern_value": "[freezer]",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "enum",
+        "value": "freezer",
+        "values": [
+          "freezer"
+        ]
+      },
+      "setter_invalid": "ValueError",
+      "setter_valid": [
+        [
+          "freezer",
+          "freezer"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "command",
+        "group": "grp",
+        "intern_value": "4",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "fixed",
+        "value": "4",
+        "values": [
+          "4"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "4",
+          "4"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "command",
+        "group": "grp",
+        "intern_value": "-18",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "fixed",
+        "value": "-18",
+        "values": [
+          "-18"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "-18",
+          "-18"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "command",
+        "group": "grp",
+        "intern_value": "5",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "fixed",
+        "value": "5",
+        "values": [
+          "5"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "5",
+          "5"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "cluster",
+        "group": "grp",
+        "intern_value": "[download]",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "enum",
+        "value": "download",
+        "values": [
+          "download"
+        ]
+      },
+      "setter_invalid": "ValueError",
+      "setter_valid": [
+        [
+          "download",
+          "download"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "general",
+        "group": "grp",
+        "intern_value": "1",
+        "key": "k",
+        "mandatory": 0,
+        "typology": "fixed",
+        "value": "1",
+        "values": [
+          "1"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "1",
+          "1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "general",
+        "group": "grp",
+        "intern_value": "1",
+        "key": "k",
+        "mandatory": 0,
+        "typology": "fixed",
+        "value": "1",
+        "values": [
+          "1"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "1",
+          "1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "cluster",
+        "group": "grp",
+        "intern_value": "[fridge|freezer|vtRoom1]",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "enum",
+        "value": "fridge_freezer_vtroom1",
+        "values": [
+          "fridge",
+          "freezer",
+          "vtroom1",
+          "fridge_freezer_vtroom1"
+        ]
+      },
+      "setter_invalid": "ValueError",
+      "setter_valid": [
+        [
+          "fridge",
+          "fridge"
+        ],
+        [
+          "freezer",
+          "freezer"
+        ],
+        [
+          "vtroom1",
+          "vtroom1"
+        ],
+        [
+          "fridge_freezer_vtroom1",
+          "fridge_freezer_vtroom1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "command",
+        "group": "grp",
+        "intern_value": "6",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "fixed",
+        "value": "6",
+        "values": [
+          "6"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "6",
+          "6"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "command",
+        "group": "grp",
+        "intern_value": "-18",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "fixed",
+        "value": "-18",
+        "values": [
+          "-18"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "-18",
+          "-18"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "command",
+        "group": "grp",
+        "intern_value": "5",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "fixed",
+        "value": "5",
+        "values": [
+          "5"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "5",
+          "5"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "cluster",
+        "group": "grp",
+        "intern_value": "[download]",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "enum",
+        "value": "download",
+        "values": [
+          "download"
+        ]
+      },
+      "setter_invalid": "ValueError",
+      "setter_valid": [
+        [
+          "download",
+          "download"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "general",
+        "group": "grp",
+        "intern_value": "1",
+        "key": "k",
+        "mandatory": 0,
+        "typology": "fixed",
+        "value": "1",
+        "values": [
+          "1"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "1",
+          "1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "general",
+        "group": "grp",
+        "intern_value": "1",
+        "key": "k",
+        "mandatory": 0,
+        "typology": "fixed",
+        "value": "1",
+        "values": [
+          "1"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "1",
+          "1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "cluster",
+        "group": "grp",
+        "intern_value": "[fridge|freezer|vtRoom1]",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "enum",
+        "value": "fridge_freezer_vtroom1",
+        "values": [
+          "fridge",
+          "freezer",
+          "vtroom1",
+          "fridge_freezer_vtroom1"
+        ]
+      },
+      "setter_invalid": "ValueError",
+      "setter_valid": [
+        [
+          "fridge",
+          "fridge"
+        ],
+        [
+          "freezer",
+          "freezer"
+        ],
+        [
+          "vtroom1",
+          "vtroom1"
+        ],
+        [
+          "fridge_freezer_vtroom1",
+          "fridge_freezer_vtroom1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "command",
+        "group": "grp",
+        "intern_value": "5",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "fixed",
+        "value": "5",
+        "values": [
+          "5"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "5",
+          "5"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "cluster",
+        "group": "grp",
+        "intern_value": "[download]",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "enum",
+        "value": "download",
+        "values": [
+          "download"
+        ]
+      },
+      "setter_invalid": "ValueError",
+      "setter_valid": [
+        [
+          "download",
+          "download"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "general",
+        "group": "grp",
+        "intern_value": "1",
+        "key": "k",
+        "mandatory": 0,
+        "typology": "fixed",
+        "value": "1",
+        "values": [
+          "1"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "1",
+          "1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "general",
+        "group": "grp",
+        "intern_value": "1",
+        "key": "k",
+        "mandatory": 0,
+        "typology": "fixed",
+        "value": "1",
+        "values": [
+          "1"
+        ]
+      },
+      "setter_invalid": "n/a",
+      "setter_valid": [
+        [
+          "1",
+          "1"
+        ]
+      ]
+    },
+    {
+      "construct": {
+        "category": "cluster",
+        "group": "grp",
+        "intern_value": "[vtRoom1]",
+        "key": "k",
+        "mandatory": 1,
+        "typology": "enum",
+        "value": "vtroom1",
+        "values": [
+          "vtroom1"
+        ]
+      },
+      "setter_invalid": "ValueError",
+      "setter_valid": [
+        [
+          "vtroom1",
+          "vtroom1"
+        ]
+      ]
+    }
+  ]
+}

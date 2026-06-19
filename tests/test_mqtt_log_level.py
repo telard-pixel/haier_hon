@@ -5,7 +5,7 @@ reconnect attempt. When the realtime push slot is contended (shared appliance,
 the owner holds the channel) these attempts fail in a ~20-minute loop and flood
 the log, with nothing actionable on the integration side (data still updates via
 polling). The integration lowers that logger to WARNING by default and exposes
-the service haier_hon.set_mqtt_log_level to raise it back to debug on demand.
+the service addhon.set_mqtt_log_level to raise it back to debug on demand.
 
 logging_utils.py is loaded directly by file path (no intra-package imports, no
 homeassistant), like test_debug_utils_redact. The wiring in __init__.py /
@@ -20,7 +20,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-COMPONENT = ROOT / "custom_components" / "haier_hon"
+COMPONENT = ROOT / "custom_components" / "addhon"
 LOGGING_UTILS_PATH = COMPONENT / "logging_utils.py"
 INIT = COMPONENT / "__init__.py"
 CONST = COMPONENT / "const.py"
@@ -29,7 +29,7 @@ SERVICES = COMPONENT / "services.yaml"
 
 def _load_logging_utils():
     spec = importlib.util.spec_from_file_location(
-        "haier_hon_logging_utils_standalone", LOGGING_UTILS_PATH
+        "addhon_logging_utils_standalone", LOGGING_UTILS_PATH
     )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -51,16 +51,12 @@ class ApplyMqttLevelTest(unittest.TestCase):
         for name, level in self._saved.items():
             logging.getLogger(name).setLevel(level)
 
-    def test_noise_loggers_include_pyhon_mqtt(self) -> None:
-        # pyhon è vendorizzato, quindi i suoi logger (che usano __name__) sono
-        # sotto il package namespacizzato.
-        self.assertIn(
-            "custom_components.haier_hon._vendor.pyhon.connection.mqtt",
-            lu.MQTT_NOISE_LOGGERS,
+    def test_noise_loggers_are_native_only(self) -> None:
+        # Il client MQTT è il NOSTRO (pyhOn cancellato in Fase 4): l'unico logger di
+        # rumore è quello nativo; nessun namespace _vendor/pyhon residuo.
+        self.assertEqual(
+            lu.MQTT_NOISE_LOGGERS, ("custom_components.addhon.client.transport.mqtt",)
         )
-        # In Home Assistant reale alcune righe arrivano ancora col nome logger
-        # top-level pyhon.connection.mqtt; va silenziato insieme al vendorizzato.
-        self.assertIn("pyhon.connection.mqtt", lu.MQTT_NOISE_LOGGERS)
 
     def test_levels_map_to_logging_constants(self) -> None:
         self.assertEqual(lu.MQTT_LOG_LEVELS["debug"], logging.DEBUG)
@@ -97,10 +93,9 @@ class ApplyIntegrationLevelTest(unittest.TestCase):
         for name, level in self._saved.items():
             logging.getLogger(name).setLevel(level)
 
-    def test_integration_debug_loggers_cover_integration_and_pyhon(self) -> None:
-        self.assertIn("custom_components.haier_hon", lu.INTEGRATION_DEBUG_LOGGERS)
-        self.assertIn("custom_components.haier_hon._vendor.pyhon", lu.INTEGRATION_DEBUG_LOGGERS)
-        self.assertIn("pyhon", lu.INTEGRATION_DEBUG_LOGGERS)
+    def test_integration_debug_loggers_native_only(self) -> None:
+        # pyhOn cancellato: l'unico namespace è quello nativo dell'integrazione.
+        self.assertEqual(lu.INTEGRATION_DEBUG_LOGGERS, ("custom_components.addhon",))
 
     def test_apply_integration_log_level_sets_all_debug_loggers(self) -> None:
         lu.apply_integration_log_level(logging.DEBUG)

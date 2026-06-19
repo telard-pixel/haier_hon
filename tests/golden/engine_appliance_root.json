@@ -1,0 +1,356 @@
+{
+  "additional_data": [
+    "dictionaryId"
+  ],
+  "attr_param_keys": [
+    "debugEnabled",
+    "doorStatusZ1",
+    "errors",
+    "highTransRate",
+    "holidayMode",
+    "humidityEnv",
+    "intelligenceMode",
+    "quickModeZ1",
+    "quickModeZ2",
+    "statusSyncRate",
+    "stdTransRate",
+    "tempEnv",
+    "tempSelZ1",
+    "tempSelZ2",
+    "tempSelZ3",
+    "transMode"
+  ],
+  "available": false,
+  "available_settings": [
+    "settings.category",
+    "settings.httpEndpoint",
+    "settings.mqttEndpoint",
+    "settings.tempSelZ1",
+    "settings.tempSelZ2",
+    "settings.tempSelZ3",
+    "startProgram.holidayMode",
+    "startProgram.intelligenceMode",
+    "startProgram.nameVariants",
+    "startProgram.program",
+    "startProgram.programFamily",
+    "startProgram.quickModeZ1",
+    "startProgram.quickModeZ2",
+    "startProgram.remoteActionable",
+    "startProgram.remoteVisible",
+    "startProgram.tempSelZ1",
+    "startProgram.tempSelZ2",
+    "startProgram.tempSelZ3",
+    "startProgram.zone",
+    "stopProgram.holidayMode",
+    "stopProgram.intelligenceMode",
+    "stopProgram.quickModeZ1",
+    "stopProgram.quickModeZ2"
+  ],
+  "command_parameters": {
+    "settings": {
+      "category": "setParameters",
+      "tempSelZ1": 5,
+      "tempSelZ2": -18,
+      "tempSelZ3": 1
+    },
+    "startProgram": {
+      "intelligenceMode": "1",
+      "nameVariants": "series",
+      "program": "auto_set",
+      "programFamily": "dashboard",
+      "remoteActionable": "1",
+      "remoteVisible": "1",
+      "zone": "fridge_freezer"
+    },
+    "stopProgram": {
+      "holidayMode": "0",
+      "intelligenceMode": "0",
+      "quickModeZ1": "0",
+      "quickModeZ2": "0"
+    }
+  },
+  "commands": [
+    "settings",
+    "startProgram",
+    "stopProgram"
+  ],
+  "data_keys": [
+    "activity",
+    "additional_data",
+    "appliance",
+    "attributes",
+    "available",
+    "commandHistory",
+    "lastConnEvent",
+    "modeZ1",
+    "modeZ2",
+    "parameters",
+    "programName",
+    "resultCode",
+    "settings",
+    "startProgram",
+    "statistics",
+    "stopProgram"
+  ],
+  "info_attributes": {
+    "a": "1",
+    "b": "2"
+  },
+  "options": {},
+  "programName": "No Program",
+  "props": {
+    "0": {
+      "appliance_model_id": "10136",
+      "appliance_type": "REF",
+      "brand": "Haier",
+      "code": "ABC123",
+      "connection": true,
+      "mac_address": "11-22-33-44-55-66",
+      "model_id": 10136,
+      "model_name": "HDPW5620CNPK",
+      "nick_name": "Frigo",
+      "unique_id": "11-22-33-44-55-66",
+      "zone": 0
+    },
+    "1": {
+      "appliance_model_id": "10136",
+      "appliance_type": "REF",
+      "brand": "Haier Z1",
+      "code": "ABC123",
+      "connection": true,
+      "mac_address": "11-22-33-44-55-66",
+      "model_id": 10136,
+      "model_name": "HDPW5620CNPK Z1",
+      "nick_name": "Frigo Z1",
+      "unique_id": "11-22-33-44-55-66_z1",
+      "zone": 1
+    },
+    "2": {
+      "appliance_model_id": "10136",
+      "appliance_type": "REF",
+      "brand": "Haier Z2",
+      "code": "ABC123",
+      "connection": true,
+      "mac_address": "11-22-33-44-55-66",
+      "model_id": 10136,
+      "model_name": "HDPW5620CNPK Z2",
+      "nick_name": "Frigo Z2",
+      "unique_id": "11-22-33-44-55-66_z2",
+      "zone": 2
+    }
+  },
+  "settings": {
+    "settings.category": {
+      "intern_value": "setParameters",
+      "value": "setParameters",
+      "values": [
+        "setConfig",
+        "setParameters"
+      ]
+    },
+    "settings.httpEndpoint": {
+      "intern_value": "",
+      "value": "",
+      "values": [
+        ""
+      ]
+    },
+    "settings.mqttEndpoint": {
+      "intern_value": "",
+      "value": "",
+      "values": [
+        ""
+      ]
+    },
+    "settings.tempSelZ1": {
+      "intern_value": "5",
+      "max": 8,
+      "min": 2,
+      "step": 1,
+      "value": 5,
+      "values": [
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8"
+      ]
+    },
+    "settings.tempSelZ2": {
+      "intern_value": "-18",
+      "max": -16,
+      "min": -24,
+      "step": 1,
+      "value": -18,
+      "values": [
+        "-24",
+        "-23",
+        "-22",
+        "-21",
+        "-20",
+        "-19",
+        "-18",
+        "-17",
+        "-16"
+      ]
+    },
+    "settings.tempSelZ3": {
+      "intern_value": "1",
+      "max": 5,
+      "min": 0,
+      "step": 1,
+      "value": 1,
+      "values": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ]
+    },
+    "startProgram.holidayMode": {
+      "intern_value": "",
+      "value": "",
+      "values": [
+        ""
+      ]
+    },
+    "startProgram.intelligenceMode": {
+      "intern_value": "1",
+      "value": "1",
+      "values": [
+        "1"
+      ]
+    },
+    "startProgram.nameVariants": {
+      "intern_value": "series",
+      "value": "series",
+      "values": [
+        "series"
+      ]
+    },
+    "startProgram.program": {
+      "intern_value": "auto_set",
+      "value": "auto_set",
+      "values": [
+        "auto_set",
+        "holiday",
+        "iot_daily_use",
+        "iot_extra_cold",
+        "iot_extra_cold_water",
+        "iot_extra_ice",
+        "iot_high_efficiency",
+        "iot_special_food_core",
+        "super_cool",
+        "super_freeze"
+      ]
+    },
+    "startProgram.programFamily": {
+      "intern_value": "[dashboard]",
+      "value": "dashboard",
+      "values": [
+        "dashboard"
+      ]
+    },
+    "startProgram.quickModeZ1": {
+      "intern_value": "",
+      "value": "",
+      "values": [
+        ""
+      ]
+    },
+    "startProgram.quickModeZ2": {
+      "intern_value": "",
+      "value": "",
+      "values": [
+        ""
+      ]
+    },
+    "startProgram.remoteActionable": {
+      "intern_value": "1",
+      "value": "1",
+      "values": [
+        "1"
+      ]
+    },
+    "startProgram.remoteVisible": {
+      "intern_value": "1",
+      "value": "1",
+      "values": [
+        "1"
+      ]
+    },
+    "startProgram.tempSelZ1": {
+      "intern_value": "",
+      "value": "",
+      "values": [
+        ""
+      ]
+    },
+    "startProgram.tempSelZ2": {
+      "intern_value": "",
+      "value": "",
+      "values": [
+        ""
+      ]
+    },
+    "startProgram.tempSelZ3": {
+      "intern_value": "",
+      "value": "",
+      "values": [
+        ""
+      ]
+    },
+    "startProgram.zone": {
+      "intern_value": "[fridge|freezer]",
+      "value": "fridge_freezer",
+      "values": [
+        "fridge",
+        "freezer",
+        "fridge_freezer"
+      ]
+    },
+    "stopProgram.holidayMode": {
+      "intern_value": "0",
+      "value": "0",
+      "values": [
+        "0"
+      ]
+    },
+    "stopProgram.intelligenceMode": {
+      "intern_value": "0",
+      "value": "0",
+      "values": [
+        "0"
+      ]
+    },
+    "stopProgram.quickModeZ1": {
+      "intern_value": "0",
+      "value": "0",
+      "values": [
+        "0"
+      ]
+    },
+    "stopProgram.quickModeZ2": {
+      "intern_value": "0",
+      "value": "0",
+      "values": [
+        "0"
+      ]
+    }
+  },
+  "statistics": {
+    "lastCheckup": null,
+    "mostUsedPrograms": [],
+    "mostUsedRecipes": [],
+    "waterFilter": {
+      "lastReplacement": "1970-01-01T00:00:00.0Z",
+      "percentage": 293,
+      "remainingDays": -527,
+      "totalDays": 180
+    }
+  }
+}
