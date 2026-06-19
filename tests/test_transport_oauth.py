@@ -18,7 +18,7 @@ import types as _types
 
 _ROOT = Path(__file__).resolve().parents[1]
 _OUR = _ROOT / "custom_components" / "addhon" / "client" / "transport" / "oauth.py"
-# Costanti pyhОn (ora NOSTRE): trascritte come oracolo-replica dopo la cancellazione di
+# Costanti pyhOn (ora NOSTRE): trascritte come oracolo-replica dopo la cancellazione di
 # `_vendor/`; sono i valori che il nostro oauth.py espone (drift-guard self-owned).
 _CONST = _types.SimpleNamespace(
     AUTH_API="https://account2.hon-smarthome.com",
@@ -132,7 +132,7 @@ class OAuthPiecesTest(unittest.TestCase):
         self.assertFalse(self.o.is_oauth_done("normal login page"))
 
     def test_constants_match_vendored_const(self) -> None:
-        # Drift-guard: le costanti inline devono eguagliare quelle di pyhОn.
+        # Drift-guard: le costanti inline devono eguagliare quelle di pyhOn.
         self.assertEqual(self.o.AUTH_API, self.c.AUTH_API)
         self.assertEqual(self.o.APP, self.c.APP)
         self.assertEqual(self.o.CLIENT_ID, self.c.CLIENT_ID)

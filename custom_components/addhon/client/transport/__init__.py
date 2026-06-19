@@ -1,4 +1,4 @@
-"""Transport nativo di addhОn (auth/HTTP/MQTT).
+"""Transport nativo di addhOn (auth/HTTP/MQTT).
 
 Strato auth/transport scritto da zero, che ha rimpiazzato l'ex
 `_vendor/pyhon/connection/` (quello FRAGILE, dove l'API Haier ci aveva già rotto:

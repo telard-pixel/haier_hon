@@ -1,10 +1,10 @@
 """HonParameterEnum nativo, con il FIX del bug BABYCARE.
 
 Porting di `_vendor/pyhon/parameter/enum.py`. UNICA divergenza voluta: il setter.
-pyhОn confronta il valore GREZZO in ingresso contro `self.values` che è GIA'
+pyhOn confronta il valore GREZZO in ingresso contro `self.values` che è GIA'
 normalizzato da `clean_value` (lowercase, strip `[]`, `|`->`_`). Così un valore con
 casing del cloud (es. "BABYCARE") non combacia mai con ["babycare"] -> ValueError.
-È il bug BABYCARE, qui FIXATO alla radice (il vecchio monkeypatch su pyhОn non esiste
+È il bug BABYCARE, qui FIXATO alla radice (il vecchio monkeypatch su pyhOn non esiste
 più).
 
 Il setter normalizza il valore in ingresso con lo
@@ -12,14 +12,14 @@ STESSO `clean_value` prima del confronto. Accetta sia "BABYCARE" sia "babycare";
 memorizza il valore grezzo (così `intern_value` resta grezzo = ciò che si invia al
 cloud). Sul caso reale (valori già puliti del frigo) e sulla superficie che
 l'integrazione usa davvero (imposta valori presi da `param.values`, già puliti) il
-comportamento è IDENTICO a pyhОn+patch: lo verifica il differential test su 67
+comportamento è IDENTICO a pyhOn+patch: lo verifica il differential test su 67
 parametri reali.
 
-DIVERGENZE VOLUTE da pyhОn+patch su valori-edge (cased/`|`/`[]`), tutte = native
+DIVERGENZE VOLUTE da pyhOn+patch su valori-edge (cased/`|`/`[]`), tutte = native
 PIÙ CORRETTO (il patch era un bolt-on incoerente), da rivalidare LIVE sull'AC
-(l'oracolo vero lì è l'app, non pyhОn, vedi FASE4 plan):
+(l'oracolo vero lì è l'app, non pyhOn, vedi FASE4 plan):
   1. TRIGGER: native chiama `check_trigger` su OGNI valore accettato (come il ramo
-     normale di pyhОn); il fallback del patch impostava `_value` ma DIMENTICAVA il
+     normale di pyhOn); il fallback del patch impostava `_value` ma DIMENTICAVA il
      trigger -> su valori col casing del cloud le rules non cascatavano. Native le fa
      cascadere coerentemente (corretto).
   2. ACCETTAZIONE: native accetta un valore se la sua forma normalizzata è tra i
@@ -88,7 +88,7 @@ class HonParameterEnum(HonParameter):
 
     @value.setter
     def value(self, value: str | float) -> None:
-        # FIX BABYCARE: confronto sul valore NORMALIZZATO (pyhОn confrontava il grezzo
+        # FIX BABYCARE: confronto sul valore NORMALIZZATO (pyhOn confrontava il grezzo
         # contro la lista già pulita -> falso negativo sui valori col casing del cloud).
         if clean_value(value) in self.values:
             self._value = value

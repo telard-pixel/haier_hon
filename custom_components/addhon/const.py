@@ -76,7 +76,7 @@ AC_ATTR_FAN_SPEED    = "settings.windSpeed"
 # Swing verticale. windDirectionVertical è un ENUM di POSIZIONI, non un bool:
 # 2,4,5,6,7 = posizioni fisse del deflettore, 8 = SWING (oscillazione). Il device
 # riporta 0 da spento: 0 NON è tra gli enumValues, quindi inviarlo fa sollevare
-# ValueError al setter enum di pyhОn e l'API lo rifiuta — è la causa per cui lo
+# ValueError al setter enum di pyhOn e l'API lo rifiuta — è la causa per cui lo
 # swing era stato disabilitato. Il fix (climate.py): non inviare MAI 0 (sanitazione
 # pre-send) e impostare windDirectionVertical solo a valori ammessi. Gli allowed
 # values reali sono letti a runtime da .values del parametro (per-device), con

@@ -1,6 +1,6 @@
 """Number Haier hOn (Tier 3): setpoint di temperatura scrivibili.
 
-Cross-reference tra lo schema runtime di pyhОn (ground truth: dump del frigo
+Cross-reference tra lo schema runtime di pyhOn (ground truth: dump del frigo
 reale REF HDPW5620CNPK -> `settings`/`setParameters` con tempSelZ1[2..8],
 tempSelZ2[-24..-16], tempSelZ3[0..5]) e la mappatura della app decompilata (§7,
 superset: tempSelZ1..Z4, tempSelUZ/LZ, tempSel generico).
@@ -56,7 +56,7 @@ class HonNumberEntityDescription(NumberEntityDescription):
 
     - `key` = suffisso unique_id (nuovo, nessuna collisione coi sensori Tier 2).
     - `param` = nome del parametro hOn da leggere (stato) e scrivere (comando).
-    - `fallback_min/max/step` = usati solo se pyhОn non espone il range sul
+    - `fallback_min/max/step` = usati solo se pyhOn non espone il range sul
       parametro; di norma il range REALE è letto a runtime da param_range().
     """
 
@@ -166,7 +166,7 @@ class HonNumber(HonBaseEntity, NumberEntity):
         self._attr_name = f"{device_name} - {description.name}"
         self._attr_unique_id = f"{appliance_id}_{description.key}"
         # Snapshot del range come fallback; i bound vivi sono riletti dal
-        # parametro a ogni accesso (le rule pyhОn possono cambiarli a runtime).
+        # parametro a ogni accesso (le rule pyhOn possono cambiarli a runtime).
         self._fallback_range = param_range(param) or (
             description.fallback_min,
             description.fallback_max,
@@ -213,7 +213,7 @@ class HonNumber(HonBaseEntity, NumberEntity):
         client = self._hon_client
         if not appliance or not client:
             raise HomeAssistantError("Number: appliance o client non disponibile")
-        # Manda SEMPRE una stringa: pyhОn str_to_float fa `int(string)` e cattura
+        # Manda SEMPRE una stringa: pyhOn str_to_float fa `int(string)` e cattura
         # solo ValueError, quindi un float frazionario (5.5) verrebbe troncato a 5
         # SENZA errore. La stringa "5.5" invece resta 5.5 e il setter range valida
         # lo step (rifiuta i fuori-griglia). Intero -> "4" pulito (no "4.0").

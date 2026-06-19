@@ -6,7 +6,7 @@ commands/rules/program nativi (engine.command_loader), layer per-tipo nativo
 
 Implementa SOLO la superficie realmente consumata (misurata su integrazione + sessione
 + engine): proprietà identificative/stato, load_*/update, settings/data/command_parameters,
-sync_*. Droppati i morti di pyhОn (`__getitem__`/`get`/`_get_nested_item`/`diagnose`/
+sync_*. Droppati i morti di pyhOn (`__getitem__`/`get`/`_get_nested_item`/`diagnose`/
 `data_archive`/`sync_command`/`sync_parameter`). `api` è il NOSTRO transport.api.HonApi.
 """
 from __future__ import annotations
@@ -47,7 +47,7 @@ class HonAppliance:
             not self._attributes.get("lastConnEvent", {}).get("category", "")
             == "DISCONNECTED"
         )
-        # layer per-tipo NATIVO (era importlib dinamico in pyhОn)
+        # layer per-tipo NATIVO (era importlib dinamico in pyhOn)
         self._extra = _native_appliances.get_extra(self)
 
     def _check_name_zone(self, name: str, frontend: bool = True) -> str:
@@ -137,7 +137,7 @@ class HonAppliance:
     @property
     def api(self) -> Any:
         if self._api is None:
-            raise NoAuthenticationException("Missing hОn login")
+            raise NoAuthenticationException("Missing hOn login")
         return self._api
 
     @property
@@ -166,7 +166,7 @@ class HonAppliance:
                 self._attributes.setdefault("parameters", {})[name] = HonAttribute(values)
         self._attributes |= attributes
         # Connettività autorevole = lastConnEvent.category (modello app
-        # ApplianceConnectionState, vedi apk/analysis/per-type-derivations.md #5). pyhОn
+        # ApplianceConnectionState, vedi apk/analysis/per-type-derivations.md #5). pyhOn
         # lasciava `_connection` stale-True sul polling (solo l'MQTT lo aggiornava) ->
         # le per-tipo che azzerano in base a `self.connection` (td/wd/dw/ov) NON scattavano
         # sul poll, a differenza di wm (che legge lastConnEvent). Aggiornarlo qui lo rende

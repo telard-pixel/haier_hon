@@ -1,11 +1,11 @@
 """Offline test dell'orchestrazione `Hon` nativa (NativeHon, Fase 3 piece 3).
 
-Verifica la SEQUENZA di setup fedele a pyhОn `Hon.setup` (load_appliances → per
+Verifica la SEQUENZA di setup fedele a pyhOn `Hon.setup` (load_appliances → per
 appliance load_commands/attributes/statistics → MQTT per ultimo), la gestione zone,
 lo skip su mac vuoto, la tolleranza agli errori per-appliance, il gating MQTT, la
 chiusura e la conformità al Protocol `HonSession`.
 
-Il motore pyhОn (HonAppliance) e il MQTT sono mockati via i factory di
+Il motore pyhOn (HonAppliance) e il MQTT sono mockati via i factory di
 `pyhon_adapter` (l'unico ponte verso `_vendor`): nessun import di `_vendor`,
 nessuna rete, niente awscrt. aiohttp/yarl/homeassistant sono stubati.
 """
@@ -186,7 +186,7 @@ class NativeSessionSetupTest(unittest.TestCase):
         h.install()
         nh = self._nh_with_api(h)
         _run(nh.setup())
-        # zones=2 -> zone1, zone2, poi base(zone0) = 3 appliance (come pyhОn)
+        # zones=2 -> zone1, zone2, poi base(zone0) = 3 appliance (come pyhOn)
         self.assertEqual([a.zone for a in nh.appliances], [1, 2, 0])
 
     def test_zero_appliances_still_creates_mqtt(self) -> None:
@@ -258,7 +258,7 @@ class NativeSessionSetupTest(unittest.TestCase):
         h.install()
         nh = self._nh_with_api(h)
         _run(nh.setup())
-        # load_commands lancia KeyError ma l'appliance resta (stato parziale, come pyhОn)
+        # load_commands lancia KeyError ma l'appliance resta (stato parziale, come pyhOn)
         self.assertEqual([a.mac_address for a in nh.appliances], ["A"])
 
     def test_mqtt_disabled(self) -> None:

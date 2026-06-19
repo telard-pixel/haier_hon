@@ -3,7 +3,7 @@
 min/max/step/default via `str_to_float` (riusa client.helpers). `step` ricade su 1
 se 0. Il setter valida range+step (modulo *100 per evitare l'imprecisione float) e
 solleva ValueError se fuori (le entità ci contano per il rollback). `values` enumera
-min..max a passi di step. Tutto identico a pyhОn (differential test).
+min..max a passi di step. Tutto identico a pyhOn (differential test).
 """
 from __future__ import annotations
 

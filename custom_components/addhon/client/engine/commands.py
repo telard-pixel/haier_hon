@@ -7,9 +7,9 @@ al cloud via l'api nativa iniettata (appliance.api).
 
 `appliance` è duck-typed (l'HonAppliance ROOT nativo):
 servono `.api`, `.zone`, `.commands`, `.sync_command_to_params`. Comportamento
-ancorato a pyhОn dal differential test sui comandi reali del frigo.
+ancorato a pyhOn dal differential test sui comandi reali del frigo.
 
-DIVERGENZA VOLUTA (error-path, documentata): pyhОn su `NoAuthenticationException`
+DIVERGENZA VOLUTA (error-path, documentata): pyhOn su `NoAuthenticationException`
 loggava e ritornava False (il chiamante lo scambiava per successo). Qui lasciamo
 propagare l'errore -> il chiamante (button/switch/hon_commands) lo trasforma in
 HomeAssistantError onesto invece di un falso "inviato". Il path felice (return del
@@ -65,7 +65,7 @@ class HonCommand:
         if self._api is None and self._appliance is not None:
             self._api = self._appliance.api  # puo' sollevare se non autenticato
         if self._api is None:
-            raise NoAuthenticationException("Missing hОn login")
+            raise NoAuthenticationException("Missing hOn login")
         return self._api
 
     @property

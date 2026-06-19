@@ -1,4 +1,4 @@
-"""I Protocol che definiscono l'ESATTA superficie del client hОn da cui dipende
+"""I Protocol che definiscono l'ESATTA superficie del client hOn da cui dipende
 l'integrazione.
 
 È il contratto su cui poggia il corpo dell'integrazione: gli oggetti concreti del
@@ -48,7 +48,7 @@ class Command(Protocol):
     """Un comando inviabile (settings/startProgram/stopProgram/...).
 
     `parameters` mappa nome->Parameter (li si modifica prima di inviare).
-    `send()` trasmette il comando sul canale hОn. `categories`/`category`
+    `send()` trasmette il comando sul canale hOn. `categories`/`category`
     servono alla selezione programma (HonParameterProgram) in select.py.
     """
 

@@ -5,10 +5,10 @@ comando (i programmi). Leggere `value` = la categoria attuale del comando;
 scrivere `value` = cambiare la categoria del comando (e quindi il comando attivo
 nell'appliance). `values` = i nomi-programma (categorie) filtrando le ricette iot.
 Sottoclasse dell'enum nativo perché le rules fanno `isinstance(param, enum)` e un
-program deve contare come enum (lo era anche in pyhОn).
+program deve contare come enum (lo era anche in pyhOn).
 
 `command` è duck-typed (il nostro HonCommand nativo): servono `.category` (str) e
-`.categories` (dict nome->comando). Comportamento ancorato a pyhОn dal differential
+`.categories` (dict nome->comando). Comportamento ancorato a pyhOn dal differential
 test sui programmi reali del frigo (startProgram).
 """
 from __future__ import annotations

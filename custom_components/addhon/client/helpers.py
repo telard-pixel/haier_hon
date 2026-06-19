@@ -1,19 +1,19 @@
-"""Utility numeriche del client hОn nativo.
+"""Utility numeriche del client hOn nativo.
 
-Primo "mattone" portato da pyhОn col loop di migrazione (characterization +
+Primo "mattone" portato da pyhOn col loop di migrazione (characterization +
 differential test vs `_vendor/pyhon/helper.py`). Per ora nessun consumatore di
-produzione: i chiamanti di `str_to_float` sono ancora interni a pyhОn (range.py/
+produzione: i chiamanti di `str_to_float` sono ancora interni a pyhOn (range.py/
 enum.py); questa funzione verrà usata quando porteremo il parser. Tenuta a
-comportamento IDENTICO a pyhОn (il differential test lo verifica), così quando il
+comportamento IDENTICO a pyhOn (il differential test lo verifica), così quando il
 parser passerà a usarla non cambia nulla.
 """
 from __future__ import annotations
 
 
 def str_to_float(value: str | float) -> float:
-    """Converte un valore hОn (di solito stringa) in numero.
+    """Converte un valore hOn (di solito stringa) in numero.
 
-    Comportamento (identico a pyhОn, verificato col differential test):
+    Comportamento (identico a pyhOn, verificato col differential test):
     - prova `int(value)` per primo: "5"->5, "-16"->-16, 5->5;
     - in caso di ValueError ricade su `float`, normalizzando la virgola
       decimale: "5.5"->5.5, "5,5"->5.5.

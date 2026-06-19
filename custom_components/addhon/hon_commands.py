@@ -1,14 +1,14 @@
-"""Helper condivisi per inviare comandi pyhОn ai controlli (Tier 3).
+"""Helper condivisi per inviare comandi pyhOn ai controlli (Tier 3).
 
 Generalizza il pattern già usato da button.py (invio di un comando applicando
 override di parametri) e da ac_command.async_send_settings (set sul comando di
 scrittura), rendendolo neutro rispetto al nome del comando. I controlli dei tipi
 Tier 3 (number, switch/select/button per frigo/forno/…) lo riusano senza
-duplicare lookup, rollback ed esecuzione sul loop dedicato pyhОn.
+duplicare lookup, rollback ed esecuzione sul loop dedicato pyhOn.
 
 Principio di gating (vedi memoria/repo): ogni controllo è CAPABILITY-GATED, cioè
 si crea solo se il device espone DAVVERO il comando + parametro (schema runtime
-di pyhОn), col superset dei candidati seminato dalla mappatura della app. Così è
+di pyhOn), col superset dei candidati seminato dalla mappatura della app. Così è
 validato dove abbiamo il dump reale, ampio per gli altri modelli, e sicuro
 ovunque (un parametro assente non genera entità).
 """
@@ -21,8 +21,8 @@ from homeassistant.exceptions import HomeAssistantError
 
 _LOGGER = logging.getLogger(__name__)
 
-# Comandi pyhОn da cui i controlli "set" (number/switch/select-modo) leggono e
-# scrivono i parametri liberi. pyhОn nomina il comando dalla chiave di primo
+# Comandi pyhOn da cui i controlli "set" (number/switch/select-modo) leggono e
+# scrivono i parametri liberi. pyhOn nomina il comando dalla chiave di primo
 # livello del device: "settings" è quella dell'AC e del frigo reale (categoria
 # attiva setParameters); "setParameters" come fallback per altri modelli.
 SETTINGS_COMMANDS: tuple[str, ...] = ("settings", "setParameters")
@@ -72,10 +72,10 @@ def param_values(param) -> list[str]:
 
 
 def param_range(param) -> tuple[float, float, float] | None:
-    """(min, max, step) di un parametro range pyhОn, o None se non è un range.
+    """(min, max, step) di un parametro range pyhOn, o None se non è un range.
 
     Duck-typing su min/max/step (HonParameterRange li espone). step torna 1.0 se
-    pyhОn lo riporta a 0 (nessun incremento dichiarato)."""
+    pyhOn lo riporta a 0 (nessun incremento dichiarato)."""
     if not all(hasattr(param, attr) for attr in ("min", "max", "step")):
         return None
     try:
@@ -101,7 +101,7 @@ async def async_send_command(
     pre_send: Callable[[dict], None] | None = None,
 ) -> None:
     """Applica `params` (nome->valore) al comando `command_name` e lo invia sul
-    loop dedicato pyhОn, con rollback se un assegnamento fallisce.
+    loop dedicato pyhOn, con rollback se un assegnamento fallisce.
 
     `pre_send(command_params)`: hook opzionale eseguito PRIMA di applicare i
     parametri richiesti (l'AC lo usa per sanare windDirection*). I valori

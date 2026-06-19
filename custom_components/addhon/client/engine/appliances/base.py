@@ -9,7 +9,7 @@ I VALORI in `data["parameters"][...]` sono `HonAttribute` (nativi): li leggiamo
 duck-typed via `.value`/`str()`. Gli `isinstance` invece sono contro le classi
 PARAMETRO native.
 
-Helper di confronto: pyhОn confrontava `HonAttribute == "1"` che è SEMPRE False
+Helper di confronto: pyhOn confrontava `HonAttribute == "1"` che è SEMPRE False
 (nessun `__eq__`) -> ref/td/wm pause erano no-op rotti. Qui confrontiamo per VALORE
 (intento dell'app), correggendo il bug. I campi che ne dipendono (modeZ1/Z2/pause) non
 sono però consumati dall'integrazione: la differenza è documentata, non rischiosa.
@@ -45,14 +45,14 @@ class ApplianceExtra:
     def _is_value(cls, params: dict[str, Any], key: str, expected: Any) -> bool:
         """True se `.value` dell'attributo `key` == expected. Confronto per VALORE
         (i flag "1"/"0" diventano int 1/0): sostituisce il `HonAttribute == "..."` di
-        pyhОn, che è SEMPRE False (manca __eq__) -> i suoi modeZ/pause erano no-op."""
+        pyhOn, che è SEMPRE False (manca __eq__) -> i suoi modeZ/pause erano no-op."""
         return cls._value(params, key) == expected
 
     def attributes(self, data: dict[str, Any]) -> dict[str, Any]:
-        # programName: slug dal codice programma corrente (come pyhОn; l'app usa una
+        # programName: slug dal codice programma corrente (come pyhOn; l'app usa una
         # chiave i18n risolta via dictionaryId = altitudine sbagliata per HA).
-        # Robustezza vs pyhОn: `_raw(...) or "0"` gestisce prCode vuoto/assente -> "No
-        # Program" invece del `int("")` -> ValueError di pyhОn (divergenza voluta, safe).
+        # Robustezza vs pyhOn: `_raw(...) or "0"` gestisce prCode vuoto/assente -> "No
+        # Program" invece del `int("")` -> ValueError di pyhOn (divergenza voluta, safe).
         program_name = "No Program"
         params = data.get("parameters", {})
         if program := int(self._raw(params, "prCode") or "0"):

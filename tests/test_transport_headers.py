@@ -1,6 +1,6 @@
 """Differential test del 4° pezzo del transport: build_auth_headers.
 
-Oracolo = costruzione header di pyhОn: `ConnectionHandler._HEADERS | headers`
+Oracolo = costruzione header di pyhOn: `ConnectionHandler._HEADERS | headers`
 (handler/base.py:18-21 + handler/hon.py:66-68), dove `headers` = extra del
 chiamante + i due token. `_HEADERS` usa `const.USER_AGENT`: lo carichiamo dal
 vero const.py (puro, importabile a sé) così il test pinna anche il drift del UA.
@@ -16,7 +16,7 @@ from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[1]
 _OUR_HEADERS = _ROOT / "custom_components" / "addhon" / "client" / "transport" / "headers.py"
-# USER_AGENT pyhОn (ora NOSTRO): trascritto dopo la cancellazione di `_vendor/`.
+# USER_AGENT pyhOn (ora NOSTRO): trascritto dopo la cancellazione di `_vendor/`.
 _USER_AGENT = "Chrome/999.999.999.999"
 
 
@@ -71,7 +71,7 @@ class BuildAuthHeadersTest(unittest.TestCase):
         )
 
     def test_ua_matches_vendored_const(self) -> None:
-        # Pin contro drift: il nostro USER_AGENT deve eguagliare quello di pyhОn.
+        # Pin contro drift: il nostro USER_AGENT deve eguagliare quello di pyhOn.
         our_ua = _load(_OUR_HEADERS, "addhon_transport_headers2").USER_AGENT
         self.assertEqual(our_ua, self.ua)
 

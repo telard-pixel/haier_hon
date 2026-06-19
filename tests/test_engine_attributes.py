@@ -1,8 +1,8 @@
 """Golden test dell'attributo nativo (Fase 4). Congela costruzione/update/lock di
 HonAttribute sui dati shadow REALI del frigo + casi sintetici.
 
-Storia: era differential vs pyhОn; con `_vendor/` cancellato è golden (output nativo
-provato == pyhОn al checkpoint 5a). Divergenza voluta pinnata: lock con
+Storia: era differential vs pyhOn; con `_vendor/` cancellato è golden (output nativo
+provato == pyhOn al checkpoint 5a). Divergenza voluta pinnata: lock con
 `datetime.now(timezone.utc)` (aware) invece del deprecato `utcnow()`.
 """
 from __future__ import annotations

@@ -1,7 +1,7 @@
 """Test offline del flusso auth nativo (HonAuth) con sessione MOCKATA.
 
 L'happy path è già LIVE-validato (apk/validate_auth_live.py: login reale → token
-→ 4 appliance == pyhОn). Questo è il guard CI per la LOGICA del flusso (ordine
+→ 4 appliance == pyhOn). Questo è il guard CI per la LOGICA del flusso (ordine
 degli step, header, payload, parsing, rami): yarl stubato, nessuna rete, risposte
 HTTP scriptate in ordine di chiamata.
 """
@@ -146,7 +146,7 @@ class NativeAuthFlowTest(unittest.TestCase):
         ])
         asyncio.run(auth.authenticate())
         self.assertEqual(auth.id_token, "CCC")
-        self.assertEqual(auth.cognito_token, "")  # _api_auth saltato (come pyhОn)
+        self.assertEqual(auth.cognito_token, "")  # _api_auth saltato (come pyhOn)
 
     def test_login_page_without_fwuid_raises(self) -> None:
         auth = self._auth([
@@ -176,7 +176,7 @@ class NativeAuthFlowTest(unittest.TestCase):
             asyncio.run(auth.authenticate())
 
     def test_step_order(self) -> None:
-        # L'ordine delle chiamate riflette il flusso pyhОn.
+        # L'ordine delle chiamate riflette il flusso pyhOn.
         session = FakeSession(_happy_responses())
         auth = HonAuth(session, "u", "p", HonDevice())
         asyncio.run(auth.authenticate())

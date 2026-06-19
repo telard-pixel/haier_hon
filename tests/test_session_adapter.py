@@ -1,6 +1,6 @@
-"""Guard del distacco TOTALE da pyhОn (Fase 4 completata).
+"""Guard del distacco TOTALE da pyhOn (Fase 4 completata).
 
-Storia: la sessione hОn passava per l'adattatore-ponte `pyhon_adapter` (l'unico file
+Storia: la sessione hOn passava per l'adattatore-ponte `pyhon_adapter` (l'unico file
 che importava `_vendor.pyhon`). Con `_vendor/` CANCELLATO, questa guardia verifica la
 meta finale: NESSUN file dell'integrazione importa più `_vendor`, e `_vendor/` non
 esiste. `pyhon_adapter` resta la factory del client nativo.

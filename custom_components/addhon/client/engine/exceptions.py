@@ -1,13 +1,13 @@
 """Eccezioni del motore parser nativo (Fase 4).
 
-Le nostre, non importate da pyhОn (regola di confine: il motore nativo non
+Le nostre, non importate da pyhOn (regola di confine: il motore nativo non
 dipende da `_vendor`). Minime: il send-path ne usa due.
 """
 from __future__ import annotations
 
 
 class ApiError(Exception):
-    """Il cloud hОn ha rifiutato/non confermato un comando."""
+    """Il cloud hOn ha rifiutato/non confermato un comando."""
 
 
 class NoAuthenticationException(Exception):

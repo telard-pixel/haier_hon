@@ -2,7 +2,7 @@
 
 interfaces.py è SENZA dipendenze (solo typing): lo carichiamo in totale
 isolamento con importlib (niente package __init__, niente stub Home Assistant,
-niente pyhОn), così questo test non tocca lo stato condiviso del processo pytest
+niente pyhOn), così questo test non tocca lo stato condiviso del processo pytest
 e resta una verifica pura del contratto.
 
 Verifica che i Protocol siano runtime_checkable e che un oggetto della forma che

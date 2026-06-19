@@ -1,6 +1,6 @@
 """WH (scaldabagno). Riscrittura di `_vendor/pyhon/appliances/wh.py`.
 
-`active` = onOffStatus==1. FIX vs pyhОn: pyhОn faceva `isinstance(attr, HonParameter)`
+`active` = onOffStatus==1. FIX vs pyhOn: pyhOn faceva `isinstance(attr, HonParameter)`
 (falso: è un HonAttribute) -> ramo `attr == 1` = sempre False -> active rotto. Qui per
 valore (corretto). Campo non consumato -> fix inerte ma corretto.
 """

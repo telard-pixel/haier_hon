@@ -1,6 +1,6 @@
 """DW (lavastoviglie). Riscrittura di `_vendor/pyhon/appliances/dw.py`.
 
-`active = bool(activity)`, zeroing machMode offline. Nessun `pause` (come pyhОn).
+`active = bool(activity)`, zeroing machMode offline. Nessun `pause` (come pyhOn).
 """
 from __future__ import annotations
 

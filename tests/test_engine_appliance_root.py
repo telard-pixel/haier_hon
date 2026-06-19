@@ -1,6 +1,6 @@
 """Golden test del ROOT appliance nativo (Fase 4). Congela proprietà + load end-to-end
-sul dump reale del frigo. Era differential vs pyhОn (slice 5a); con `_vendor/` cancellato
-è golden (output nativo provato == pyhОn al checkpoint 5a, commit 520f036).
+sul dump reale del frigo. Era differential vs pyhOn (slice 5a); con `_vendor/` cancellato
+è golden (output nativo provato == pyhOn al checkpoint 5a, commit 520f036).
 """
 from __future__ import annotations
 

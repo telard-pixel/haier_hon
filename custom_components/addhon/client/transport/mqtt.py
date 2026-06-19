@@ -1,4 +1,4 @@
-"""Client MQTT nativo addhОn (push realtime AWS IoT).
+"""Client MQTT nativo addhOn (push realtime AWS IoT).
 
 Riscrittura (non copia) di `_vendor/pyhon/connection/mqtt.MQTTClient` con awscrt
 diretto: rimpiazza l'ex `_vendor/pyhon/connection/mqtt` con awscrt diretto.
@@ -7,19 +7,19 @@ Riceve la sessione (`NativeHon`) e ne legge `api` (token: `load_aws_token` +
 `auth.id_token`), `appliances`, `notify` (tutto duck-typed): gli `appliance` sono il
 motore parser nativo, toccato solo via la sua interfaccia pubblica.
 
-Migliorie deliberate rispetto a pyhОn:
+Migliorie deliberate rispetto a pyhOn:
 - un vero `stop()` (cancella+attende il watchdog PRIMA di fermare il client, così
-  un `_start()` in volo non ricrea una connessione orfana), che pyhОn non aveva
+  un `_start()` in volo non ricrea una connessione orfana), che pyhOn non aveva
   (leak di una connessione AWS IoT per reload);
 - `_on_publish_received` difensivo: appliance non trovato per il topic / parametri
-  mancanti -> skip invece del crash (pyhОn faceva `next(...)`/`payload["parameters"]`
-  che sollevano). Identico a pyhОn quando ogni `parName` del messaggio è già presente
+  mancanti -> skip invece del crash (pyhOn faceva `next(...)`/`payload["parameters"]`
+  che sollevano). Identico a pyhOn quando ogni `parName` del messaggio è già presente
   in `attributes["parameters"]` (seminato dal poll HTTP `load_attributes`); un parName
-  MQTT mai visto prima viene SALTATO (pyhОn crashava e non lo riteneva comunque; il
+  MQTT mai visto prima viene SALTATO (pyhOn crashava e non lo riteneva comunque; il
   successivo poll HTTP lo recupera). Sul motore nativo potremmo crearne la voce al
   volo, opzione non ancora necessaria.
 
-awscrt/awsiot sono importati al top (come pyhОn): il modulo NON è importabile a
+awscrt/awsiot sono importati al top (come pyhOn): il modulo NON è importabile a
 secco; chi lo usa (`NativeHon`) lo importa lazy. Il rumore INFO del lifecycle è
 governato da `logging_utils` su questo logger.
 """
@@ -38,7 +38,7 @@ from .device import MOBILE_ID
 
 _LOGGER = logging.getLogger(__name__)
 
-# Endpoint/authorizer AWS IoT del cloud hОn (da pyhОn const.py).
+# Endpoint/authorizer AWS IoT del cloud hOn (da pyhOn const.py).
 AWS_ENDPOINT = "a30f6tqw0oh1x0-ats.iot.eu-west-1.amazonaws.com"
 AWS_AUTHORIZER = "candy-iot-authorizer"
 
@@ -79,13 +79,13 @@ class NativeMqttClient:
             except asyncio.CancelledError:
                 pass
             except Exception as err:  # pragma: no cover - difensivo
-                _LOGGER.debug("addhОn: attesa cancel watchdog MQTT fallita: %s", err)
+                _LOGGER.debug("addhOn: attesa cancel watchdog MQTT fallita: %s", err)
             self._watchdog_task = None
         if self._client is not None:
             try:
                 self._client.stop()
             except Exception as err:  # pragma: no cover - difensivo
-                _LOGGER.debug("addhОn: stop client MQTT fallito: %s", err)
+                _LOGGER.debug("addhOn: stop client MQTT fallito: %s", err)
             self._client = None
 
     # ── lifecycle callbacks ───────────────────────────────────────────────────
@@ -120,7 +120,7 @@ class NativeMqttClient:
             return
         payload = json.loads(data.publish_packet.payload.decode())
         topic = data.publish_packet.topic
-        # Difensivo (pyhОn faceva next(...) -> StopIteration): appliance non trovato -> esci.
+        # Difensivo (pyhOn faceva next(...) -> StopIteration): appliance non trovato -> esci.
         appliance = next(
             (
                 a

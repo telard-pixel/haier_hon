@@ -1,12 +1,12 @@
-"""Header HTTP del transport addhОn.
+"""Header HTTP del transport addhOn.
 
-Riscrittura della costruzione degli header autenticati di pyhОn
+Riscrittura della costruzione degli header autenticati di pyhOn
 (`ConnectionHandler._HEADERS` in handler/base.py + il merge in
 handler/hon.py:_check_headers): ogni richiesta autenticata porta user-agent +
 Content-Type + i due token (cognito-token, id-token).
 
 Funzione PURA: i token sono input, nessun segreto hardcoded. `USER_AGENT`
-rispecchia oggi il valore di pyhОn (valore-dato, behavior-preserving, pinnato dal
+rispecchia oggi il valore di pyhOn (valore-dato, behavior-preserving, pinnato dal
 differential test); il valore reale dell'app entrerà come passo separato.
 """
 from __future__ import annotations
@@ -31,7 +31,7 @@ def build_auth_headers(
 ) -> dict[str, str]:
     """Header per una richiesta autenticata.
 
-    Replica `self._HEADERS | headers` di pyhОn dove `headers` contiene gli
+    Replica `self._HEADERS | headers` di pyhOn dove `headers` contiene gli
     `extra` del chiamante PIÙ i due token: gli `extra` (e i token) vincono sui
     base, i token sono sempre presenti.
     """

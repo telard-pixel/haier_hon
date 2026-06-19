@@ -1,6 +1,6 @@
 """Controllo dei livelli di log diagnostici per l'integrazione.
 
-Il client MQTT (ora il NOSTRO ``client.transport.mqtt``; prima pyhОn) emette a
+Il client MQTT (ora il NOSTRO ``client.transport.mqtt``; prima pyhOn) emette a
 livello INFO un messaggio per ogni tentativo di (ri)connessione realtime
 ("Lifecycle Attempting Connect / Connection Failure / Disconnection / Connection
 Success").
@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 
 # Logger da alzare/abbassare quando serve diagnosticare discovery, setup, reauth e
-# polling. Tutto il client è ora nativo (pyhОn cancellato in Fase 4), quindi questo
+# polling. Tutto il client è ora nativo (pyhOn cancellato in Fase 4), quindi questo
 # è l'unico namespace. Il logger MQTT resta separato sotto MQTT_NOISE_LOGGERS, così
 # il debug discovery non riaccende il rumore realtime.
 INTEGRATION_DEBUG_LOGGERS: tuple[str, ...] = (

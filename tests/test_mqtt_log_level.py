@@ -52,7 +52,7 @@ class ApplyMqttLevelTest(unittest.TestCase):
             logging.getLogger(name).setLevel(level)
 
     def test_noise_loggers_are_native_only(self) -> None:
-        # Il client MQTT è il NOSTRO (pyhОn cancellato in Fase 4): l'unico logger di
+        # Il client MQTT è il NOSTRO (pyhOn cancellato in Fase 4): l'unico logger di
         # rumore è quello nativo; nessun namespace _vendor/pyhon residuo.
         self.assertEqual(
             lu.MQTT_NOISE_LOGGERS, ("custom_components.addhon.client.transport.mqtt",)
@@ -94,7 +94,7 @@ class ApplyIntegrationLevelTest(unittest.TestCase):
             logging.getLogger(name).setLevel(level)
 
     def test_integration_debug_loggers_native_only(self) -> None:
-        # pyhОn cancellato: l'unico namespace è quello nativo dell'integrazione.
+        # pyhOn cancellato: l'unico namespace è quello nativo dell'integrazione.
         self.assertEqual(lu.INTEGRATION_DEBUG_LOGGERS, ("custom_components.addhon",))
 
     def test_apply_integration_log_level_sets_all_debug_loggers(self) -> None:

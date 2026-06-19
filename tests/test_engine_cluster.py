@@ -1,6 +1,6 @@
 """Golden + behavioral test del CLUSTER motore nativo (commands/command_loader/rules/
-program). Era differential vs pyhОn; con `_vendor/` cancellato è golden (output nativo
-provato == pyhОn al checkpoint 5a) + pin comportamentali.
+program). Era differential vs pyhOn; con `_vendor/` cancellato è golden (output nativo
+provato == pyhOn al checkpoint 5a) + pin comportamentali.
 
 Copre: load_commands + sync sul dump reale; send-path (prStr/programRules); dataset
 sintetico ricco (favourites, multi-programma+ids, recover, zone>0, send_specific,
@@ -423,7 +423,7 @@ class ClusterBehaviorTest(unittest.TestCase):
     def test_ac_eco_nested_rule_fires(self) -> None:
         # struttura REALE dell'AC (apk/dump/ac_live): ecoMode=1 con machMode fisso=1
         # deve vincolare tempSel a 26 e le wind-direction (condizione-extra annidata).
-        # Pin del fix `_extra_rules_matches` validato live: pyhОn lasciava tempSel a 22.
+        # Pin del fix `_extra_rules_matches` validato live: pyhOn lasciava tempSel a 22.
         c = NaCommand("c", json.loads(json.dumps(_AC_IOT_COOL)), FakeAppliance(),
                       category_name="PROGRAMS.AC.IOT_COOL")
         self.assertEqual(c.parameters["tempSel"].value, 22)

@@ -4,7 +4,7 @@ Carica in parallelo i tre flussi dal cloud (commands / favourites / command-hist
 via l'api nativa, ne costruisce i `HonCommand` nativi, applica i preferiti e
 ripristina l'ultimo stato eseguito di ogni comando.
 
-`api`/`appliance` duck-typed. Comportamento ancorato a pyhОn dal differential test
+`api`/`appliance` duck-typed. Comportamento ancorato a pyhOn dal differential test
 sui dati reali del frigo (commands.json + command_history.json + favourites).
 
 DIVERGENZA enum-casing (da rivalidare LIVE): i path favourites
@@ -12,10 +12,10 @@ DIVERGENZA enum-casing (da rivalidare LIVE): i path favourites
 nei parametri valori GREZZI (salvati dal cloud/dalla history), che possono avere un
 casing diverso dai `enumValues`. Su un enum il nostro setter accetta il valore se la
 forma normalizzata combacia (fix BABYCARE) e tiene il grezzo in `intern_value`;
-pyhОn+patch invece RIFIUTA un valore ri-castato (e l'errore viene inghiottito dal
+pyhOn+patch invece RIFIUTA un valore ri-castato (e l'errore viene inghiottito dal
 `suppress(ValueError)`), mantenendo il default. Quindi su un favourite/history con un
 enum ri-castato il valore inviato al cloud può differire. Non è validabile offline
-(il frigo non ha favourites, l'AC è offline) e il valore "preservato" di pyhОn è esso
+(il frigo non ha favourites, l'AC è offline) e il valore "preservato" di pyhOn è esso
 stesso un artefatto (es. `[dashboard]` con parentesi): si RIMANDA la decisione alla
 validazione live. Sui valori già puliti (caso comune) è identico.
 """
@@ -33,7 +33,7 @@ from .parameter.program import HonParameterProgram
 
 
 class HonCommandLoader:
-    """Carica e parsa i dati comando di hОn."""
+    """Carica e parsa i dati comando di hOn."""
 
     def __init__(self, api: Any, appliance: Any) -> None:
         self._api = api
@@ -48,7 +48,7 @@ class HonCommandLoader:
     @property
     def api(self) -> Any:
         if self._api is None:
-            raise NoAuthenticationException("Missing hОn login")
+            raise NoAuthenticationException("Missing hOn login")
         return self._api
 
     @property

@@ -248,7 +248,7 @@ class PublishReceivedTest(unittest.TestCase):
 
     def test_unknown_topic_no_crash_no_notify(self) -> None:
         # topic che non corrisponde a nessun appliance -> esce senza crash (difensivo:
-        # pyhОn faceva next(...) -> StopIteration).
+        # pyhOn faceva next(...) -> StopIteration).
         app = FakeAppliance("haier/known/appliancestatus")
         m, hon = self._client(app)
         m._on_publish_received(_packet("haier/UNKNOWN/topic", {"parameters": []}))

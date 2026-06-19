@@ -54,7 +54,7 @@ _FIXTURES = [
     "#access_token=AAA&id_token=CCC&",
     # Token finale SENZA '&' finale: id_token non catturato (quirk regex).
     "#access_token=AAA&refresh_token=BBB&id_token=CCC",
-    # Valore vuoto ma pattern matchato (access_token=&): pyhОn lo conta presente.
+    # Valore vuoto ma pattern matchato (access_token=&): pyhOn lo conta presente.
     "#access_token=&refresh_token=BBB&id_token=CCC&",
     # refresh con caratteri urlencoded che NON sono separatori (%26 = & letterale nel valore).
     "#access_token=A&refresh_token=a%26b%3Dc&id_token=I&",

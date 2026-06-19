@@ -1,8 +1,8 @@
 """Golden test dei parametri nativi (Fase 4). Riusa i 67 parametri REALI del frigo
 (apk/dump/ref_10136/commands.json: range+enum+fixed) e ne congela costruzione + setter.
 
-Storia: era un differential test vs pyhОn+patch BABYCARE; con `_vendor/` cancellato è
-diventato golden (l'output nativo era provato == pyhОn al checkpoint 5a). Il fix
+Storia: era un differential test vs pyhOn+patch BABYCARE; con `_vendor/` cancellato è
+diventato golden (l'output nativo era provato == pyhOn al checkpoint 5a). Il fix
 BABYCARE è nativo nell'enum; le divergenze enum-edge restano pinnate sotto.
 """
 from __future__ import annotations

@@ -11,8 +11,8 @@ from .debug_utils import debug_key_sample, redact_email
 
 _LOGGER = logging.getLogger(__name__)
 
-# Il client hОn è interamente nativo (client/): la sessione arriva da
-# client.pyhon_adapter.create_session. pyhОn (_vendor/) è stato cancellato in Fase 4;
+# Il client hOn è interamente nativo (client/): la sessione arriva da
+# client.pyhon_adapter.create_session. pyhOn (_vendor/) è stato cancellato in Fase 4;
 # il fix BABYCARE è nativo nella classe enum.
 
 _SERIAL_ATTRS = ("serial_number", "serialNumber", "mac_address", "macAddress", "code")
@@ -189,7 +189,7 @@ def _error_text(err: BaseException) -> str:
 def _is_auth_error(err: BaseException) -> bool:
     # Controlla sia il messaggio SIA il nome della classe d'eccezione: gli errori
     # del flusso di login (il nostro NativeAuthError, il HonAuthenticationError di
-    # pyhОn) contengono "auth" nel NOME anche quando il messaggio no (es. password
+    # pyhOn) contengono "auth" nel NOME anche quando il messaggio no (es. password
     # errata -> "login: fallito"/"Can't login"), così si classificano come
     # invalid_auth senza dover importare quelle classi (hon_client resta _vendor-free).
     # Il check "retryable 5xx" in _requires_reauth resta prioritario: un errore di
@@ -432,7 +432,7 @@ class HonClient:
         La sessione aiohttp viene creata sul loop dedicato e vi rimane
         legata per tutta la durata del client.
         """
-        # La sessione hОn arriva dalla factory nativa (client/); nessun import di
+        # La sessione hOn arriva dalla factory nativa (client/); nessun import di
         # _vendor.pyhon (cancellato in Fase 4). Il fix BABYCARE è nativo nell'enum.
         from .client.pyhon_adapter import create_session
 

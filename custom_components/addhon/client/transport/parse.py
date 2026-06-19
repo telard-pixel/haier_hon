@@ -1,4 +1,4 @@
-"""Parser delle risposte del cloud hОn (transport addhОn).
+"""Parser delle risposte del cloud hOn (transport addhOn).
 
 Riscrittura della logica di estrazione della lista appliance da
 `pyhon api.load_appliances` (il fix v2.7.1: endpoint
@@ -6,13 +6,13 @@ Riscrittura della logica di estrazione della lista appliance da
 
 Forma della risposta: `result.modules.applianceList.payload.appliances` (lista).
 
-Differenza VOLUTA rispetto a pyhОn: pyhОn estrae con una catena
+Differenza VOLUTA rispetto a pyhOn: pyhOn estrae con una catena
 `result.get("modules", {}).get("applianceList", {})...` che **solleva
 AttributeError** se un livello intermedio non è un dict (es. `{"modules": "x"}`
 o `{"modules": {"applianceList": []}}`), facendo fallire il setup. Qui
 camminiamo difensivamente e qualsiasi forma inattesa ricade su `[]` (fail-safe),
 così il chiamante tratta lo schema-drift come "0 appliance" invece di un crash.
-Su tutte le risposte ben formate il risultato è identico a pyhОn (differential test).
+Su tutte le risposte ben formate il risultato è identico a pyhOn (differential test).
 """
 from __future__ import annotations
 

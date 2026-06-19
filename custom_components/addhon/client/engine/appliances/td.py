@@ -1,10 +1,10 @@
 """TD (asciugatrice). Riscrittura di `_vendor/pyhon/appliances/td.py`.
 
-`active`/zeroing-offline a parità con pyhОn (funzionavano). `pause` FIX: per valore
-(pyhОn `machMode == "3"` = sempre False; campo non consumato, fix inerte ma corretto).
+`active`/zeroing-offline a parità con pyhOn (funzionavano). `pause` FIX: per valore
+(pyhOn `machMode == "3"` = sempre False; campo non consumato, fix inerte ma corretto).
 `settings`: nasconde `startProgram.dryLevel` quando è un fixed "non selezionato".
 MIGLIORIA app (per-type-derivations.md #4): l'app nasconde per '11' E '0'/vuoto
-(pyhОn solo '11'); il nostro fixed `value` non è mai "" (getter -> "0"), quindi {"0","11"}.
+(pyhOn solo '11'); il nostro fixed `value` non è mai "" (getter -> "0"), quindi {"0","11"}.
 """
 from __future__ import annotations
 

@@ -1,5 +1,5 @@
 """Golden + behavioral test del layer per-tipo nativo (Fase 4). Era differential vs
-pyhОn; con `_vendor/` cancellato è golden (output nativo provato == pyhОn al checkpoint
+pyhOn; con `_vendor/` cancellato è golden (output nativo provato == pyhOn al checkpoint
 5a) + pin dei FIX app-priority (modeZ/pause/wh-active per valore; dryLevel '0'/'11';
 `available`) e del registry.
 """
@@ -91,7 +91,7 @@ class PerTypeGoldenTest(unittest.TestCase):
 
 
 class NativeFixesPinTest(unittest.TestCase):
-    """Pin esplicito dei FIX app-priority (codice nuovo, niente bug pyhОn)."""
+    """Pin esplicito dei FIX app-priority (codice nuovo, niente bug pyhOn)."""
 
     def test_ref_modes_by_value(self) -> None:
         s = _native_snapshot()

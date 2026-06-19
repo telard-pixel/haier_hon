@@ -1,8 +1,8 @@
 """Caratterizzazione di str_to_float (client/helpers.py).
 
-Era un differential test vs la str_to_float di pyhОn (_vendor/pyhon/helper.py); con
+Era un differential test vs la str_to_float di pyhOn (_vendor/pyhon/helper.py); con
 `_vendor/` cancellato resta la caratterizzazione NATIVA: valori "pinned" che fissano il
-comportamento (incluso il quirk del troncamento int()), provato == pyhОn in migrazione.
+comportamento (incluso il quirk del troncamento int()), provato == pyhOn in migrazione.
 Caricata in isolamento (importlib, niente package __init__, niente aiohttp).
 """
 from __future__ import annotations

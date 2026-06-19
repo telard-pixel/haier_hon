@@ -1,7 +1,7 @@
 """Helper per i test golden del motore nativo (Fase 4 slice 5b).
 
-Dopo la cancellazione di `_vendor/`, i vecchi differential test (native vs pyhОn)
-diventano golden: si congela l'output NATIVO (provato == pyhОn al checkpoint 5a,
+Dopo la cancellazione di `_vendor/`, i vecchi differential test (native vs pyhOn)
+diventano golden: si congela l'output NATIVO (provato == pyhOn al checkpoint 5a,
 commit 520f036, refuter-validato) in un JSON e si verifica che il nativo non regredisca.
 
 Uso:

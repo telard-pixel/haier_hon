@@ -2,11 +2,11 @@
 
 Porting di `_vendor/pyhon/attributes.HonAttribute`. Un "attribute" è un valore di
 stato che arriva dallo shadow del device (`shadow.parameters.<name> =
-{parNewVal, lastUpdate}`) o da un push MQTT. Comportamento ancorato a pyhОn dal
+{parNewVal, lastUpdate}`) o da un push MQTT. Comportamento ancorato a pyhOn dal
 differential test (tests/test_engine_attributes.py) sui dati reali del frigo
 (apk/dump/ref_10136/attributes.json).
 
-UNICA divergenza voluta vs pyhОn = FIX deprecazione: il lock usa
+UNICA divergenza voluta vs pyhOn = FIX deprecazione: il lock usa
 `datetime.now(timezone.utc)` (aware) invece di `datetime.utcnow()` (naive,
 deprecato da Python 3.12). Il timestamp del lock è scritto e confrontato SOLO qui
 dentro, quindi naive->aware è coerente e non mischia mai aware/naive; il
@@ -14,7 +14,7 @@ comportamento osservabile di `lock` (True entro 10s da uno shield, poi False) è
 identico. `last_update` resta parsato com'è dalla stringa ISO (può essere naive o
 aware) e non viene mai confrontato col lock, quindi nessun rischio di mixing.
 
-Riusa il `str_to_float` nostro (client/helpers), identico a quello di pyhОn.
+Riusa il `str_to_float` nostro (client/helpers), identico a quello di pyhOn.
 """
 from __future__ import annotations
 

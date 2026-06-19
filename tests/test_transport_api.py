@@ -1,12 +1,12 @@
-"""Differential test dell'api HTTP nativo (transport addhОn, Fase 3 piece 2).
+"""Differential test dell'api HTTP nativo (transport addhOn, Fase 3 piece 2).
 
-I metodi di pyhОn `connection/api.HonAPI` vivono INLINE in metodi async+HTTP, quindi
+I metodi di pyhOn `connection/api.HonAPI` vivono INLINE in metodi async+HTTP, quindi
 non sono importabili a sé: l'oracolo è la loro trascrizione VERBATIM (le `_oracle_*`
 sotto). Per ogni metodo verifichiamo DUE cose:
-  * la RICHIESTA emessa (verbo, path, params/json) = pinnata al contratto pyhОn esatto
+  * la RICHIESTA emessa (verbo, path, params/json) = pinnata al contratto pyhOn esatto
     (quello che va al cloud byte-identico);
-  * il VALORE di ritorno su risposte ben formate = identico all'oracolo pyhОn.
-Più i casi di DIVERGENZA VOLUTA dove pyhОn crasha su risposta malformata
+  * il VALORE di ritorno su risposte ben formate = identico all'oracolo pyhOn.
+Più i casi di DIVERGENZA VOLUTA dove pyhOn crasha su risposta malformata
 (KeyError/TypeError/AttributeError) e noi ricadiamo sul default vuoto sicuro.
 
 aiohttp/yarl/homeassistant sono stubati (nessuna rete): iniettiamo una
@@ -155,7 +155,7 @@ def _call(conn):
 
 
 # --------------------------------------------------------------------------- #
-# Oracoli VERBATIM: estrazione di pyhОn (solo il ritorno; il logging è omesso)  #
+# Oracoli VERBATIM: estrazione di pyhOn (solo il ritorno; il logging è omesso)  #
 # --------------------------------------------------------------------------- #
 def _oracle_commands(body):
     result = body.get("payload", {})
@@ -200,7 +200,7 @@ def _oracle_aws_token(result):
 
 # --------------------------------------------------------------------------- #
 class ApiRequestShapeTest(unittest.TestCase):
-    """La RICHIESTA emessa deve combaciare col contratto pyhОn esatto."""
+    """La RICHIESTA emessa deve combaciare col contratto pyhOn esatto."""
 
     def test_load_appliances_posts_unified_api(self) -> None:
         body = {"modules": {"applianceList": {"payload": {"appliances": [{"a": 1}]}}}}
@@ -258,7 +258,7 @@ class ApiRequestShapeTest(unittest.TestCase):
             self.assertNotIn(absent, params)
 
     def test_load_commands_optional_params_skip_falsy(self) -> None:
-        # pyhОn usa `if value := info.get(...)`: un valore falsy (es. "") NON va nei params.
+        # pyhOn usa `if value := info.get(...)`: un valore falsy (es. "") NON va nei params.
         conn = FakeConnection({"payload": {"resultCode": "0"}})
         _run(_call(conn).load_commands(FakeAppliance(eepromId="", fwVersion=0, series="")))
         params = conn.calls[0][2]["params"]
@@ -317,13 +317,13 @@ class ApiRequestShapeTest(unittest.TestCase):
 
 
 class ApiReturnVsOracleTest(unittest.TestCase):
-    """Su risposte ben formate il ritorno deve essere IDENTICO all'oracolo pyhОn."""
+    """Su risposte ben formate il ritorno deve essere IDENTICO all'oracolo pyhOn."""
 
     def test_load_commands(self) -> None:
         body = {"payload": {"resultCode": "0", "settings": {"x": 1}, "startProgram": {}}}
         got = _run(_call(FakeConnection(copy.deepcopy(body))).load_commands(FakeAppliance()))
         self.assertEqual(got, _oracle_commands(copy.deepcopy(body)))
-        # il resultCode è stato rimosso dal dict ritornato (come pyhОn)
+        # il resultCode è stato rimosso dal dict ritornato (come pyhOn)
         self.assertNotIn("resultCode", got)
         self.assertEqual(got, {"settings": {"x": 1}, "startProgram": {}})
 
@@ -379,7 +379,7 @@ class ApiReturnVsOracleTest(unittest.TestCase):
 
 
 class ApiHardeningTest(unittest.TestCase):
-    """Dove pyhОn crasha su risposta malformata, noi ricadiamo sul default sicuro."""
+    """Dove pyhOn crasha su risposta malformata, noi ricadiamo sul default sicuro."""
 
     def test_commands_missing_result_code_crashes_pyhon_safe_for_us(self) -> None:
         body = {"payload": {"settings": {}}}  # niente resultCode
@@ -404,7 +404,7 @@ class ApiHardeningTest(unittest.TestCase):
         self.assertEqual(got, {})
 
     def test_history_payload_without_history_key_safe(self) -> None:
-        body = {"payload": {"other": 1}}  # pyhОn -> KeyError su ["history"]
+        body = {"payload": {"other": 1}}  # pyhOn -> KeyError su ["history"]
         with self.assertRaises(KeyError):
             _oracle_history(copy.deepcopy(body))
         got = _run(
@@ -435,7 +435,7 @@ class ApiHardeningTest(unittest.TestCase):
                 self.assertEqual(_run(_call(FakeConnection(body)).load_aws_token()), "")
 
     def test_appliance_data_payload_non_dict_safe(self) -> None:
-        body = {"payload": "x"}  # pyhОn -> AttributeError ("x".get)
+        body = {"payload": "x"}  # pyhOn -> AttributeError ("x".get)
         with self.assertRaises(AttributeError):
             _oracle_appliance_data(copy.deepcopy(body))
         got = _run(
@@ -548,14 +548,14 @@ class CommandTimestampTest(unittest.TestCase):
         self.addCleanup(lambda: setattr(api_mod, "datetime", real))
 
     def test_identical_to_pyhon_on_common_path(self) -> None:
-        # microsecondi != 0: la nostra uscita e la formula pyhОn [:-3]+"Z" coincidono.
+        # microsecondi != 0: la nostra uscita e la formula pyhOn [:-3]+"Z" coincidono.
         self._frozen("2026-06-18T12:34:56.789012")
         pyhon_formula = "2026-06-18T12:34:56.789012"[:-3] + "Z"
         self.assertEqual(api_mod._command_timestamp(), pyhon_formula)
         self.assertEqual(api_mod._command_timestamp(), "2026-06-18T12:34:56.789Z")
 
     def test_truncates_not_rounds_at_boundary(self) -> None:
-        # Guard: timespec="milliseconds" TRONCA (come [:-3] di pyhОn), non arrotonda.
+        # Guard: timespec="milliseconds" TRONCA (come [:-3] di pyhOn), non arrotonda.
         # .789999 -> .789Z (non .790Z). Blinda contro un futuro cambio di semantica.
         self._frozen("2026-06-18T12:34:56.789999")
         self.assertEqual(api_mod._command_timestamp(), "2026-06-18T12:34:56.789Z")
@@ -564,20 +564,20 @@ class CommandTimestampTest(unittest.TestCase):
         )
 
     def test_fixes_pyhon_bug_when_microsecond_zero(self) -> None:
-        # microsecondi == 0: pyhОn produrrebbe "...T12:34Z" (secondi persi); noi no.
+        # microsecondi == 0: pyhOn produrrebbe "...T12:34Z" (secondi persi); noi no.
         self._frozen("2026-06-18T12:34:56")
         pyhon_buggy = "2026-06-18T12:34:56"[:-3] + "Z"  # -> "2026-06-18T12:34Z"
-        self.assertEqual(pyhon_buggy, "2026-06-18T12:34Z")  # documenta il bug pyhОn
+        self.assertEqual(pyhon_buggy, "2026-06-18T12:34Z")  # documenta il bug pyhOn
         self.assertEqual(api_mod._command_timestamp(), "2026-06-18T12:34:56.000Z")
 
 
 class ApiIntentionalNarrowingTest(unittest.TestCase):
-    """Pinna le DIVERGENZE VOLUTE: su forme malformate dove pyhОn ritornerebbe un
+    """Pinna le DIVERGENZE VOLUTE: su forme malformate dove pyhOn ritornerebbe un
     valore non-dict/non-list (o crasherebbe a valle), noi narrowiamo al default
     vuoto sicuro. Test esplicito così un refactor futuro non le cambia in silenzio."""
 
     def test_last_activity_non_dict_attributes_narrowed(self) -> None:
-        # pyhОn ritornerebbe il valore grezzo (str/list/int); noi -> {}.
+        # pyhOn ritornerebbe il valore grezzo (str/list/int); noi -> {}.
         for attrs in ("str", [1, 2], 5):
             with self.subTest(attrs=attrs):
                 self.assertEqual(_oracle_last_activity({"attributes": attrs}), attrs)
@@ -608,7 +608,7 @@ class ApiIntentionalNarrowingTest(unittest.TestCase):
 
     def test_attributes_inner_non_dict_narrowed(self) -> None:
         # ramo rilevante per il flusso vivo (appliance.load_attributes fa |= attributes):
-        # pyhОn ritornerebbe None/str/list (e a valle crasherebbe su .pop), noi -> {}.
+        # pyhOn ritornerebbe None/str/list (e a valle crasherebbe su .pop), noi -> {}.
         for payload in (None, "x", [1]):
             with self.subTest(payload=payload):
                 self.assertEqual(_oracle_payload({"payload": payload}), payload)

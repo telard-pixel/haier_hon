@@ -1,6 +1,6 @@
 """Tests for the Tier 3 number platform (writable temperature setpoints).
 
-Modellati sullo schema REALE del frigo (dump pyhОn, REF HDPW5620CNPK): comando
+Modellati sullo schema REALE del frigo (dump pyhOn, REF HDPW5620CNPK): comando
 `settings` con i parametri range tempSelZ1[2..8], tempSelZ2[-24..-16],
 tempSelZ3[0..5]; nessun Z4/UZ/LZ. Verifica:
 - capability-gating: si creano solo i setpoint presenti come parametri scrivibili;
@@ -125,7 +125,7 @@ _install_homeassistant_stubs()
 
 class RangeParam:
     """Mima HonParameterRange: min/max/step + value che applica str_to_float di
-    pyhОn (int() prima, cattura solo ValueError -> un float frazionario verrebbe
+    pyhOn (int() prima, cattura solo ValueError -> un float frazionario verrebbe
     troncato; una stringa "5.5" resta 5.5). Serve a testare il fix del troncamento."""
 
     def __init__(self, value, mn, mx, step) -> None:

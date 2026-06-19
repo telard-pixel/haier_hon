@@ -7,18 +7,18 @@ trigger del parametro base nativo): quando il trigger cambia valore, `check_trig
 esegue le callback registrate qui.
 
 MODELLO rules — RISOLTO sull'AC live (2026-06-18, vedi apk/analysis/rules-model.md):
-  Il vecchio dubbio "pyhОn forse trasposto vs il modello `programRules` dell'app" era un
+  Il vecchio dubbio "pyhOn forse trasposto vs il modello `programRules` dell'app" era un
   MISREADING. Dump dell'AC reale (apk/dump/ac_live): `ancillaryParameters.programRules` È
   il parametro con `category=="rule"`, stesso nodo, stesso nesting
   `{targetParam: {triggerParam: {triggerValue: action}}}` (+ condizioni-extra annidate
   es. `tempSel: {ecoMode: {"1": {machMode: {"1": {fixedValue:"26"}}}}}`). Quindi il
-  modello di pyhОn = il modello dell'app: già allineati, niente da "adottare".
+  modello di pyhOn = il modello dell'app: già allineati, niente da "adottare".
   UNA divergenza VOLUTA dopo la validazione live: il fix di `_extra_rules_matches`
-  (vedi sotto) - pyhОn confrontava `str(param)` (repr) invece di `str(param.value)`,
+  (vedi sotto) - pyhOn confrontava `str(param)` (repr) invece di `str(param.value)`,
   quindi le condizioni-extra non scattavano MAI; sull'AC reale ecoMode=1 ora vincola
   tempSel/windSpeed/windDirection come fa l'app.
   NOTA: le rules con trigger `$installationType` (config statica multi-split, non un
-  parametro) NON scattano (come in pyhОn: `$` non strippato, options vuote a
+  parametro) NON scattano (come in pyhOn: `$` non strippato, options vuote a
   costruzione); impatto basso (remoteVisible/selfClean), non implementato alla cieca.
 
 `isinstance` qui è contro le classi parametro NATIVE: parametri, comandi e rules sono
@@ -148,12 +148,12 @@ class HonRuleSet:
                 if not param:
                     return False
                 # FIX (validato sull'AC live, 2026-06-18): confronta il VALORE del
-                # parametro, non l'oggetto. pyhОn faceva `str(param)` (= il repr
+                # parametro, non l'oggetto. pyhOn faceva `str(param)` (= il repr
                 # dell'oggetto) != `str(value)`, SEMPRE vero -> le condizioni-extra
                 # (rules annidate, es. AC `ecoMode==1 AND machMode==1 -> tempSel=26`)
                 # non scattavano MAI. Qui confrontiamo `str(param.value)`: sull'AC reale
                 # ecoMode=1 ora vincola correttamente tempSel/windSpeed/windDirection
-                # come fa l'app. Divergenza voluta vs pyhОn (suo bug).
+                # come fa l'app. Divergenza voluta vs pyhOn (suo bug).
                 if str(param.value) != str(value):
                     return False
         return True
@@ -183,7 +183,7 @@ class HonRuleSet:
         if default_value := rule.param_data.get("defaultValue"):
             # NB enum-casing: se `defaultValue` ha un casing diverso
             # dai suoi `enumValues`, il nostro setter lo accetta (fix BABYCARE) mentre
-            # pyhОn+patch solleverebbe (e il chiamante del trigger inghiotte l'errore).
+            # pyhOn+patch solleverebbe (e il chiamante del trigger inghiotte l'errore).
             # Caso degenere, non validabile offline -> rimandato a live-AC.
             param.value = default_value
 

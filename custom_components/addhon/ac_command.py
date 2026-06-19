@@ -1,7 +1,7 @@
 """Invio condiviso del comando `settings` del condizionatore.
 
 Sia l'entità climate (modalità/temp/ventola/swing) sia gli switch AC modificano
-il MEDESIMO comando pyhОn `settings`, che all'invio trasmette TUTTI i suoi
+il MEDESIMO comando pyhOn `settings`, che all'invio trasmette TUTTI i suoi
 parametri. Quindi ogni invio deve applicare la stessa sanitazione di
 `windDirectionVertical`/`windDirectionHorizontal`: il device può riportarli a 0
 (valore non ammesso dagli enumValues) e l'API rifiuterebbe il comando.
@@ -83,7 +83,7 @@ async def async_send_settings(hass, client, appliance, params: dict) -> None:
     Sana windDirection* prima dell'invio (mai 0): i valori richiesti vincono
     comunque. Delega al sender generico (hon_commands.async_send_command), che
     gestisce lookup comando/parametri, rollback ed esecuzione sul loop dedicato
-    pyhОn; la sanitizzazione AC entra come hook pre_send.
+    pyhOn; la sanitizzazione AC entra come hook pre_send.
     """
     await async_send_command(
         hass, client, appliance, "settings", params, pre_send=sanitize_wind_direction

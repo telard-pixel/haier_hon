@@ -1,9 +1,9 @@
 """Differential test del 2° pezzo del transport nativo: parse_appliance_list.
 
-La logica di estrazione di pyhОn vive INLINE nel metodo async+HTTP
+La logica di estrazione di pyhOn vive INLINE nel metodo async+HTTP
 `api.load_appliances`, quindi non è importabile a sé: l'oracolo è la sua
 trascrizione VERBATIM (`_pyhon_extract` sotto). Confrontiamo il nostro parser
-contro l'oracolo su molte risposte; più i casi di DIVERGENZA VOLUTA dove pyhОn
+contro l'oracolo su molte risposte; più i casi di DIVERGENZA VOLUTA dove pyhOn
 crasha (catena di `.get()` su un intermedio non-dict) e noi ricadiamo su `[]`.
 """
 from __future__ import annotations
@@ -44,7 +44,7 @@ def _pyhon_extract(result):
 
 
 # Risposte ben formate / mancanti / vuote: il nostro parser DEVE dare lo stesso
-# risultato di pyhОn.
+# risultato di pyhOn.
 _EQUAL = [
     {"modules": {"applianceList": {"payload": {"appliances": [{"a": 1}, {"b": 2}]}}}},
     {"modules": {"applianceList": {"payload": {"appliances": []}}}},
@@ -61,7 +61,7 @@ _EQUAL = [
     123,
 ]
 
-# Forme malformate con un livello intermedio NON-dict: pyhОn crasha
+# Forme malformate con un livello intermedio NON-dict: pyhOn crasha
 # (AttributeError), noi ricadiamo su [] (hardening voluto).
 _HARDENED = [
     {"modules": "x"},
@@ -88,13 +88,13 @@ class ParseApplianceListTest(unittest.TestCase):
     def test_pinned_real_shape(self) -> None:
         full = {"modules": {"applianceList": {"payload": {"appliances": [{"a": 1}, {"b": 2}]}}}}
         self.assertEqual(self.parse(full), [{"a": 1}, {"b": 2}])
-        # ritorna la lista REALE (stesso oggetto, non una copia): come pyhОn
+        # ritorna la lista REALE (stesso oggetto, non una copia): come pyhOn
         self.assertIs(self.parse(full), full["modules"]["applianceList"]["payload"]["appliances"])
 
     def test_hardened_vs_pyhon_crash_on_intermediate_non_dict(self) -> None:
         for result in _HARDENED:
             with self.subTest(result=result):
-                # pyhОn crasha su questi (documenta la fragilità che abbiamo tolto)...
+                # pyhOn crasha su questi (documenta la fragilità che abbiamo tolto)...
                 with self.assertRaises(AttributeError):
                     _pyhon_extract(result)
                 # ...noi ricadiamo su [] (fail-safe).

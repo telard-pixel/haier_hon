@@ -1,4 +1,4 @@
-"""Flusso OAuth login hОn — pezzi PURI (transport addhОn).
+"""Flusso OAuth login hOn — pezzi PURI (transport addhOn).
 
 Riscrittura dei pezzi deterministici di `pyhon auth.HonAuth._introduce`:
 - `build_authorize_url(nonce)`: l'URL di authorize Salesforce;
@@ -50,7 +50,7 @@ def is_oauth_done(text: str) -> bool:
     """True se la pagina authorize è GIÀ la redirect coi token (login non serve).
 
     PRECEDENZA per l'orchestrazione: chiamare PRIMA `extract_login_url`; consultare
-    `is_oauth_done` SOLO se l'estrazione ritorna None (come pyhОn: se trova il
+    `is_oauth_done` SOLO se l'estrazione ritorna None (come pyhOn: se trova il
     login_url ignora la presenza di oauth/done).
     """
     return "oauth/done#access_token=" in text
@@ -60,7 +60,7 @@ def extract_login_url(text: str) -> str | None:
     """URL di login dalla pagina authorize, o None se assente.
 
     Il relativo `/NewhOnLogin...` (login page nuova da lug-2024) viene riscritto
-    sull'endpoint vecchio `/s/login...`, come fa pyhОn per evitare la nuova pagina.
+    sull'endpoint vecchio `/s/login...`, come fa pyhOn per evitare la nuova pagina.
     """
     matches = _LOGIN_URL_RE.findall(text)
     if not matches:
@@ -72,7 +72,7 @@ def extract_login_url(text: str) -> str | None:
 
 
 def generate_nonce() -> str:
-    """Nonce in formato 8-4-4-4-12 (come pyhОn)."""
+    """Nonce in formato 8-4-4-4-12 (come pyhOn)."""
     nonce = secrets.token_hex(16)
     return f"{nonce[:8]}-{nonce[8:12]}-{nonce[12:16]}-{nonce[16:20]}-{nonce[20:]}"
 

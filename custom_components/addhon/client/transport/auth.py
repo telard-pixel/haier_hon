@@ -1,4 +1,4 @@
-"""Auth nativo addhОn: il flusso di login hОn (Salesforce OAuth) riscritto.
+"""Auth nativo addhOn: il flusso di login hOn (Salesforce OAuth) riscritto.
 
 Porting fedele di `pyhon connection/auth.HonAuth`, che ASSEMBLA i pezzi nativi già
 costruiti (oauth, tokens, device, headers) + l'orchestrazione HTTP. Validato LIVE
@@ -40,9 +40,9 @@ _TOKEN_EXPIRE_WARNING_HOURS = 7
 
 # Estrae fwuid + loaded dalla pagina di login Salesforce (aura).
 _FWUID_RE = re.compile('"fwuid":"(.*?)","loaded":(\\{.*?})')
-# Estrae l'href della pagina token (post-login). pyhОn usa due regex diverse:
+# Estrae l'href della pagina token (post-login). pyhOn usa due regex diverse:
 # (.+?) sulla prima pagina, (.*?) nel ramo ProgressiveLogin — replicate entrambe
-# per fedeltà (la seconda matcha anche un href vuoto, quirk di pyhОn).
+# per fedeltà (la seconda matcha anche un href vuoto, quirk di pyhOn).
 _HREF_RE = re.compile("href\\s*=\\s*[\"'](.+?)[\"']")
 _HREF_RE_PROGRESSIVE = re.compile("href\\s*=\\s*[\"'](.*?)[\"']")
 
@@ -56,7 +56,7 @@ class _NoAuthNeeded(Exception):
 
 
 class HonAuth:
-    """Flusso di login hОn nativo. Assembla i pezzi + l'orchestrazione HTTP."""
+    """Flusso di login hOn nativo. Assembla i pezzi + l'orchestrazione HTTP."""
 
     def __init__(self, session, email: str, password: str, device: HonDevice) -> None:
         self._session = session
@@ -223,9 +223,9 @@ class HonAuth:
         return True
 
     def clear(self) -> None:
-        # Replica pyhОn ALLA LETTERA: `AUTH_API.split("/")[-2]` vale '' (non l'host,
+        # Replica pyhOn ALLA LETTERA: `AUTH_API.split("/")[-2]` vale '' (non l'host,
         # perché non c'è slash finale), quindi clear_domain('') è di fatto un no-op
-        # su qualsiasi sessione. Mantenuto identico per fedeltà (è una quirk di pyhОn).
+        # su qualsiasi sessione. Mantenuto identico per fedeltà (è una quirk di pyhOn).
         self._session.cookie_jar.clear_domain(AUTH_API.split("/")[-2])
         self.cognito_token = ""
         self.id_token = ""

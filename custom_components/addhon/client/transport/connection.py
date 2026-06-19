@@ -1,4 +1,4 @@
-"""Connessione HTTP autenticata nativa (transport addhОn).
+"""Connessione HTTP autenticata nativa (transport addhOn).
 
 Porting di pyhon `connection/handler/hon.py` + `base.py`: get/post con iniezione
 dei token per-richiesta (`build_auth_headers`) e retry su token scaduto / 401-403
@@ -81,12 +81,12 @@ class HonConnection:
         kwargs["headers"] = await self._check_headers(kwargs.get("headers", {}))
         async with method(url, *args, **kwargs) as response:
             if (self.auth.token_expires_soon or response.status in (401, 403)) and loop == 0:
-                _LOGGER.info("addhОn: token in scadenza/%s, refresh", response.status)
+                _LOGGER.info("addhOn: token in scadenza/%s, refresh", response.status)
                 await self.auth.refresh(self._refresh_token)
                 async with self._intercept(method, url, *args, loop=1, **kwargs) as result:
                     yield result
             elif (self.auth.token_is_expired or response.status in (401, 403)) and loop == 1:
-                _LOGGER.warning("addhОn: re-auth dopo %s", response.status)
+                _LOGGER.warning("addhOn: re-auth dopo %s", response.status)
                 await self.create()
                 async with self._intercept(method, url, *args, loop=2, **kwargs) as result:
                     yield result
@@ -99,7 +99,7 @@ class HonConnection:
                 # scartando un recupero riuscito).
                 raise NativeAuthError(f"Login failure (status {response.status})")
             else:
-                # Forza un decode-check prima di yield-are (come pyhОn).
+                # Forza un decode-check prima di yield-are (come pyhOn).
                 # content_type=None: deviazione VOLUTA (coerente con auth.py) — tollera
                 # content-type non-JSON ma body JSON valido (Salesforce a volte lo fa);
                 # un body NON-JSON solleva comunque JSONDecodeError → "Decode Error".

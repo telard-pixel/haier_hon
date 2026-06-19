@@ -1,8 +1,8 @@
 """OV (forno). Riscrittura di `_vendor/pyhon/appliances/ov.py`.
 
 Zeroing offline di temp/onOffStatus/remoteCtrValid/remainingTimeMM; `active` =
-onOffStatus==1. A PARITA' con pyhОn (usava già `.value == 1`, corretto). Robustezza:
-`.get`/no-op su chiavi assenti invece del KeyError di pyhОn.
+onOffStatus==1. A PARITA' con pyhOn (usava già `.value == 1`, corretto). Robustezza:
+`.get`/no-op su chiavi assenti invece del KeyError di pyhOn.
 """
 from __future__ import annotations
 

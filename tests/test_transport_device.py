@@ -1,9 +1,9 @@
 """Test del descrittore device nativo: `client/transport/device.HonDevice`.
 
-In origine era un DIFFERENTIAL test contro il `HonDevice` reale di pyhОn (caricato
-in subprocess). Nel piece 4b il transport pyhОn (`_vendor/connection/device.py`) è
+In origine era un DIFFERENTIAL test contro il `HonDevice` reale di pyhOn (caricato
+in subprocess). Nel piece 4b il transport pyhOn (`_vendor/connection/device.py`) è
 stato CANCELLATO: l'oracolo non esiste più. I valori attesi qui sotto SONO il
-contratto (erano byte-identici a pyhОn, validati dal differential prima del
+contratto (erano byte-identici a pyhOn, validati dal differential prima del
 cutover): ora pinniamo direttamente il payload del cloud.
 """
 from __future__ import annotations
@@ -16,7 +16,7 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parents[1]
 _OUR_DEVICE = _ROOT / "custom_components" / "addhon" / "client" / "transport" / "device.py"
 
-# Contratto del payload device verso il cloud hОn (ex-oracolo pyhОn, ora congelato).
+# Contratto del payload device verso il cloud hOn (ex-oracolo pyhOn, ora congelato).
 _DEFAULT = {
     "appVersion": "2.6.5",
     "mobileId": "pyhOn",

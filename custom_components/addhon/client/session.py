@@ -1,4 +1,4 @@
-"""Orchestrazione `NativeHon` di addhОn (rimpiazza l'ex `pyhon.Hon`).
+"""Orchestrazione `NativeHon` di addhOn (rimpiazza l'ex `pyhon.Hon`).
 
 Coordina il setup sopra il transport nativo (`transport.connection.HonConnection` +
 `transport.api.HonApi`) e costruisce gli appliance nativi (`engine.appliance.HonAppliance`)
@@ -31,11 +31,11 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class NativeHon:
-    """Sessione hОn nativa: auth+transport NOSTRI, motore parser di pyhОn.
+    """Sessione hOn nativa: auth+transport NOSTRI, motore parser di pyhOn.
 
     Drop-in di `pyhon.Hon` per l'integrazione: context manager async che espone
     `.appliances` (e `.api` per il MQTT). `enable_mqtt=False` salta il push AWS
-    (utile a test/validatori; la produzione lo lascia attivo come pyhОn).
+    (utile a test/validatori; la produzione lo lascia attivo come pyhOn).
     """
 
     def __init__(
@@ -107,7 +107,7 @@ class NativeHon:
             await appliance.load_attributes()
             await appliance.load_statistics()
         except (KeyError, ValueError, IndexError) as error:
-            # Come pyhОn: un appliance con dati malformati non deve far saltare
+            # Come pyhOn: un appliance con dati malformati non deve far saltare
             # l'intero setup; lo si tiene comunque (stato parziale) e si logga.
             _LOGGER.exception(error)
             _LOGGER.error("Device data - %s", appliance_data)
@@ -138,7 +138,7 @@ class NativeHon:
 
     async def close(self) -> None:
         # Ferma il MQTT PRIMA della connessione (il watchdog non deve ritentare su
-        # una sessione in chiusura). pyhОn non lo faceva (leak): lo facciamo noi.
+        # una sessione in chiusura). pyhOn non lo faceva (leak): lo facciamo noi.
         if self._mqtt_client is not None:
             await self._mqtt_client.stop()
             self._mqtt_client = None

@@ -1,8 +1,8 @@
-"""Factory della sessione/appliance hОn native.
+"""Factory della sessione/appliance hOn native.
 
-Storicamente era l'adattatore-ponte verso il pyhОn vendorizzato (l'unico file che
+Storicamente era l'adattatore-ponte verso il pyhOn vendorizzato (l'unico file che
 importava `_vendor.pyhon`). Con la Fase 4 completata (`_vendor/` CANCELLATO) qui non
-c'è più alcun import di pyhОn: restano solo i due factory che costruiscono il client
+c'è più alcun import di pyhOn: restano solo i due factory che costruiscono il client
 NOSTRO. Tenerli dietro queste funzioni mantiene `hon_client.py` disaccoppiato dai
 dettagli del client.
 
@@ -10,7 +10,7 @@ dettagli del client.
 `client.session.NativeHon`); `create_appliance` la `interfaces.Appliance`
 (`client.engine.appliance.HonAppliance`). Il fix del bug BABYCARE è nativo nella
 classe enum (`client.engine.parameter.enum`): la vecchia `ensure_enum_patch` che
-rattoppava l'enum di pyhОn è stata RIMOSSA con `_vendor/`.
+rattoppava l'enum di pyhOn è stata RIMOSSA con `_vendor/`.
 """
 from __future__ import annotations
 
@@ -24,10 +24,10 @@ _NATIVE_APPLIANCE_CLS: Any = None
 
 
 def create_session(email: str, password: str) -> Any:
-    """Crea la sessione hОn NATIVA (`client.session.NativeHon`).
+    """Crea la sessione hOn NATIVA (`client.session.NativeHon`).
 
     Auth, connessione, api, MQTT, orchestrazione e motore parser sono tutti NOSTRI
-    (pyhОn cancellato). Il chiamante la usa come context manager async
+    (pyhOn cancellato). Il chiamante la usa come context manager async
     (`__aenter__()` → `.appliances`).
 
     Import lazy di `NativeHon`: evita il ciclo (session.py importa questo modulo) e
@@ -53,7 +53,7 @@ def _native_engine_appliance_cls() -> Any:
 
 
 def create_appliance(api: Any, appliance_data: dict, zone: int = 0) -> Any:
-    """Costruisce l'appliance ROOT NATIVA (distacco TOTALE da pyhОn).
+    """Costruisce l'appliance ROOT NATIVA (distacco TOTALE da pyhOn).
 
     Tutto il motore (loader/commands/rules/program/parametri/attributi/per-tipo + ROOT)
     è nostro: `_vendor` non viene più importato. L'oggetto ritornato è conforme al

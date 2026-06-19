@@ -1,7 +1,7 @@
-# Architettura del client hОn nativo di addhОn
+# Architettura del client hOn nativo di addhOn
 
-L'integrazione NON dipende da pyhОn: tutto il client (auth/transport, motore
-comandi/parametri/rules, appliance) è codice NOSTRO in `client/`. La libreria pyhОn,
+L'integrazione NON dipende da pyhOn: tutto il client (auth/transport, motore
+comandi/parametri/rules, appliance) è codice NOSTRO in `client/`. La libreria pyhOn,
 un tempo vendorizzata in `../_vendor/pyhon/`, è stata sostituita interamente e
 cancellata (migrazione strangler completa, vedi "Storia").
 
@@ -27,12 +27,12 @@ cancellata (migrazione strangler completa, vedi "Storia").
 - Codice NOSTRO, non copia: più moderno, validato sui dump reali (`apk/dump/`) e
   sull'app decompilata (`apk/analysis/`).
 - Fedeltà byte-a-byte SOLO dove i valori vanno al cloud e non sono validabili offline
-  (richieste HTTP, payload comando). Altrove, dove pyhОn aveva un bug e sappiamo fare
+  (richieste HTTP, payload comando). Altrove, dove pyhOn aveva un bug e sappiamo fare
   meglio (validato live/app), **divergiamo e documentiamo**: es. fix BABYCARE nell'enum,
   condizioni-extra delle rules, `$installationType`, connettività da `lastConnEvent`,
   timestamp comando.
-- I test ex-differential (oracolo pyhОn) sono diventati golden (`tests/golden/*.json` +
-  `tests/_golden.py`): l'output nativo, provato == pyhОn, è congelato come regressione
+- I test ex-differential (oracolo pyhOn) sono diventati golden (`tests/golden/*.json` +
+  `tests/_golden.py`): l'output nativo, provato == pyhOn, è congelato come regressione
   (rigenera con `GEN_GOLDEN=1`).
 
 ## Regole di confine
@@ -54,4 +54,4 @@ Migrazione un pezzo alla volta, **per fragilità non per facilità**: prima il t
 (fragile: unified-api/token), poi il motore comandi/parametri (stabile), infine la
 cancellazione di `_vendor/`. Dettaglio fase-per-fase, decisioni e reverse-engineering in
 `diagnostics/FASE4-engine-plan.md`, `apk/analysis/` e nei messaggi di commit. Esito:
-distacco TOTALE da pyhОn, validato live sui device reali (AC/REF/TD/WM).
+distacco TOTALE da pyhOn, validato live sui device reali (AC/REF/TD/WM).

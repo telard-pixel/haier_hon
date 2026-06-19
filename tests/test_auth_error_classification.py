@@ -2,7 +2,7 @@
 
 `_is_auth_error` ora controlla anche il NOME della classe d'eccezione, così gli
 errori del flusso di login (NativeAuthError nostro, HonAuthenticationError di
-pyhОn) — che contengono "auth" nel nome ma spesso non nel messaggio — vengono
+pyhOn) — che contengono "auth" nel nome ma spesso non nel messaggio — vengono
 classificati come errori di auth → reauth (invalid_auth) invece di cannot_connect.
 Il check "retryable 5xx" resta prioritario.
 """
