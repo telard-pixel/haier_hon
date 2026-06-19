@@ -1,7 +1,7 @@
-"""WM (lavatrice). Riscrittura di `_vendor/pyhon/appliances/wm.py`.
+"""WM (washing machine). Rewrite of `_vendor/pyhon/appliances/wm.py`.
 
-`active`/`pause` (machMode==3) derivati. Niente zeroing offline: la disponibilità è
-gestita via `available` (entità HA -> unavailable se disconnesso), vedi base_entity.
+`active`/`pause` (machMode==3) derived. No offline zeroing: availability is
+handled via `available` (HA entity -> unavailable if disconnected), see base_entity.
 """
 from __future__ import annotations
 

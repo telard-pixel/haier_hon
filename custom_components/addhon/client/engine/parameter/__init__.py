@@ -1,7 +1,7 @@
-"""Classi parametro native (range/enum/fixed) + base.
+"""Native parameter classes (range/enum/fixed) + base.
 
-Riscrittura di `_vendor/pyhon/parameter/`. Comportamento ancorato a pyhOn dal
-differential test (tests/test_engine_parameters.py) sui parametri reali del frigo
-(apk/dump/ref_10136/commands.json), con UNA divergenza voluta: il fix del bug
-BABYCARE nel setter di HonParameterEnum (confronto su valore normalizzato).
+Rewrite of `_vendor/pyhon/parameter/`. Behavior anchored to pyhOn by the
+differential test (tests/test_engine_parameters.py) against the real fridge parameters
+(apk/dump/ref_10136/commands.json), with ONE intentional divergence: the fix for the
+BABYCARE bug in HonParameterEnum's setter (comparison on the normalized value).
 """

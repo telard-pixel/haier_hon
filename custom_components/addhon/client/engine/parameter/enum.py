@@ -1,34 +1,34 @@
-"""HonParameterEnum nativo, con il FIX del bug BABYCARE.
+"""Native HonParameterEnum, with the BABYCARE bug FIX.
 
-Porting di `_vendor/pyhon/parameter/enum.py`. UNICA divergenza voluta: il setter.
-pyhOn confronta il valore GREZZO in ingresso contro `self.values` che è GIA'
-normalizzato da `clean_value` (lowercase, strip `[]`, `|`->`_`). Così un valore con
-casing del cloud (es. "BABYCARE") non combacia mai con ["babycare"] -> ValueError.
-È il bug BABYCARE, qui FIXATO alla radice (il vecchio monkeypatch su pyhOn non esiste
-più).
+Porting of `_vendor/pyhon/parameter/enum.py`. The ONLY intentional divergence: the setter.
+pyhOn compares the RAW incoming value against `self.values`, which is ALREADY
+normalized by `clean_value` (lowercase, strip `[]`, `|`->`_`). So a value with
+the cloud's casing (e.g. "BABYCARE") never matches ["babycare"] -> ValueError.
+That is the BABYCARE bug, FIXED here at the root (the old pyhOn monkeypatch no longer
+exists).
 
-Il setter normalizza il valore in ingresso con lo
-STESSO `clean_value` prima del confronto. Accetta sia "BABYCARE" sia "babycare";
-memorizza il valore grezzo (così `intern_value` resta grezzo = ciò che si invia al
-cloud). Sul caso reale (valori già puliti del frigo) e sulla superficie che
-l'integrazione usa davvero (imposta valori presi da `param.values`, già puliti) il
-comportamento è IDENTICO a pyhOn+patch: lo verifica il differential test su 67
-parametri reali.
+The setter normalizes the incoming value with the
+SAME `clean_value` before comparing. It accepts both "BABYCARE" and "babycare";
+it stores the raw value (so `intern_value` stays raw = what gets sent to the
+cloud). On the real case (the fridge's already-clean values) and on the surface the
+integration actually uses (it sets values taken from `param.values`, already clean) the
+behavior is IDENTICAL to pyhOn+patch: the differential test verifies it on 67
+real parameters.
 
-DIVERGENZE VOLUTE da pyhOn+patch su valori-edge (cased/`|`/`[]`), tutte = native
-PIÙ CORRETTO (il patch era un bolt-on incoerente), da rivalidare LIVE sull'AC
-(l'oracolo vero lì è l'app, non pyhOn, vedi FASE4 plan):
-  1. TRIGGER: native chiama `check_trigger` su OGNI valore accettato (come il ramo
-     normale di pyhOn); il fallback del patch impostava `_value` ma DIMENTICAVA il
-     trigger -> su valori col casing del cloud le rules non cascatavano. Native le fa
-     cascadere coerentemente (corretto).
-  2. ACCETTAZIONE: native accetta un valore se la sua forma normalizzata è tra i
-     valori ammessi (regola unica e coerente); il patch accettava solo match esatti
-     grezzi o puliti. L'integrazione imposta sempre forme pulite da `param.values`,
-     quindi in pratica non cambia.
-  3. `|`-STRING: con `enumValues` come STRINGA "A|B|C" il patch accettava per un
-     QUIRK di substring (`"A|B|C" in "A|B|C"`); native no. Caso degenere; lo split `|`
-     corretto è gestito a monte (l'app lo splitta).
+INTENTIONAL DIVERGENCES from pyhOn+patch on edge values (cased/`|`/`[]`), all = native
+MORE CORRECT (the patch was an inconsistent bolt-on), to re-validate LIVE on the AC
+(the true oracle there is the app, not pyhOn, see the FASE4 plan):
+  1. TRIGGER: native calls `check_trigger` on EVERY accepted value (like pyhOn's
+     normal branch); the patch's fallback set `_value` but FORGOT the
+     trigger -> on cloud-cased values the rules did not cascade. Native cascades them
+     consistently (correct).
+  2. ACCEPTANCE: native accepts a value if its normalized form is among the
+     allowed values (a single, consistent rule); the patch accepted only exact raw
+     or clean matches. The integration always sets clean forms from `param.values`,
+     so in practice it does not change.
+  3. `|`-STRING: with `enumValues` as a STRING "A|B|C" the patch accepted it due to a
+     substring QUIRK (`"A|B|C" in "A|B|C"`); native does not. Degenerate case; the
+     correct `|` split is handled upstream (the app splits it).
 """
 from __future__ import annotations
 
@@ -55,10 +55,10 @@ class HonParameterEnum(HonParameter):
         super()._set_attributes()
         self._default = self._attributes.get("defaultValue", "")
         self._value = self._default or "0"
-        # `enumValues` di norma e' una lista; alcuni payload la danno come stringa
-        # "A|B|C". Normalizza a lista cosi' .append/.values non si rompono (prima una
-        # stringa qui causava AttributeError in __init__ o un'iterazione carattere-per-
-        # carattere). Lo split "|" e' coerente con _apply_enum (rules.py).
+        # `enumValues` is normally a list; some payloads give it as the string
+        # "A|B|C". Normalize to a list so .append/.values do not break (before, a
+        # string here caused an AttributeError in __init__ or a character-by-character
+        # iteration). The "|" split is consistent with _apply_enum (rules.py).
         raw_values = self._attributes.get("enumValues", [])
         if isinstance(raw_values, str):
             self._values = raw_values.split("|")
@@ -88,8 +88,8 @@ class HonParameterEnum(HonParameter):
 
     @value.setter
     def value(self, value: str | float) -> None:
-        # FIX BABYCARE: confronto sul valore NORMALIZZATO (pyhOn confrontava il grezzo
-        # contro la lista già pulita -> falso negativo sui valori col casing del cloud).
+        # BABYCARE FIX: compare on the NORMALIZED value (pyhOn compared the raw one
+        # against the already-clean list -> false negative on cloud-cased values).
         if clean_value(value) in self.values:
             self._value = value
             self.check_trigger(value)

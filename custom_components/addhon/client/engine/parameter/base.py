@@ -1,11 +1,11 @@
-"""HonParameter base nativo.
+"""Native base HonParameter.
 
-Porting di `_vendor/pyhon/parameter/base.HonParameter`, comportamento identico
-(verificato dal differential test). Il sistema di trigger (`add_trigger`/
-`check_trigger`/`triggers`) è la superficie con cui le rules pilotano i parametri:
-lo manteniamo fedele perché il cluster commands+rules nativo vi interopera allo
-stesso modo. `value` di default "0" se None: quirk preservato
-(le entità e `intern_value` ci contano).
+Porting of `_vendor/pyhon/parameter/base.HonParameter`, identical behavior
+(verified by the differential test). The trigger system (`add_trigger`/
+`check_trigger`/`triggers`) is the surface through which the rules drive the parameters:
+we keep it faithful because the native commands+rules cluster interoperates with it the
+same way. `value` defaults to "0" if None: a preserved quirk
+(the entities and `intern_value` rely on it).
 """
 from __future__ import annotations
 
@@ -21,8 +21,8 @@ class HonParameter:
         self._mandatory: int = 0
         self._value: str | float = ""
         self._group = group
-        # value-trigger -> lista di (callback, rule). Tipizzato Any per non legare
-        # l'engine alla classe HonRule (la nostra HonRule).
+        # value-trigger -> list of (callback, rule). Typed Any so the engine is not
+        # tied to the HonRule class (our HonRule).
         self._triggers: dict[str, list[tuple[Callable[[Any], None], Any]]] = {}
         self._set_attributes()
 

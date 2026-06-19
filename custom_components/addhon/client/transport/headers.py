@@ -1,23 +1,23 @@
-"""Header HTTP del transport addhOn.
+"""HTTP headers of the addhOn transport.
 
-Riscrittura della costruzione degli header autenticati di pyhOn
-(`ConnectionHandler._HEADERS` in handler/base.py + il merge in
-handler/hon.py:_check_headers): ogni richiesta autenticata porta user-agent +
-Content-Type + i due token (cognito-token, id-token).
+Rewrite of pyhOn's authenticated header construction
+(`ConnectionHandler._HEADERS` in handler/base.py + the merge in
+handler/hon.py:_check_headers): every authenticated request carries user-agent +
+Content-Type + the two tokens (cognito-token, id-token).
 
-Funzione PURA: i token sono input, nessun segreto hardcoded. `USER_AGENT`
-rispecchia oggi il valore di pyhOn (valore-dato, behavior-preserving, pinnato dal
-differential test); il valore reale dell'app entrerà come passo separato.
+PURE function: the tokens are inputs, no hardcoded secret. `USER_AGENT`
+today mirrors pyhOn's value (data value, behavior-preserving, pinned by the
+differential test); the real app value will enter as a separate step.
 """
 from __future__ import annotations
 
 from typing import Mapping
 
-# Valore-dato che rispecchia pyhon const.USER_AGENT (placeholder d'impersonazione).
+# Data value that mirrors pyhon const.USER_AGENT (impersonation placeholder).
 USER_AGENT = "Chrome/999.999.999.999"
 CONTENT_TYPE = "application/json"
 
-# Header di base presenti su OGNI richiesta (= ConnectionHandler._HEADERS).
+# Base headers present on EVERY request (= ConnectionHandler._HEADERS).
 BASE_HEADERS: dict[str, str] = {
     "user-agent": USER_AGENT,
     "Content-Type": CONTENT_TYPE,
@@ -29,11 +29,11 @@ def build_auth_headers(
     id_token: str,
     extra: Mapping[str, str] | None = None,
 ) -> dict[str, str]:
-    """Header per una richiesta autenticata.
+    """Headers for an authenticated request.
 
-    Replica `self._HEADERS | headers` di pyhOn dove `headers` contiene gli
-    `extra` del chiamante PIÙ i due token: gli `extra` (e i token) vincono sui
-    base, i token sono sempre presenti.
+    Replicates pyhOn's `self._HEADERS | headers` where `headers` contains the
+    caller's `extra` PLUS the two tokens: the `extra` (and the tokens) win over the
+    base ones, the tokens are always present.
     """
     overrides: dict[str, str] = dict(extra) if extra else {}
     overrides["cognito-token"] = cognito_token

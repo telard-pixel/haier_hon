@@ -1,8 +1,8 @@
-"""WH (scaldabagno). Riscrittura di `_vendor/pyhon/appliances/wh.py`.
+"""WH (water heater). Rewrite of `_vendor/pyhon/appliances/wh.py`.
 
-`active` = onOffStatus==1. FIX vs pyhOn: pyhOn faceva `isinstance(attr, HonParameter)`
-(falso: è un HonAttribute) -> ramo `attr == 1` = sempre False -> active rotto. Qui per
-valore (corretto). Campo non consumato -> fix inerte ma corretto.
+`active` = onOffStatus==1. FIX vs pyhOn: pyhOn did `isinstance(attr, HonParameter)`
+(false: it is a HonAttribute) -> the `attr == 1` branch = always False -> active broken. Here by
+value (correct). Field not consumed -> inert but correct fix.
 """
 from __future__ import annotations
 

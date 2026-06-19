@@ -340,7 +340,7 @@ class Tier2BinaryGatingTest(unittest.IsolatedAsyncioTestCase):
 
 class ConnectivityBinaryTest(unittest.IsolatedAsyncioTestCase):
     async def _conn(self, attributes):
-        added = await _build_binary("AC", attributes)  # AC: nessun set per-tipo
+        added = await _build_binary("AC", attributes)  # AC: no per-type set
         return next(e for e in added if e._attr_unique_id == "x-1_connectivity")
 
     async def test_created_for_type_without_pertype_set(self) -> None:
@@ -353,7 +353,7 @@ class ConnectivityBinaryTest(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone((await self._conn({})).is_on)
 
     async def test_stays_available_when_device_disconnected(self) -> None:
-        # il sensore connettività deve restare DISPONIBILE per poter dire 'disconnesso'
+        # the connectivity sensor must stay AVAILABLE so it can report 'disconnected'
         conn = await self._conn({"available": False})
         self.assertTrue(conn.available)
         self.assertFalse(conn.is_on)

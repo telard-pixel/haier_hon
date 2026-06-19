@@ -1,10 +1,10 @@
-"""Test del descrittore device nativo: `client/transport/device.HonDevice`.
+"""Test of the native device descriptor: `client/transport/device.HonDevice`.
 
-In origine era un DIFFERENTIAL test contro il `HonDevice` reale di pyhOn (caricato
-in subprocess). Nel piece 4b il transport pyhOn (`_vendor/connection/device.py`) è
-stato CANCELLATO: l'oracolo non esiste più. I valori attesi qui sotto SONO il
-contratto (erano byte-identici a pyhOn, validati dal differential prima del
-cutover): ora pinniamo direttamente il payload del cloud.
+Originally a DIFFERENTIAL test against pyhOn's real `HonDevice` (loaded in a
+subprocess). In piece 4b the pyhOn transport (`_vendor/connection/device.py`) was
+DELETED: the oracle no longer exists. The expected values below ARE the contract
+(they were byte-identical to pyhOn, validated by the differential before the
+cutover): now we pin the cloud payload directly.
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parents[1]
 _OUR_DEVICE = _ROOT / "custom_components" / "addhon" / "client" / "transport" / "device.py"
 
-# Contratto del payload device verso il cloud hOn (ex-oracolo pyhOn, ora congelato).
+# Device payload contract towards the hOn cloud (ex-pyhOn oracle, now frozen).
 _DEFAULT = {
     "appVersion": "2.6.5",
     "mobileId": "pyhOn",
@@ -38,8 +38,8 @@ _CUSTOM_MOBILE = {**_DEFAULT_MOBILE, "mobileId": "ABC123"}
 def _load(path: Path, name: str):
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
-    # Registrare in sys.modules PRIMA di exec: con `from __future__ import
-    # annotations` il @dataclass risolve le annotazioni via sys.modules[__module__].
+    # Register in sys.modules BEFORE exec: with `from __future__ import
+    # annotations` the @dataclass resolves the annotations via sys.modules[__module__].
     sys.modules[name] = module
     spec.loader.exec_module(module)
     return module

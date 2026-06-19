@@ -1,4 +1,4 @@
-"""Switch per Haier hOn: pausa lavatrice/asciugatrice + toggle del condizionatore."""
+"""Haier hOn switches: washer/dryer pause + air conditioner toggles."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -19,20 +19,20 @@ _LOGGER = logging.getLogger(__name__)
 
 @dataclass(frozen=True, kw_only=True)
 class HonAcSwitchDescription:
-    """Switch booleano dell'AC che agisce su un parametro 0/1 del comando settings.
+    """Boolean AC switch acting on a 0/1 parameter of the settings command.
 
-    `param` è sia il nome del parametro nel comando `settings` (scrittura) sia
-    l'attributo diretto 0/1 letto via _get_attr (lettura).
+    `param` is both the parameter name in the `settings` command (write) and
+    the direct 0/1 attribute read via _get_attr (read).
     """
 
-    key: str            # suffisso unique_id
+    key: str            # unique_id suffix
     name: str
     param: str
     icon: str | None = None
 
 
-# Switch AC: parametri 0/1 confermati nel comando settings dell'AC di Roberto.
-# Capability-gated: ciascuno è creato solo se il device espone davvero il parametro.
+# AC switches: 0/1 parameters confirmed in the settings command of Roberto's AC.
+# Capability-gated: each is created only if the device actually exposes the parameter.
 _AC_SWITCHES: tuple[HonAcSwitchDescription, ...] = (
     HonAcSwitchDescription(key="sleep", name="Modalità Notte", param="silentSleepStatus", icon="mdi:power-sleep"),
     HonAcSwitchDescription(key="mute", name="Muto", param="muteStatus", icon="mdi:volume-off"),
@@ -72,7 +72,7 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    # FIX: accesso coerente alla struttura hass.data[DOMAIN][entry_id]["coordinator"]
+    # FIX: consistent access to the hass.data[DOMAIN][entry_id]["coordinator"] structure
     entry_data = hass.data[DOMAIN][entry.entry_id]
     coordinator = entry_data["coordinator"]
     client = entry_data["client"]
@@ -81,7 +81,7 @@ async def async_setup_entry(
         app_type = data.get("type")
         appliance = data.get("appliance")
         _LOGGER.debug(
-            "Switch debug: valuto appliance '%s' id=%s type=%s commands=%s",
+            "Switch debug: evaluating appliance '%s' id=%s type=%s commands=%s",
             data.get("name"),
             appliance_id,
             app_type,
@@ -92,32 +92,32 @@ async def async_setup_entry(
                 cmds = getattr(appliance, "commands", None)
                 cmds = cmds if isinstance(cmds, dict) else {}
                 if "pauseProgram" in cmds and "resumeProgram" in cmds:
-                    _LOGGER.debug("Switch debug: creo switch pausa per id=%s", appliance_id)
+                    _LOGGER.debug("Switch debug: creating pause switch for id=%s", appliance_id)
                     entities.append(HonWashingMachinePauseSwitch(coordinator, appliance_id, client))
-                    _LOGGER.info("Aggiunto switch: %s", data.get("name"))
+                    _LOGGER.info("Added switch: %s", data.get("name"))
                 else:
                     _LOGGER.debug(
-                        "Switch debug: switch pausa non creato per id=%s; pause/resume mancanti",
+                        "Switch debug: pause switch not created for id=%s; pause/resume missing",
                         appliance_id,
                     )
         elif app_type == APPLIANCE_AC:
             created: list[str] = []
             for desc in _AC_SWITCHES:
-                # capability-gate: solo se il parametro esiste nel comando settings
+                # capability-gate: only if the parameter exists in the settings command
                 if settings_param(appliance, desc.param) is None:
                     continue
                 entities.append(HonAcSwitch(coordinator, appliance_id, desc, client))
                 created.append(desc.key)
             _LOGGER.debug(
-                "Switch debug: AC '%s' id=%s -> %d switch %s",
+                "Switch debug: AC '%s' id=%s -> %d switches %s",
                 data.get("name"), appliance_id, len(created), created,
             )
         else:
-            _LOGGER.debug("Switch debug: appliance id=%s ignorato, type=%s", appliance_id, app_type)
+            _LOGGER.debug("Switch debug: appliance id=%s ignored, type=%s", appliance_id, app_type)
     async_add_entities(entities)
 
 class HonWashingMachinePauseSwitch(HonBaseEntity, SwitchEntity):
-    """Switch per mettere in pausa / riprendere il programma lavatrice."""
+    """Switch to pause / resume the washer program."""
 
     _attr_icon = "mdi:pause-circle"
 
@@ -126,7 +126,7 @@ class HonWashingMachinePauseSwitch(HonBaseEntity, SwitchEntity):
         device_name = self._appliance_data.get("name", "Lavatrice")
         self._attr_unique_id = f"{appliance_id}_pause"
         self._attr_name = f"{device_name} - Pausa"
-        _LOGGER.debug("Switch debug: inizializzato '%s' id=%s", self._attr_name, appliance_id)
+        _LOGGER.debug("Switch debug: initialized '%s' id=%s", self._attr_name, appliance_id)
 
     @property
     def is_on(self) -> bool:
@@ -147,7 +147,7 @@ class HonWashingMachinePauseSwitch(HonBaseEntity, SwitchEntity):
         if not appliance or not client:
             raise HomeAssistantError("Pausa: appliance o client non disponibile")
         _LOGGER.debug(
-            "Switch debug: invio comando pausa '%s' value=%s id=%s commands=%s",
+            "Switch debug: sending pause command '%s' value=%s id=%s commands=%s",
             command_name,
             pause_value,
             self._appliance_id,
@@ -160,10 +160,10 @@ class HonWashingMachinePauseSwitch(HonBaseEntity, SwitchEntity):
                     commands = commands if isinstance(commands, dict) else {}
                     command = commands.get(command_name)
                     if not command:
-                        raise RuntimeError(f"Comando '{command_name}' non trovato")
+                        raise RuntimeError(f"Command '{command_name}' not found")
                     params = getattr(command, "parameters", {})
                     _LOGGER.debug(
-                        "Switch debug: command '%s' params prima=%s",
+                        "Switch debug: command '%s' params before=%s",
                         command_name,
                         _param_snapshot(params),
                     )
@@ -171,24 +171,24 @@ class HonWashingMachinePauseSwitch(HonBaseEntity, SwitchEntity):
                         previous = getattr(params["pause"], "value", None)
                         params["pause"].value = pause_value
                         _LOGGER.debug(
-                            "Switch debug: parametro pause impostato a %s (previous=%s)",
+                            "Switch debug: pause parameter set to %s (previous=%s)",
                             pause_value,
                             previous,
                         )
                     else:
                         _LOGGER.debug(
-                            "Switch debug: command '%s' senza parametro pause; invio senza modifica",
+                            "Switch debug: command '%s' without pause parameter; sending unchanged",
                             command_name,
                         )
                     await command.send()
-                    _LOGGER.debug("Switch debug: command '%s' send completato", command_name)
+                    _LOGGER.debug("Switch debug: command '%s' send completed", command_name)
                 client.run_command_sync(_inner())
 
             await self.hass.async_add_executor_job(_do)
-            _LOGGER.info("Pausa: %s inviato", command_name)
+            _LOGGER.info("Pause: %s sent", command_name)
             await self._async_request_command_refresh()
         except Exception as err:
-            _LOGGER.error("Pausa %s: Errore: %s", command_name, err, exc_info=True)
+            _LOGGER.error("Pause %s: Error: %s", command_name, err, exc_info=True)
             raise HomeAssistantError(f"Pausa {command_name}: errore comando: {err}") from err
 
     async def async_turn_on(self, **kwargs) -> None:
@@ -199,7 +199,7 @@ class HonWashingMachinePauseSwitch(HonBaseEntity, SwitchEntity):
 
 
 class HonAcSwitch(HonBaseEntity, SwitchEntity):
-    """Switch booleano del condizionatore su un parametro del comando settings."""
+    """Boolean air conditioner switch on a parameter of the settings command."""
 
     def __init__(self, coordinator, appliance_id: str, description: HonAcSwitchDescription, client=None) -> None:
         super().__init__(coordinator, appliance_id, client)
@@ -210,7 +210,7 @@ class HonAcSwitch(HonBaseEntity, SwitchEntity):
         if description.icon:
             self._attr_icon = description.icon
         _LOGGER.debug(
-            "Switch debug: inizializzato AC switch '%s' id=%s param=%s",
+            "Switch debug: initialized AC switch '%s' id=%s param=%s",
             self._attr_name, appliance_id, description.param,
         )
 
@@ -240,5 +240,5 @@ class HonAcSwitch(HonBaseEntity, SwitchEntity):
         except HomeAssistantError:
             raise
         except Exception as err:
-            _LOGGER.error("Switch AC: errore set %s=%s: %s", param, value, err, exc_info=True)
+            _LOGGER.error("AC switch: set error %s=%s: %s", param, value, err, exc_info=True)
             raise HomeAssistantError(f"Switch AC: errore comando {param}: {err}") from err

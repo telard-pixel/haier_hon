@@ -1,12 +1,12 @@
-"""Client hOn nativo di addhOn.
+"""Native hOn client of addhOn.
 
-Tutto il client (auth/transport, motore comandi/parametri/rules, appliance) è codice
-NOSTRO: la libreria pyhOn (un tempo vendorizzata in `../_vendor/pyhon/`) è stata
-sostituita interamente e cancellata.
+The whole client (auth/transport, command/parameter/rules engine, appliance) is OUR
+code: the pyhOn library (once vendored in `../_vendor/pyhon/`) has been entirely
+replaced and deleted.
 
-Regola di confine: il corpo dell'integrazione non dipende dagli oggetti concreti del
-client ma dai Protocol in `interfaces.py`. La factory in `pyhon_adapter.py` costruisce
-sessione e appliance native.
+Boundary rule: the body of the integration does not depend on the concrete client
+objects but on the Protocols in `interfaces.py`. The factory in `pyhon_adapter.py`
+builds the native session and appliance.
 
-Storia della migrazione (strangler pattern, ora completa) in MIGRATION.md.
+Migration history (strangler pattern, now complete) in MIGRATION.md.
 """

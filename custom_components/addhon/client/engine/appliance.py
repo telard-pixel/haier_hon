@@ -1,13 +1,13 @@
-"""HonAppliance ROOT nativo. Riscrittura di `_vendor/pyhon/appliance.HonAppliance`.
+"""Native ROOT HonAppliance. Rewrite of `_vendor/pyhon/appliance.HonAppliance`.
 
-Mette insieme tutto il motore NOSTRO: attributi nativi (engine.attributes), loader/
-commands/rules/program nativi (engine.command_loader), layer per-tipo nativo
+Puts together our whole engine: native attributes (engine.attributes), native loader/
+commands/rules/program (engine.command_loader), native per-type layer
 (engine.appliances.registry).
 
-Implementa SOLO la superficie realmente consumata (misurata su integrazione + sessione
-+ engine): proprietà identificative/stato, load_*/update, settings/data/command_parameters,
-sync_*. Droppati i morti di pyhOn (`__getitem__`/`get`/`_get_nested_item`/`diagnose`/
-`data_archive`/`sync_command`/`sync_parameter`). `api` è il NOSTRO transport.api.HonApi.
+Implements ONLY the surface actually consumed (measured across integration + session
++ engine): identity/state properties, load_*/update, settings/data/command_parameters,
+sync_*. Dropped pyhOn's dead code (`__getitem__`/`get`/`_get_nested_item`/`diagnose`/
+`data_archive`/`sync_command`/`sync_parameter`). `api` is OUR transport.api.HonApi.
 """
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class HonAppliance:
-    _MINIMAL_UPDATE_INTERVAL = 5  # secondi
+    _MINIMAL_UPDATE_INTERVAL = 5  # seconds
 
     def __init__(self, api: Any, info: dict[str, Any], zone: int = 0) -> None:
         if attributes := info.get("attributes"):
@@ -47,7 +47,7 @@ class HonAppliance:
             not self._attributes.get("lastConnEvent", {}).get("category", "")
             == "DISCONNECTED"
         )
-        # layer per-tipo NATIVO (era importlib dinamico in pyhOn)
+        # NATIVE per-type layer (was dynamic importlib in pyhOn)
         self._extra = _native_appliances.get_extra(self)
 
     def _check_name_zone(self, name: str, frontend: bool = True) -> str:
@@ -57,7 +57,7 @@ class HonAppliance:
             return f"{attribute}{zone}{self._zone}"
         return attribute
 
-    # --- identità / metadati ---
+    # --- identity / metadata ---
     @property
     def appliance_model_id(self) -> str:
         return str(self._info.get("applianceModelId", ""))
@@ -105,7 +105,7 @@ class HonAppliance:
     def model_id(self) -> int:
         return int(self._info.get("applianceModelId", 0))
 
-    # --- stato / dati ---
+    # --- state / data ---
     @property
     def options(self) -> dict[str, Any]:
         return dict(self._appliance_model.get("options", {}))
@@ -148,7 +148,7 @@ class HonAppliance:
     def connection(self, connection: bool) -> None:
         self._connection = connection
 
-    # --- caricamento ---
+    # --- loading ---
     async def load_commands(self) -> None:
         command_loader = HonCommandLoader(self.api, self)
         await command_loader.load_commands()
@@ -165,18 +165,18 @@ class HonAppliance:
             else:
                 self._attributes.setdefault("parameters", {})[name] = HonAttribute(values)
         self._attributes |= attributes
-        # Connettività autorevole = lastConnEvent.category (modello app
-        # ApplianceConnectionState, vedi apk/analysis/per-type-derivations.md #5). pyhOn
-        # lasciava `_connection` stale-True sul polling (solo l'MQTT lo aggiornava) ->
-        # le per-tipo che azzerano in base a `self.connection` (td/wd/dw/ov) NON scattavano
-        # sul poll, a differenza di wm (che legge lastConnEvent). Aggiornarlo qui lo rende
-        # accurato e coerente. Validato live: TD offline mostrava machMode stantio=1, ora 0
-        # come WM. Non sovrascrive un eventuale stato MQTT più fresco se lastConnEvent manca.
+        # Authoritative connectivity = lastConnEvent.category (app model
+        # ApplianceConnectionState, see apk/analysis/per-type-derivations.md #5). pyhOn
+        # left `_connection` stale-True on polling (only MQTT updated it) ->
+        # the per-type layers that zero based on `self.connection` (td/wd/dw/ov) did NOT
+        # fire on the poll, unlike wm (which reads lastConnEvent). Updating it here makes it
+        # accurate and consistent. Validated live: an offline TD showed a stale machMode=1,
+        # now 0 like WM. Does not overwrite a fresher MQTT state if lastConnEvent is missing.
         lce = self._attributes.get("lastConnEvent")
-        if isinstance(lce, dict):  # difensivo: se assente/malformato, tieni lo stato (MQTT)
+        if isinstance(lce, dict):  # defensive: if absent/malformed, keep the state (MQTT)
             self._connection = lce.get("category", "") != "DISCONNECTED"
-        # `available` UNIVERSALE (anche per i tipi senza per-tipo, es. AC): la connettività
-        # è first-class come nell'app. Il layer per-tipo lo ri-setta (stesso valore).
+        # `available` UNIVERSAL (even for types without a per-type layer, e.g. AC):
+        # connectivity is first-class as in the app. The per-type layer re-sets it (same value).
         self._attributes["available"] = self._connection
         if self._extra:
             self._attributes = self._extra.attributes(self._attributes)
@@ -193,7 +193,7 @@ class HonAppliance:
             await self.load_attributes()
             self.sync_params_to_command("settings")
 
-    # --- viste derivate ---
+    # --- derived views ---
     @property
     def command_parameters(self) -> dict[str, dict[str, str | float]]:
         return {n: c.parameter_value for n, c in self._commands.items()}
@@ -228,7 +228,7 @@ class HonAppliance:
             **self.attributes,
         }
 
-    # --- sync attributi <-> comandi ---
+    # --- sync attributes <-> commands ---
     def sync_command_to_params(self, command_name: str) -> None:
         if not (command := self.commands.get(command_name)):
             return
