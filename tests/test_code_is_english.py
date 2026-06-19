@@ -13,10 +13,24 @@ non-ASCII.
 """
 from __future__ import annotations
 
+import re
 import unittest
 from pathlib import Path
 
 COMPONENT = Path(__file__).resolve().parents[1] / "custom_components" / "addhon"
+
+# Unambiguous Italian words (none collide with an English word) that must never
+# appear in code/comments/logs. The ASCII check above misses Italian written
+# without accents (e.g. "Alimentazione"); this denylist closes that gap. Keep it
+# conservative: only add words with zero English collision to avoid false positives.
+ITALIAN_WORDS = (
+    "alimentazione", "impostazioni", "impostazione", "errore", "avviso",
+    "attenzione", "sconosciuto", "sconosciuta", "disponibile", "lavaggio",
+    "asciugatrice", "frigorifero", "congelatore", "lavastoviglie", "aspirapolvere",
+    "scaldabagno", "spegnimento", "accensione", "programmazione", "caricamento",
+    "annulla", "conferma", "riavvio",
+)
+_ITALIAN_RE = re.compile(r"\b(" + "|".join(ITALIAN_WORDS) + r")\b", re.IGNORECASE)
 
 # Scientific unit symbols with no clean ASCII equivalent (device data, not
 # language): MICRO SIGN, SUPERSCRIPT TWO/THREE, DEGREE SIGN. Italian accented
@@ -47,6 +61,25 @@ class CodeIsEnglishTest(unittest.TestCase):
             "Non-ASCII (non-English) characters found in integration code. Keep "
             "code/comments/logs English and move user-facing text to translations/:\n"
             + "\n".join(offenders),
+        )
+
+    def test_no_known_italian_words(self) -> None:
+        offenders: list[str] = []
+        repo_root = COMPONENT.parents[1]
+        for path in sorted(COMPONENT.rglob("*.py")):
+            if "translations" in path.parts:
+                continue
+            for lineno, line in enumerate(
+                path.read_text(encoding="utf-8").splitlines(), 1
+            ):
+                if match := _ITALIAN_RE.search(line):
+                    rel = path.relative_to(repo_root)
+                    offenders.append(f"{rel}:{lineno}: '{match.group(0)}'  {line.strip()[:70]}")
+        self.assertEqual(
+            [],
+            offenders,
+            "Italian words found in integration code. Keep code/comments/logs "
+            "English and move user-facing text to translations/:\n" + "\n".join(offenders),
         )
 
 

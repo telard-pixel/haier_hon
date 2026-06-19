@@ -11,8 +11,9 @@ native PARAMETER classes.
 
 Comparison helper: pyhOn compared `HonAttribute == "1"`, which is ALWAYS False
 (no `__eq__`) -> ref/td/wm pause were broken no-ops. Here we compare by VALUE
-(the app's intent), fixing the bug. The fields that depend on it (modeZ1/Z2/pause) are
-however not consumed by the integration: the difference is documented, not risky.
+(the app's intent), fixing the bug. The fields it derives (ref `modeZ1`/`modeZ2`, the
+per-type `pause` attribute) are computed but currently not surfaced as entities (the
+Pause switch reads `machMode` directly), so this is a latent-correctness fix.
 """
 from __future__ import annotations
 

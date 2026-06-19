@@ -44,7 +44,7 @@ def _deps_available() -> bool:
 class LiveSessionProtocolTest(unittest.TestCase):
     def test_real_hon_satisfies_honsession(self) -> None:
         if not _deps_available():
-            self.skipTest("aiohttp/awscrt not available: skipping the real Hon check")
+            self.skipTest("aiohttp/awscrt/yarl not available: skipping the real Hon check")
         script = textwrap.dedent(
             f"""
             import sys, types, importlib.util

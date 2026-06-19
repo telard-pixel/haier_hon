@@ -223,7 +223,7 @@ def _remove_legacy_entities(hass: HomeAssistant, entry: ConfigEntry) -> None:
         if unique_id.endswith("_power"):
             registry.async_remove(reg_entry.entity_id)
             removed += 1
-            _LOGGER.info("Removed legacy 'Alimentazione' entity: %s", reg_entry.entity_id)
+            _LOGGER.info("Removed legacy power entity: %s", reg_entry.entity_id)
         elif unique_id in td_orphans:
             registry.async_remove(reg_entry.entity_id)
             removed += 1

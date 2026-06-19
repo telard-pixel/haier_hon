@@ -173,8 +173,11 @@ class HonAppliance:
         # accurate and consistent. Validated live: an offline TD showed a stale machMode=1,
         # now 0 like WM. Does not overwrite a fresher MQTT state if lastConnEvent is missing.
         lce = self._attributes.get("lastConnEvent")
-        if isinstance(lce, dict):  # defensive: if absent/malformed, keep the state (MQTT)
-            self._connection = lce.get("category", "") != "DISCONNECTED"
+        # Only the authoritative `category` updates connectivity. If lastConnEvent is
+        # absent, malformed, or a dict without `category`, keep the (MQTT-derived) state
+        # rather than forcing it True.
+        if isinstance(lce, dict) and "category" in lce:
+            self._connection = lce["category"] != "DISCONNECTED"
         # `available` UNIVERSAL (even for types without a per-type layer, e.g. AC):
         # connectivity is first-class as in the app. The per-type layer re-sets it (same value).
         self._attributes["available"] = self._connection

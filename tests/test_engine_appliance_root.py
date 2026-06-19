@@ -145,6 +145,31 @@ class ConnectivityTest(unittest.TestCase):
         self.assertTrue(app.connection)  # state unchanged (default)
         self.assertTrue(app.attributes["available"])
 
+    def test_dict_without_category_keeps_state(self) -> None:
+        # A dict lastConnEvent lacking `category` must NOT force availability True:
+        # it keeps the prior (MQTT/previous-poll) state. Regression guard: the old code
+        # did `lce.get("category", "") != "DISCONNECTED"` -> "" -> True on every poll.
+        class _SeqApi(FakeApi):
+            def __init__(self) -> None:
+                self._payloads = [
+                    {"shadow": {"parameters": {}}, "lastConnEvent": {"category": "DISCONNECTED"}},
+                    {"shadow": {"parameters": {}}, "lastConnEvent": {"id": "x"}},  # dict, no category
+                ]
+                self._i = 0
+
+            async def load_attributes(self, a):
+                payload = self._payloads[min(self._i, len(self._payloads) - 1)]
+                self._i += 1
+                return payload
+
+        app = NaRoot(_SeqApi(), json.loads(json.dumps(_INFO)), zone=0)
+        _run(app.load_commands())
+        _run(app.load_attributes())  # DISCONNECTED -> False
+        self.assertFalse(app.connection)
+        _run(app.load_attributes())  # dict without category -> keep False (was forced True)
+        self.assertFalse(app.connection)
+        self.assertFalse(app.attributes["available"])
+
 
 class RootGoldenTest(unittest.TestCase):
     def test_native_root_matches_golden(self) -> None:
