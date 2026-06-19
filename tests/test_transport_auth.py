@@ -165,6 +165,16 @@ class NativeAuthFlowTest(unittest.TestCase):
         with self.assertRaises(NativeAuthError):
             asyncio.run(auth.authenticate())
 
+    def test_progressive_login_without_href_raises(self) -> None:
+        # Se la pagina ProgressiveLogin non contiene un href, prima si arrivava a
+        # href[0] con un IndexError non classificato come errore auth.
+        responses = _happy_responses()[:5]  # fino a _login incluso
+        responses.append(FakeResp(text="href = '/ProgressiveLogin?x=1'"))  # _get_token -> progressive
+        responses.append(FakeResp(text="pagina progressive senza alcun href"))  # findall -> []
+        auth = self._auth(responses)
+        with self.assertRaises(NativeAuthError):
+            asyncio.run(auth.authenticate())
+
     def test_step_order(self) -> None:
         # L'ordine delle chiamate riflette il flusso pyhОn.
         session = FakeSession(_happy_responses())

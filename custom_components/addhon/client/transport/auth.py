@@ -158,6 +158,8 @@ class HonAuth:
                 if resp.status != 200:
                     raise NativeAuthError(f"progressive: status {resp.status}")
                 href = _HREF_RE_PROGRESSIVE.findall(await resp.text())
+            if not href:  # come il guard dopo il primo findall: niente IndexError
+                raise NativeAuthError("progressive: nessun href")
         token_url = AUTH_API + href[0]
         async with self._session.get(token_url, headers=self._ua()) as resp:
             if resp.status != 200:
