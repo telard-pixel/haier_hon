@@ -89,13 +89,18 @@ The integration operates in three layers:
 
 Handles entity discovery, service calls, and data updates. On initialization, it queries your Haier account for all paired devices and creates Home Assistant entities for each one.
 
-### 2. pyhOn Library
+### 2. Native hOn Client
 
-A lightweight Python client for the Haier hOn API. It manages:
-- **Authentication** — exchanges credentials for a session token
-- **Device enumeration** — fetches device list and metadata
-- **Command routing** — sends control commands (startProgram, settings, stopProgram)
-- **State polling** — retrieves current device status and attributes
+A self-contained Python client (`custom_components/addhon/client/`), with no
+third-party hOn library vendored in. It manages:
+- **Authentication**: Salesforce OAuth login exchanging credentials for the
+  Cognito/id tokens the API expects (`client/transport/auth.py`)
+- **Device enumeration**: fetches the full device list and metadata, including
+  offline appliances (`client/transport/api.py`)
+- **Command routing**: builds and sends control commands (startProgram,
+  settings, stopProgram) with their parameters and rules (`client/engine/`)
+- **State polling and real-time updates**: HTTP polling plus an AWS IoT MQTT
+  stream for live state (`client/transport/mqtt.py`)
 
 ### 3. Haier Cloud API (hOn)
 
@@ -172,7 +177,7 @@ The integration auto-detects supported modes per device. If your AC doesn't resp
 
 ### Architecture Decisions
 
-- **Asyncio background loop** — pyhOn operations run in a dedicated thread-safe event loop to avoid blocking Home Assistant
+- **Asyncio background loop** — the native client's operations run in a dedicated thread-safe event loop to avoid blocking Home Assistant
 - **Command routing** — different device types expect different command structures; the integration detects and routes appropriately
 - **Attribute extraction** — device-specific attributes are extracted from real device diagnostics, not hardcoded
 
@@ -181,8 +186,8 @@ The integration auto-detects supported modes per device. If your AC doesn't resp
 To add support for a new Haier device:
 
 1. Pair it in the Haier hOn app
-2. Enable debug logging and capture the device diagnostics
-3. Add a new entity platform in `custom_components/addhon/entities/`
+2. Enable debug logging and capture the device diagnostics (see [`docs/discovery-debugging.md`](docs/discovery-debugging.md))
+3. Add or extend the relevant platform file (`sensor.py`, `binary_sensor.py`, `number.py`, `select.py`, `switch.py`, ...) and, if the device type needs it, its capability map
 4. Test with your device and submit a pull request
 
 ## Limitations

@@ -57,10 +57,8 @@ logger:
   default: warning
   logs:
     custom_components.addhon: debug
-    custom_components.addhon._vendor.pyhon: debug
-    pyhon: debug
-    custom_components.addhon._vendor.pyhon.connection.mqtt: warning
-    pyhon.connection.mqtt: warning
+    custom_components.addhon.client: debug
+    custom_components.addhon.client.transport.mqtt: warning
 ```
 
 Restart Home Assistant, reproduce the issue, then remove the temporary block.
