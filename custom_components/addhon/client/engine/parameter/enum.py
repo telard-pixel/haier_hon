@@ -55,7 +55,17 @@ class HonParameterEnum(HonParameter):
         super()._set_attributes()
         self._default = self._attributes.get("defaultValue", "")
         self._value = self._default or "0"
-        self._values = self._attributes.get("enumValues", [])
+        # `enumValues` di norma e' una lista; alcuni payload la danno come stringa
+        # "A|B|C". Normalizza a lista cosi' .append/.values non si rompono (prima una
+        # stringa qui causava AttributeError in __init__ o un'iterazione carattere-per-
+        # carattere). Lo split "|" e' coerente con _apply_enum (rules.py).
+        raw_values = self._attributes.get("enumValues", [])
+        if isinstance(raw_values, str):
+            self._values = raw_values.split("|")
+        elif isinstance(raw_values, list):
+            self._values = [str(v) for v in raw_values]
+        else:
+            self._values = []
 
     def __repr__(self) -> str:
         return f"{self.__class__} (<{self.key}> {self.values})"

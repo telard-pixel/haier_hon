@@ -137,6 +137,16 @@ class NativeEnumEdgeBehaviorTest(unittest.TestCase):
         na.value = "BABYCARE"
         self.assertEqual(len(fired), 1)
 
+    def test_string_enumvalues_normalized_to_list(self) -> None:
+        # enumValues come stringa "cold|hot" + default fuori lista: prima `.append`
+        # su una str sollevava AttributeError in costruzione. Ora si normalizza a lista.
+        data = {"category": "command", "typology": "enum", "mandatory": 1,
+                "defaultValue": "warm", "enumValues": "cold|hot"}
+        na = NaEnum("mode", dict(data), "grp")
+        self.assertEqual(na.values, ["cold", "hot", "warm"])
+        na.value = "cold"
+        self.assertEqual(na.value, "cold")
+
     def test_pipe_string_enum_native_rejects_substring(self) -> None:
         data = {"category": "command", "typology": "enum", "mandatory": 1,
                 "defaultValue": "", "enumValues": "A|B|C"}
