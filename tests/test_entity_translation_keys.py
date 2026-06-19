@@ -262,5 +262,45 @@ class CodeTranslationKeyLiteralsTest(unittest.TestCase):
         self.assertEqual(set(en.get("exceptions", {})), set(it.get("exceptions", {})))
 
 
+def _exception_raise_sites() -> list[tuple[str, set[str]]]:
+    """(translation_key, placeholder_keys) for each raise site in the source."""
+    pattern = re.compile(
+        r'translation_key="(\w+)"(?:,\s*translation_placeholders=\{([^}]*)\})?'
+    )
+    sites: list[tuple[str, set[str]]] = []
+    for path in COMPONENT.rglob("*.py"):
+        if "translations" in path.parts:
+            continue
+        for m in pattern.finditer(path.read_text(encoding="utf-8")):
+            placeholders = set(re.findall(r'"(\w+)":', m.group(2) or ""))
+            sites.append((m.group(1), placeholders))
+    return sites
+
+
+class ExceptionPlaceholderTest(unittest.TestCase):
+    """The translation_placeholders provided at each raise site must EXACTLY match
+    the {tokens} in the translated message. A mismatch degrades the message in HA
+    (suppress(KeyError) leaves a literal {token}); no other test catches it."""
+
+    def test_placeholders_match_message_tokens(self) -> None:
+        sites = _exception_raise_sites()
+        for lang in ("en", "it"):
+            data = json.loads((COMPONENT / "translations" / f"{lang}.json").read_text(encoding="utf-8"))
+            exc = data.get("exceptions", {})
+            checked = 0
+            for key, placeholders in sites:
+                if key not in exc:  # entity translation_key literal, not an exception
+                    continue
+                tokens = set(re.findall(r"\{(\w+)\}", exc[key]["message"]))
+                self.assertEqual(
+                    tokens,
+                    placeholders,
+                    f"[{lang}] exception '{key}': message tokens {sorted(tokens)} != "
+                    f"placeholders supplied in code {sorted(placeholders)}",
+                )
+                checked += 1
+            self.assertGreater(checked, 0, "no exception raise sites were checked")
+
+
 if __name__ == "__main__":
     unittest.main()
