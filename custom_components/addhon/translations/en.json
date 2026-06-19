@@ -487,7 +487,7 @@
       "message": "Command failed: {error}"
     },
     "program_not_found": {
-      "message": "Program '{program}' was not found."
+      "message": "Program \"{program}\" was not found."
     },
     "refresh_after_command_failed": {
       "message": "Refresh after the command failed."

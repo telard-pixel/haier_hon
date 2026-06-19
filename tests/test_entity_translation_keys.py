@@ -303,6 +303,41 @@ class ExceptionPlaceholderTest(unittest.TestCase):
             self.assertGreater(checked, 0, "no exception raise sites were checked")
 
 
+def _iter_translation_strings(node, path=""):
+    """Yield (json_path, string_value) for every string leaf in a translations tree."""
+    if isinstance(node, dict):
+        for k, v in node.items():
+            yield from _iter_translation_strings(v, f"{path}.{k}" if path else k)
+    elif isinstance(node, list):
+        for i, v in enumerate(node):
+            yield from _iter_translation_strings(v, f"{path}[{i}]")
+    elif isinstance(node, str):
+        yield path, node
+
+
+class PlaceholderQuotingTest(unittest.TestCase):
+    """hassfest rejects placeholders wrapped in single quotes: in ICU MessageFormat
+    a single quote escapes literal text, so '{program}' renders verbatim instead of
+    being substituted. This guard reproduces that CI check locally so the failure is
+    caught before push, in every translation string (not only exceptions)."""
+
+    _SINGLE_QUOTED = re.compile(r"'\{\w+\}'")
+
+    def test_no_placeholder_inside_single_quotes(self) -> None:
+        for lang in ("en", "it"):
+            data = json.loads((COMPONENT / "translations" / f"{lang}.json").read_text(encoding="utf-8"))
+            offenders = [
+                (path, value)
+                for path, value in _iter_translation_strings(data)
+                if self._SINGLE_QUOTED.search(value)
+            ]
+            self.assertEqual(
+                offenders,
+                [],
+                f"[{lang}] placeholder wrapped in single quotes (hassfest rejects this): {offenders}",
+            )
+
+
 def _collect_sensor_state_options() -> dict[str, set[str]]:
     """Per translation_key, the union of `options` across ENUM sensor descriptions."""
     from custom_components.addhon import sensor
