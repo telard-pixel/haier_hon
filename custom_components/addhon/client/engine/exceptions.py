@@ -1,7 +1,7 @@
-"""Native parser engine exceptions (Phase 4).
+"""Native parser engine exceptions.
 
-Ours, not imported from pyhOn (boundary rule: the native engine does not
-depend on `_vendor`). Minimal: the send-path uses two of them.
+Defined here so the engine stays self-contained (it does not import its exceptions
+from the transport layer or anywhere else). Minimal: the send-path uses two of them.
 """
 from __future__ import annotations
 

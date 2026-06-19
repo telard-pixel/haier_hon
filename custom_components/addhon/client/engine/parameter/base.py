@@ -1,6 +1,6 @@
 """Native base HonParameter.
 
-Porting of `_vendor/pyhon/parameter/base.HonParameter`, identical behavior
+Porting of pyhOn's `parameter/base.HonParameter`, identical behavior
 (verified by the differential test). The trigger system (`add_trigger`/
 `check_trigger`/`triggers`) is the surface through which the rules drive the parameters:
 we keep it faithful because the native commands+rules cluster interoperates with it the

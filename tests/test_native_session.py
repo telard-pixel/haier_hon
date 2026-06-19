@@ -5,7 +5,7 @@ per appliance load_commands/attributes/statistics -> MQTT last), zone handling,
 the empty-mac skip, per-appliance error tolerance, MQTT gating, close, and
 conformance to the `HonSession` Protocol.
 
-The pyhOn engine (HonAppliance) and MQTT are mocked via the `pyhon_adapter`
+The pyhOn engine (HonAppliance) and MQTT are mocked via the `factory`
 factories (the only bridge to `_vendor`): no `_vendor` import, no network, no
 awscrt. aiohttp/yarl/homeassistant are stubbed.
 """
@@ -58,7 +58,7 @@ def _install_stubs() -> None:
 
 _install_stubs()
 
-from custom_components.addhon.client import pyhon_adapter  # noqa: E402
+from custom_components.addhon.client import factory  # noqa: E402
 from custom_components.addhon.client import session as session_mod  # noqa: E402
 from custom_components.addhon.client.session import NativeHon  # noqa: E402
 from custom_components.addhon.client.interfaces import HonSession  # noqa: E402
@@ -116,7 +116,7 @@ class FakeMqtt:
 
 
 class _Harness:
-    """Patches create_appliance (pyhon_adapter) + NativeHon._make_mqtt + HonConnection/HonApi."""
+    """Patches create_appliance (factory) + NativeHon._make_mqtt + HonConnection/HonApi."""
 
     def __init__(self, test, appliances, fail_macs=()):
         self.test = test
@@ -143,7 +143,7 @@ class _Harness:
             h.mqtt_instance = m
             return m
 
-        t._patch(pyhon_adapter, "create_appliance", fake_create_appliance)
+        t._patch(factory, "create_appliance", fake_create_appliance)
         t._patch(NativeHon, "_make_mqtt", fake_make_mqtt)
 
 

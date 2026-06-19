@@ -1,4 +1,4 @@
-"""Native HonParameterProgram. Porting of `_vendor/pyhon/parameter/program.py`.
+"""Native HonParameterProgram. Porting of pyhOn's `parameter/program.py`.
 
 A "program" parameter is not an enum of data: it is a VIEW over the command's
 categories (the programs). Reading `value` = the command's current category;

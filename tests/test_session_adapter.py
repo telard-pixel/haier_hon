@@ -1,9 +1,9 @@
 """Guard for the TOTAL detachment from pyhOn (Phase 4 completed).
 
-History: the hOn session went through the bridge adapter `pyhon_adapter` (the only
+History: the hOn session went through the bridge adapter `factory` (the only
 file that imported `_vendor.pyhon`). With `_vendor/` DELETED, this guard verifies
 the final goal: NO integration file imports `_vendor` anymore, and `_vendor/` does
-not exist. `pyhon_adapter` stays the factory for the native client.
+not exist. `factory` stays the factory for the native client.
 """
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[1]
 _COMPONENT = _ROOT / "custom_components" / "addhon"
-_ADAPTER = _COMPONENT / "client" / "pyhon_adapter.py"
+_ADAPTER = _COMPONENT / "client" / "factory.py"
 _HON_CLIENT = _COMPONENT / "hon_client.py"
 
 
@@ -49,7 +49,7 @@ class TotalDetachGuardTest(unittest.TestCase):
         self.assertEqual(offenders, [], f"leftover _vendor imports: {offenders}")
 
     def test_adapter_loads_and_exposes_factories(self) -> None:
-        adapter = _load(_ADAPTER, "addhon_pyhon_adapter")
+        adapter = _load(_ADAPTER, "addhon_factory")
         self.assertTrue(callable(adapter.create_session))
         self.assertTrue(callable(adapter.create_appliance))
         # the old BABYCARE patch has been removed (native fix in the enum)
@@ -57,7 +57,7 @@ class TotalDetachGuardTest(unittest.TestCase):
 
     def test_hon_client_uses_native_factory(self) -> None:
         src = _HON_CLIENT.read_text(encoding="utf-8")
-        self.assertIn("from .client.pyhon_adapter import create_session", src)
+        self.assertIn("from .client.factory import create_session", src)
         self.assertIn("create_session(self._email, self._password)", src)
         self.assertNotIn("ensure_enum_patch", src)
 

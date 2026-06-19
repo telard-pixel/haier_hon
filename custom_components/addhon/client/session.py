@@ -2,9 +2,9 @@
 
 Coordinates the setup on top of the native transport (`transport.connection.HonConnection` +
 `transport.api.HonApi`) and builds the native appliances (`engine.appliance.HonAppliance`)
-via the `pyhon_adapter.create_appliance` factory, into which it injects our `api`.
+via `factory.create_appliance`, into which it injects our `api`.
 
-Boundary: appliance construction goes through the `pyhon_adapter` factory (MIGRATION.md
+Boundary: appliance construction goes through `factory.create_appliance` (MIGRATION.md
 rule 1); the MQTT is NATIVE (`transport.mqtt.NativeMqttClient`, lazy import in `_make_mqtt`).
 `NativeHon` satisfies the Protocol `interfaces.HonSession` and exposes `.api`/`.appliances`/
 `subscribe_updates`/`notify` (the MQTT client reads exactly those members).
@@ -22,7 +22,7 @@ from typing import Any
 
 import aiohttp
 
-from . import pyhon_adapter
+from . import factory
 from .transport.api import HonApi
 from .transport.auth import NativeAuthError
 from .transport.connection import HonConnection
@@ -31,11 +31,11 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class NativeHon:
-    """Native hOn session: OUR auth+transport, pyhOn parser engine.
+    """Native hOn session: OUR auth, transport and parser engine.
 
-    Drop-in for `pyhon.Hon` for the integration: async context manager that exposes
-    `.appliances` (and `.api` for MQTT). `enable_mqtt=False` skips the AWS push
-    (useful for tests/validators; production leaves it active like pyhOn).
+    Async context manager that exposes `.appliances` (and `.api` for MQTT) to the
+    integration. `enable_mqtt=False` skips the AWS push (useful for tests/validators;
+    production leaves it active).
     """
 
     def __init__(
@@ -99,7 +99,7 @@ class NativeHon:
         return self
 
     async def _create_appliance(self, appliance_data: dict, zone: int = 0) -> None:
-        appliance = pyhon_adapter.create_appliance(self._api, appliance_data, zone=zone)
+        appliance = factory.create_appliance(self._api, appliance_data, zone=zone)
         if appliance.mac_address == "":
             return
         try:

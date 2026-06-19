@@ -1,7 +1,7 @@
 """Shared sending of the air conditioner's `settings` command.
 
 Both the climate entity (mode/temp/fan/swing) and the AC switches modify the SAME
-pyhOn `settings` command, which on send transmits ALL of its parameters. So every
+the `settings` command, which on send transmits ALL of its parameters. So every
 send must apply the same sanitization of
 `windDirectionVertical`/`windDirectionHorizontal`: the device may report them as 0
 (a value not allowed by the enumValues) and the API would reject the command.
@@ -82,7 +82,7 @@ async def async_send_settings(hass, client, appliance, params: dict) -> None:
 
     Sanitizes windDirection* before sending (never 0): the requested values win
     anyway. Delegates to the generic sender (hon_commands.async_send_command),
-    which handles command/parameter lookup, rollback and execution on pyhOn's
+    which handles command/parameter lookup, rollback and execution on the client's
     dedicated loop; the AC sanitization is plugged in as a pre_send hook.
     """
     await async_send_command(

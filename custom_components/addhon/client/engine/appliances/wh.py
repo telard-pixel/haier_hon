@@ -1,4 +1,4 @@
-"""WH (water heater). Rewrite of `_vendor/pyhon/appliances/wh.py`.
+"""WH (water heater). Rewrite of pyhOn's `appliances/wh.py`.
 
 `active` = onOffStatus==1. FIX vs pyhOn: pyhOn did `isinstance(attr, HonParameter)`
 (false: it is a HonAttribute) -> the `attr == 1` branch = always False -> active broken. Here by

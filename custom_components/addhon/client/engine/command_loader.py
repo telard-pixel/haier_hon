@@ -1,4 +1,4 @@
-"""Native HonCommandLoader. Porting of `_vendor/pyhon/command_loader.py`.
+"""Native HonCommandLoader. Porting of pyhOn's `command_loader.py`.
 
 Loads the three cloud streams in parallel (commands / favourites / command-history)
 via the native api, builds the native `HonCommand`s, applies favourites and

@@ -111,7 +111,7 @@ class HonBaseEntity(CoordinatorEntity):
     def _get_attr(self, key: str, default=None):
         """Retrieve a device attribute.
 
-        pyhOn returns attributes as HonAttribute (with .value) or as raw values
+        The client returns attributes as HonAttribute (with .value) or as raw values
         depending on the version. We handle both.
         """
         def _extract_value(value):

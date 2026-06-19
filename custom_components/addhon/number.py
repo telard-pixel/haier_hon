@@ -1,6 +1,6 @@
 """Haier hOn numbers (Tier 3): writable temperature setpoints.
 
-Cross-reference between the pyhOn runtime schema (ground truth: dump of the real
+Cross-reference between the runtime schema (ground truth: dump of the real
 fridge REF HDPW5620CNPK -> `settings`/`setParameters` with tempSelZ1[2..8],
 tempSelZ2[-24..-16], tempSelZ3[0..5]) and the mapping of the decompiled app (S7,
 superset: tempSelZ1..Z4, tempSelUZ/LZ, generic tempSel).
@@ -57,7 +57,7 @@ class HonNumberEntityDescription(NumberEntityDescription):
 
     - `key` = unique_id suffix (new, no collision with the Tier 2 sensors).
     - `param` = name of the hOn parameter to read (state) and write (command).
-    - `fallback_min/max/step` = used only if pyhOn does not expose the range on
+    - `fallback_min/max/step` = used only if the client does not expose the range on
       the parameter; normally the REAL range is read at runtime from param_range().
     """
 
@@ -166,7 +166,7 @@ class HonNumber(HonBaseEntity, NumberEntity):
         self._attr_translation_key = description.translation_key or description.key
         self._attr_unique_id = f"{appliance_id}_{description.key}"
         # Range snapshot used as fallback; the live bounds are re-read from the
-        # parameter on each access (the pyhOn rules can change them at runtime).
+        # parameter on each access (the engine rules can change them at runtime).
         self._fallback_range = param_range(param) or (
             description.fallback_min,
             description.fallback_max,
@@ -216,7 +216,7 @@ class HonNumber(HonBaseEntity, NumberEntity):
                 translation_domain=DOMAIN,
                 translation_key="appliance_or_client_unavailable",
             )
-        # ALWAYS send a string: pyhOn str_to_float does `int(string)` and catches
+        # ALWAYS send a string: the client's str_to_float does `int(string)` and catches
         # only ValueError, so a fractional float (5.5) would be truncated to 5
         # WITHOUT error. The string "5.5" instead stays 5.5 and the range setter
         # validates the step (rejects off-grid values). Integer -> clean "4" (no "4.0").

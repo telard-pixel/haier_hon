@@ -45,7 +45,7 @@ _LOGGER = logging.getLogger(__name__)
 def _async_register_services(hass: HomeAssistant) -> None:
     """Register (only once) the service for the MQTT log level.
 
-    On the first registration it also applies the default silencing of pyhOn's
+    On the first registration it also applies the default silencing of the
     realtime MQTT noise. The service is global to the domain, not per-entry, so it
     is idempotent: if already present it does nothing.
 
@@ -70,7 +70,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
         level_name = call.data[ATTR_LEVEL]
         apply_mqtt_log_level(MQTT_LOG_LEVELS[level_name])
         _LOGGER.info(
-            "pyhOn realtime MQTT log level set to %s", level_name.upper()
+            "realtime MQTT log level set to %s", level_name.upper()
         )
 
     async def _handle_set_log_level(call: ServiceCall) -> None:
@@ -242,8 +242,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up the Haier hOn integration from a Config Entry."""
     from .hon_client import HonClient, _requires_reauth
 
-    # Silence by default the noise of pyhOn's realtime MQTT attempts and register
-    # the debug service. Done BEFORE pyhOn's setup so the logger is already at
+    # Silence by default the noise of the realtime MQTT attempts and register
+    # the debug service. Done BEFORE the client setup so the logger is already at
     # WARNING when the MQTT client starts to (re)connect.
     _async_register_services(hass)
 
@@ -280,7 +280,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hon_client = HonClient(email=email, password=password)
 
-    # Initial pyhOn setup in executor (does not block HA's event loop)
+    # Initial client setup in executor (does not block HA's event loop)
     try:
         _LOGGER.debug("Setup debug: running HonClient.setup_sync in executor")
         await hass.async_add_executor_job(hon_client.setup_sync)

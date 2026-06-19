@@ -1,16 +1,12 @@
-"""Factory for the native hOn session/appliance.
+"""Factory for the native hOn session and appliance.
 
-Historically this was the bridge adapter towards the vendored pyhOn (the only file
-that imported `_vendor.pyhon`). With Phase 4 completed (`_vendor/` DELETED) there is
-no longer any pyhOn import here: only the two factories that build OUR client remain.
-Keeping them behind these functions keeps `hon_client.py` decoupled from the client
-details.
+Building the session and the appliance behind these two functions keeps
+`hon_client.py` decoupled from the concrete client classes.
 
 `create_session` returns an object conforming to `interfaces.HonSession` (our
-`client.session.NativeHon`); `create_appliance` the `interfaces.Appliance`
-(`client.engine.appliance.HonAppliance`). The BABYCARE bug fix is native in the
-enum class (`client.engine.parameter.enum`): the old `ensure_enum_patch` that
-patched the pyhOn enum has been REMOVED along with `_vendor/`.
+`client.session.NativeHon`); `create_appliance` returns an `interfaces.Appliance`
+(`client.engine.appliance.HonAppliance`). The BABYCARE bug fix lives natively in the
+enum class (`client.engine.parameter.enum`).
 """
 from __future__ import annotations
 
@@ -26,12 +22,11 @@ _NATIVE_APPLIANCE_CLS: Any = None
 def create_session(email: str, password: str) -> Any:
     """Create the NATIVE hOn session (`client.session.NativeHon`).
 
-    Auth, connection, api, MQTT, orchestration and parser engine are all OURS
-    (pyhOn deleted). The caller uses it as an async context manager
-    (`__aenter__()` -> `.appliances`).
+    Auth, connection, api, MQTT, orchestration and parser engine are all OURS.
+    The caller uses it as an async context manager (`__aenter__()` -> `.appliances`).
 
     Lazy import of `NativeHon`: avoids the cycle (session.py imports this module) and
-    keeps `pyhon_adapter` importable dry (`NativeHon` pulls in awscrt via MQTT).
+    keeps `factory` importable dry (`NativeHon` pulls in awscrt via MQTT).
     """
     from .session import NativeHon
 
@@ -53,10 +48,10 @@ def _native_engine_appliance_cls() -> Any:
 
 
 def create_appliance(api: Any, appliance_data: dict, zone: int = 0) -> Any:
-    """Build the NATIVE ROOT appliance (TOTAL detach from pyhOn).
+    """Build the NATIVE ROOT appliance.
 
     The whole engine (loader/commands/rules/program/parameters/attributes/per-type + ROOT)
-    is ours: `_vendor` is no longer imported. The returned object conforms to the
-    Protocol `interfaces.Appliance` (duck-typing). Lazy import.
+    is ours. The returned object conforms to the Protocol `interfaces.Appliance`
+    (duck-typing). Lazy import.
     """
     return _native_engine_appliance_cls()(api, appliance_data, zone=zone)

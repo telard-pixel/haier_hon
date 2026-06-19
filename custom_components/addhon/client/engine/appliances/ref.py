@@ -1,4 +1,4 @@
-"""REF (refrigerator). Rewrite of `_vendor/pyhon/appliances/ref.py`.
+"""REF (refrigerator). Rewrite of pyhOn's `appliances/ref.py`.
 
 modeZ1/modeZ2 from the holiday/intelligence/quickMode flags. FIX vs pyhOn: the comparison
 is by VALUE (pyhOn did `HonAttribute == "1"` = always False -> modeZ1/Z2 were always

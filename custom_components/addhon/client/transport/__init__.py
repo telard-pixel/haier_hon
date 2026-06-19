@@ -1,7 +1,7 @@
 """Native addhOn transport (auth/HTTP/MQTT).
 
-Auth/transport layer written from scratch, which replaced the former
-`_vendor/pyhon/connection/` (the FRAGILE one, where the Haier API had already broken
+Auth/transport layer written from scratch, replacing pyhOn's former `connection/`
+layer (the FRAGILE one, where the Haier API had already broken
 us: unified-api, tokens). Pure pieces (device descriptor, response parser), then
 HTTP/session and the auth flow (Salesforce OAuth), then the MQTT client (awscrt).
 

@@ -40,13 +40,13 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
 
     try:
         try:
-            # pyhOn runs synchronous operations in __init__/__aenter__ -> use executor
+            # The client runs synchronous operations in __init__/__aenter__ -> use executor
             _LOGGER.debug("ConfigFlow debug: setup_sync in executor")
             await hass.async_add_executor_job(client.setup_sync)
             await client.async_complete_setup()
             _LOGGER.debug("ConfigFlow debug: client setup completed")
         except ImportError as err:
-            raise CannotConnect("pyhOn not installed") from err
+            raise CannotConnect("required dependency not installed") from err
         except Exception as err:
             _LOGGER.error("Validation error: %s", err)
             if _requires_reauth(err):

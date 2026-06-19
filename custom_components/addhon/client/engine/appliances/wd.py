@@ -1,4 +1,4 @@
-"""WD (washer-dryer). Rewrite of `_vendor/pyhon/appliances/wd.py`.
+"""WD (washer-dryer). Rewrite of pyhOn's `appliances/wd.py`.
 
 Like TD but without the dryLevel tweak. `pause` FIX by value (see td.py/base.py).
 """

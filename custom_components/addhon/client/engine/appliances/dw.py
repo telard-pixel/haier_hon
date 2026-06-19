@@ -1,4 +1,4 @@
-"""DW (dishwasher). Rewrite of `_vendor/pyhon/appliances/dw.py`.
+"""DW (dishwasher). Rewrite of pyhOn's `appliances/dw.py`.
 
 `active = bool(activity)`, offline machMode zeroing. No `pause` (like pyhOn).
 """

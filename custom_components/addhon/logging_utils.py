@@ -1,6 +1,6 @@
 """Control of the diagnostic log levels for the integration.
 
-The MQTT client (now OUR ``client.transport.mqtt``; previously pyhOn) emits an
+The MQTT client (now OUR ``client.transport.mqtt``) emits an
 INFO-level message for every realtime (re)connection attempt ("Lifecycle
 Attempting Connect / Connection Failure / Disconnection / Connection Success").
 When the push slot is contended (e.g. the appliance is shared and the owner
@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 
 # Loggers to raise/lower when discovery, setup, reauth and polling need to be
-# diagnosed. The whole client is now native (pyhOn removed in Phase 4), so this is
+# diagnosed. The whole client is now native, so this is
 # the only namespace. The MQTT logger stays separate under MQTT_NOISE_LOGGERS, so
 # discovery debug does not turn the realtime noise back on.
 INTEGRATION_DEBUG_LOGGERS: tuple[str, ...] = (
@@ -47,7 +47,7 @@ MQTT_LOG_LEVELS: dict[str, int] = {
 
 
 def apply_mqtt_log_level(level: int) -> None:
-    """Set ``level`` on all the noisy pyhOn MQTT loggers."""
+    """Set ``level`` on all the noisy realtime MQTT loggers."""
     for name in MQTT_NOISE_LOGGERS:
         logging.getLogger(name).setLevel(level)
 

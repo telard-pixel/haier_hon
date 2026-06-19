@@ -1,6 +1,6 @@
 """Client device descriptor for the addhOn transport.
 
-Native rewrite of `_vendor/pyhon/connection/device.HonDevice`: the "who am I"
+Native rewrite of pyhOn's `connection/device.HonDevice`: the "who am I"
 (app version, OS, model, mobileId) sent to the hOn cloud on every request.
 
 The values below mirror pyhOn's TODAY, so the payload is identical and

@@ -12,8 +12,7 @@ from .debug_utils import debug_key_sample, redact_email
 _LOGGER = logging.getLogger(__name__)
 
 # The hOn client is entirely native (client/): the session comes from
-# client.pyhon_adapter.create_session. pyhOn (_vendor/) was removed in Phase 4;
-# the BABYCARE fix is native in the enum class.
+# client.factory.create_session. The BABYCARE fix is native in the enum class.
 
 _SERIAL_ATTRS = ("serial_number", "serialNumber", "mac_address", "macAddress", "code")
 _CONSUMPTION_ATTRS = (
@@ -27,7 +26,7 @@ _CONSUMPTION_ATTRS = (
 
 
 def _debug_container_to_dict(container, label: str) -> dict:
-    """Best-effort conversion of a pyhOn container for diagnostic logging."""
+    """Best-effort conversion of a client container for diagnostic logging."""
     if container is None:
         return {}
     if isinstance(container, dict):
@@ -143,7 +142,7 @@ def _get_attributes(appliance) -> dict:
 
     # The consumption counters (totalElectricityUsed, totalWaterUsed,
     # totalWashCycle, currentElectricityUsed, currentWaterUsed, ...) live in the
-    # pyhOn `statistics` container, populated by load_statistics() but so far NEVER
+    # the `statistics` container, populated by load_statistics() but so far NEVER
     # exposed to the sensors. We merge it first, so real-time attributes and
     # settings win in case of conflicting keys.
     stats = getattr(appliance, "statistics", None)
@@ -188,10 +187,9 @@ def _error_text(err: BaseException) -> str:
 
 def _is_auth_error(err: BaseException) -> bool:
     # Check both the message AND the exception class name: the login-flow errors
-    # (our NativeAuthError, pyhOn's HonAuthenticationError) contain "auth" in the
-    # NAME even when the message does not (e.g. wrong password -> "login:
-    # failed"/"Can't login"), so they are classified as invalid_auth without
-    # having to import those classes (hon_client stays _vendor-free). The
+    # (e.g. our NativeAuthError) contain "auth" in the NAME even when the message
+    # does not (e.g. wrong password -> "login: failed"/"Can't login"), so they are
+    # classified as invalid_auth by name without importing those classes. The
     # "retryable 5xx" check in _requires_reauth keeps priority: an auth error that
     # nonetheless carries a 500/timeout goes into retry, not reauth.
     haystack = f"{_error_text(err)} {type(err).__name__.lower()}"
@@ -239,12 +237,12 @@ def _requires_reauth(err: BaseException) -> bool:
 
 
 class HonClient:
-    """Manages the connection to the Haier hOn APIs via pyhOn.
+    """Manages the connection to the Haier hOn APIs via the native client.
 
     Loop strategy:
     - We keep a single dedicated event loop (_hon_loop) running on a background
       thread (_hon_thread).
-    - ALL pyhOn calls (setup, update, commands) are executed on that loop via
+    - ALL client calls (setup, update, commands) are executed on that loop via
       asyncio.run_coroutine_threadsafe(), so the aiohttp session never changes
       loop and never errors out.
     - HA's event loop is never blocked.
@@ -409,7 +407,7 @@ class HonClient:
         self._hon_thread = None
 
     def _close_sync(self) -> None:
-        """Close the pyhOn session and the dedicated loop idempotently."""
+        """Close the hOn session and the dedicated loop idempotently."""
         with self._lifecycle_lock:
             hon = self._hon_instance
             self._hon_instance = None
@@ -425,15 +423,14 @@ class HonClient:
     # -- Setup -----------------------------------------------------------------
 
     def setup_sync(self) -> None:
-        """Full pyhOn setup in executor (NOT on HA's event loop).
+        """Full client setup in executor (NOT on HA's event loop).
 
         Starts the dedicated loop, creates the Hon instance and completes the
         login. The aiohttp session is created on the dedicated loop and stays
         bound to it for the whole lifetime of the client.
         """
-        # The hOn session comes from the native factory (client/); no import of
-        # _vendor.pyhon (removed in Phase 4). The BABYCARE fix is native in the enum.
-        from .client.pyhon_adapter import create_session
+        # The hOn session comes from the native factory (client/).
+        from .client.factory import create_session
 
         with self._lifecycle_lock:
             try:
@@ -456,7 +453,7 @@ class HonClient:
             raise RuntimeError("setup_sync() did not complete the hOn login")
 
     def run_command_sync(self, coro) -> Any:
-        """Run a pyhOn coroutine (e.g. command.send()) on the dedicated loop.
+        """Run a client coroutine (e.g. command.send()) on the dedicated loop.
 
         To be called in executor, not on HA's event loop.
         """
@@ -544,7 +541,7 @@ class HonClient:
                     )
                 raise RuntimeError(
                     "No update method available, "
-                    "check the installed pyhOn version."
+                    "check the integration version."
                 )
 
         self._run_on_hon_loop(_do_update())

@@ -1,6 +1,6 @@
 """Native per-type layer.
 
-Rewrites (does not copy) pyhOn's per-type appliances (`_vendor/pyhon/appliances/`):
+Rewrites (does not copy) pyhOn's per-type `appliances/`:
 CLIENT-SIDE derivations (programName, modes, active/pause, available) and tweaks to the
 settings (e.g. dryLevel). They do NOT go to the cloud: the oracle is the app + dumps, not the bytes.
 

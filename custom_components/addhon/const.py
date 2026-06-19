@@ -50,14 +50,14 @@ PROGRAM_PARAM_NAMES = ("program", "prCode")
 # to startProgram. The single shared source of truth between select.py and button.py.
 PROGRAM_PENDING_STORE = "pending_programs"
 
-# Service to change at runtime the log level of pyhOn's realtime MQTT channel. By
+# Service to change at runtime the log level of the realtime MQTT channel. By
 # default the reconnection-attempt noise is silenced (see logging_utils); this
 # service re-enables it on demand for debugging. The logger names and the level
 # map live in logging_utils.py (testable in isolation).
 SERVICE_SET_MQTT_LOG_LEVEL = "set_mqtt_log_level"
 
-# Service to raise/lower at runtime the debug of the integration and of the pyhOn
-# loggers useful for discovery/polling. MQTT stays handled by the dedicated
+# Service to raise/lower at runtime the debug of the integration and of the native
+# hOn client loggers useful for discovery/polling. MQTT stays handled by the dedicated
 # service above so as not to turn the realtime noise back on when investigating an
 # empty device list.
 SERVICE_SET_LOG_LEVEL = "set_log_level"

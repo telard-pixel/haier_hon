@@ -1,6 +1,6 @@
 """Native HonParameterEnum, with the BABYCARE bug FIX.
 
-Porting of `_vendor/pyhon/parameter/enum.py`. The ONLY intentional divergence: the setter.
+Porting of pyhOn's `parameter/enum.py`. The ONLY intentional divergence: the setter.
 pyhOn compares the RAW incoming value against `self.values`, which is ALREADY
 normalized by `clean_value` (lowercase, strip `[]`, `|`->`_`). So a value with
 the cloud's casing (e.g. "BABYCARE") never matches ["babycare"] -> ValueError.

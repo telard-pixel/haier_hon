@@ -221,8 +221,8 @@ def _shadow(prcode):
 
 class ProgramNameEndToEndTest(unittest.TestCase):
     def _build(self, attrs):
-        from custom_components.addhon.client import pyhon_adapter
-        app = pyhon_adapter._native_engine_appliance_cls()(DictApi(_PN_COMMANDS, attrs), dict(_PN_INFO), zone=0)
+        from custom_components.addhon.client import factory
+        app = factory._native_engine_appliance_cls()(DictApi(_PN_COMMANDS, attrs), dict(_PN_INFO), zone=0)
         loop = asyncio.new_event_loop()
         try:
             loop.run_until_complete(app.load_commands())

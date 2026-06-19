@@ -1,4 +1,4 @@
-"""Native base ApplianceExtra. Rewrite of `_vendor/pyhon/appliances/base.py`.
+"""Native base ApplianceExtra. Rewrite of pyhOn's `appliances/base.py`.
 
 Per-type hooks on the appliance state:
 - `attributes(data)`: post-processes the shadow (adds derived fields).

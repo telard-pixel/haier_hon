@@ -1,7 +1,6 @@
 """Native addhOn MQTT client (AWS IoT realtime push).
 
-Rewrite (not a copy) of `_vendor/pyhon/connection/mqtt.MQTTClient` with awscrt
-directly: replaces the former `_vendor/pyhon/connection/mqtt` with awscrt directly.
+Rewrite (not a copy) of pyhOn's `connection/mqtt.MQTTClient`, using awscrt directly.
 
 Receives the session (`NativeHon`) and reads its `api` (tokens: `load_aws_token` +
 `auth.id_token`), `appliances`, `notify` (all duck-typed): the `appliance` objects are the
@@ -137,8 +136,8 @@ class NativeMqttClient:
             for parameter in payload.get("parameters", []):
                 name = parameter.get("parName")
                 # Only already-known parameters (seeded by load_attributes). A new
-                # parName is recovered at the next HTTP poll; creating it here would tie
-                # this module to _vendor (HonAttribute) -> deferred to Phase 4.
+                # parName is recovered at the next HTTP poll; creating it here would
+                # couple this transport module to the engine's HonAttribute.
                 if name in params:
                     params[name].update(parameter)
             appliance.sync_params_to_command("settings")

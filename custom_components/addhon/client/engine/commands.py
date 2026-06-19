@@ -1,4 +1,4 @@
-"""Native HonCommand. Porting of `_vendor/pyhon/commands.py`.
+"""Native HonCommand. Porting of pyhOn's `commands.py`.
 
 A command = a dict of parameter groups (parameters / ancillaryParameters / ...)
 plus category/program metadata. It builds the native parameters (range/enum/

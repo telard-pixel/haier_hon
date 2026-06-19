@@ -1,4 +1,4 @@
-"""Native rules engine. Porting of `_vendor/pyhon/rules.py`.
+"""Native rules engine. Porting of pyhOn's `rules.py`.
 
 A "rule" ties a trigger-parameter to an action on another parameter: when the
 trigger takes a certain value, the target is constrained (fixed value, or

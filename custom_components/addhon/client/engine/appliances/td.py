@@ -1,4 +1,4 @@
-"""TD (tumble dryer). Rewrite of `_vendor/pyhon/appliances/td.py`.
+"""TD (tumble dryer). Rewrite of pyhOn's `appliances/td.py`.
 
 `active`/offline-zeroing on par with pyhOn (they worked). `pause` FIX: by value
 (pyhOn `machMode == "3"` = always False; field not consumed, inert but correct fix).

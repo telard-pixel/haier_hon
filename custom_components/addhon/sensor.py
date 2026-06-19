@@ -101,7 +101,7 @@ class HonSensorEntityDescription(SensorEntityDescription):
     """Description of a Haier hOn sensor.
 
     - `key` = historic unique_id suffix (do NOT modify).
-    - `attr_key` = pyhOn attribute key read via HonBaseEntity._get_attr.
+    - `attr_key` = the attribute key read via HonBaseEntity._get_attr.
     - `value_fn` optional, transforms the raw value (e.g. a textual state map);
       without value_fn the value is converted to float (None if not numeric).
     - `gated` = if True the sensor is CAPABILITY-GATED: it is created only if the

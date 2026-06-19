@@ -1,4 +1,4 @@
-"""Native HonParameterRange. Faithful porting of `_vendor/pyhon/parameter/range.py`.
+"""Native HonParameterRange. Faithful porting of pyhOn's `parameter/range.py`.
 
 min/max/step/default via `str_to_float` (reuses client.helpers). `step` falls back to 1
 if 0. The setter validates range+step (modulo *100 to avoid float imprecision) and

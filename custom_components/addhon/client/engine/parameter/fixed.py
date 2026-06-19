@@ -1,4 +1,4 @@
-"""Native HonParameterFixed. Faithful porting of `_vendor/pyhon/parameter/fixed.py`.
+"""Native HonParameterFixed. Faithful porting of pyhOn's `parameter/fixed.py`.
 
 `value` defaults to "0" if empty (preserved quirk). The setter does NOT validate (pyhOn:
 "fixed values are not that fixed after all") and fires the triggers.

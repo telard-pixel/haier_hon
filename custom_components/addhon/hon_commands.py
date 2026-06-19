@@ -1,13 +1,13 @@
-"""Shared helpers to send pyhOn commands to the controls (Tier 3).
+"""Shared helpers to send hOn commands to the controls (Tier 3).
 
 Generalizes the pattern already used by button.py (sending a command while
 applying parameter overrides) and by ac_command.async_send_settings (set on the
 write command), making it neutral with respect to the command name. The Tier 3
 controls (number, switch/select/button for fridge/oven/...) reuse it without
-duplicating lookup, rollback and execution on pyhOn's dedicated loop.
+duplicating lookup, rollback and execution on the client's dedicated loop.
 
 Gating principle (see memory/repo): every control is CAPABILITY-GATED, i.e. it is
-created only if the device ACTUALLY exposes the command + parameter (pyhOn runtime
+created only if the device ACTUALLY exposes the command + parameter (the client runtime
 schema), with the candidate superset seeded from the app mapping. This way it is
 validated where we have the real dump, broad for the other models, and safe
 everywhere (a missing parameter does not generate an entity).
@@ -23,8 +23,8 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-# pyhOn commands from which the "set" controls (number/switch/select-mode) read
-# and write the free parameters. pyhOn names the command after the device's
+# the hOn commands from which the "set" controls (number/switch/select-mode) read
+# and write the free parameters. The client names the command after the device's
 # top-level key: "settings" is the AC's and the real fridge's one (the active
 # category exposes setParameters); "setParameters" as a fallback for other models.
 SETTINGS_COMMANDS: tuple[str, ...] = ("settings", "setParameters")
@@ -74,10 +74,10 @@ def param_values(param) -> list[str]:
 
 
 def param_range(param) -> tuple[float, float, float] | None:
-    """(min, max, step) of a pyhOn range parameter, or None if it is not a range.
+    """(min, max, step) of a range parameter, or None if it is not a range.
 
     Duck-typing on min/max/step (HonParameterRange exposes them). step returns 1.0
-    if pyhOn reports it as 0 (no declared increment)."""
+    if the parameter reports it as 0 (no declared increment)."""
     if not all(hasattr(param, attr) for attr in ("min", "max", "step")):
         return None
     try:
@@ -103,7 +103,7 @@ async def async_send_command(
     pre_send: Callable[[dict], None] | None = None,
 ) -> None:
     """Apply `params` (name->value) to command `command_name` and send it on
-    pyhOn's dedicated loop, with rollback if an assignment fails.
+    the client's dedicated loop, with rollback if an assignment fails.
 
     `pre_send(command_params)`: optional hook run BEFORE applying the requested
     parameters (the AC uses it to sanitize windDirection*). The requested values

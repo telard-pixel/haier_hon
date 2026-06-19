@@ -1,6 +1,6 @@
 """Native HonAttribute.
 
-Porting of `_vendor/pyhon/attributes.HonAttribute`. An "attribute" is a state value
+Porting of pyhOn's `attributes.HonAttribute`. An "attribute" is a state value
 that arrives from the device shadow (`shadow.parameters.<name> =
 {parNewVal, lastUpdate}`) or from an MQTT push. Behavior anchored to pyhOn by the
 differential test (tests/test_engine_attributes.py) against the real fridge data

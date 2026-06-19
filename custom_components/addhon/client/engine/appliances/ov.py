@@ -1,4 +1,4 @@
-"""OV (oven). Rewrite of `_vendor/pyhon/appliances/ov.py`.
+"""OV (oven). Rewrite of pyhOn's `appliances/ov.py`.
 
 Offline zeroing of temp/onOffStatus/remoteCtrValid/remainingTimeMM; `active` =
 onOffStatus==1. ON PAR with pyhOn (it already used `.value == 1`, correct). Robustness:

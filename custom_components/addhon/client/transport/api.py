@@ -1,6 +1,6 @@
 """Native HTTP API of the hOn cloud (addhOn transport).
 
-Rewrite (NOT a copy) of the authenticated methods of `_vendor/pyhon/connection/api.HonAPI`
+Rewrite (NOT a copy) of the authenticated methods of pyhOn's `connection/api.HonAPI`
 on top of our `HonConnection` (which injects the per-request tokens and handles the
 retry on expiry/401-403). Every method returns the SAME JSON shape that the native
 parser/command_loader engine expects: it is the contract towards `HonAppliance`/
@@ -20,7 +20,7 @@ appliances; not implemented because not used.
 
 `appliance` is duck-typed (`Any`): we only read `.appliance_type`, `.appliance_model_id`,
 `.mac_address`, `.code`, `.info` (dict), `.options`. This way `transport/` stays
-_vendor-free (no pyhOn import), as it is for the whole native layer.
+decoupled from the engine, as the whole native layer is.
 """
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Native ROOT HonAppliance. Rewrite of `_vendor/pyhon/appliance.HonAppliance`.
+"""Native ROOT HonAppliance. Rewrite of pyhOn's `appliance.HonAppliance`.
 
 Puts together our whole engine: native attributes (engine.attributes), native loader/
 commands/rules/program (engine.command_loader), native per-type layer

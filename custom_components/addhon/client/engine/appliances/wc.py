@@ -1,4 +1,4 @@
-"""WC (wine cellar). Rewrite of `_vendor/pyhon/appliances/wc.py`.
+"""WC (wine cellar). Rewrite of pyhOn's `appliances/wc.py`.
 
 No per-type logic beyond the base one (programName/available).
 """
