@@ -212,7 +212,10 @@ class HonNumber(HonBaseEntity, NumberEntity):
         appliance = self._appliance
         client = self._hon_client
         if not appliance or not client:
-            raise HomeAssistantError("Number: appliance o client non disponibile")
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="appliance_or_client_unavailable",
+            )
         # ALWAYS send a string: pyhOn str_to_float does `int(string)` and catches
         # only ValueError, so a fractional float (5.5) would be truncated to 5
         # WITHOUT error. The string "5.5" instead stays 5.5 and the range setter
@@ -232,4 +235,8 @@ class HonNumber(HonBaseEntity, NumberEntity):
             raise
         except Exception as err:
             _LOGGER.error("Number: set error %s=%s: %s", param, send_value, err, exc_info=True)
-            raise HomeAssistantError(f"Number: errore comando {param}: {err}") from err
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="command_error",
+                translation_placeholders={"error": str(err)},
+            ) from err

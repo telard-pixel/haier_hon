@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import re
 import sys
 import types
 import unittest
@@ -215,6 +216,50 @@ class EntityTranslationKeyTest(unittest.TestCase):
 
     def test_no_platform_only_in_one_language(self) -> None:
         self.assertEqual(set(_load_entity_block("en")), set(_load_entity_block("it")))
+
+
+def _code_translation_key_literals() -> set[str]:
+    """Every `translation_key="..."` / `_attr_translation_key = "..."` literal in the
+    integration source (covers raised-exception keys, fixed entity keys, and the
+    divergent entity keys - i.e. everything not defaulted from description.key)."""
+    keys: set[str] = set()
+    pattern = re.compile(r'translation_key\s*=\s*"([a-z0-9_]+)"')
+    for path in COMPONENT.rglob("*.py"):
+        if "translations" in path.parts:
+            continue
+        keys.update(pattern.findall(path.read_text(encoding="utf-8")))
+    return keys
+
+
+class CodeTranslationKeyLiteralsTest(unittest.TestCase):
+    def test_every_literal_key_is_translated(self) -> None:
+        used = _code_translation_key_literals()
+        for lang in ("en", "it"):
+            data = json.loads((COMPONENT / "translations" / f"{lang}.json").read_text(encoding="utf-8"))
+            entity_keys = {k for plat in data.get("entity", {}).values() for k in plat}
+            exc_keys = set(data.get("exceptions", {}))
+            missing = used - (entity_keys | exc_keys)
+            self.assertFalse(
+                missing,
+                f"[{lang}] translation_key literals used in code with no entity/exceptions "
+                f"entry: {sorted(missing)}",
+            )
+
+    def test_no_orphan_exception_keys(self) -> None:
+        used = _code_translation_key_literals()
+        for lang in ("en", "it"):
+            data = json.loads((COMPONENT / "translations" / f"{lang}.json").read_text(encoding="utf-8"))
+            exc_keys = set(data.get("exceptions", {}))
+            orphan = exc_keys - used
+            self.assertFalse(
+                orphan,
+                f"[{lang}] exceptions entries never raised by the code: {sorted(orphan)}",
+            )
+
+    def test_exceptions_parity(self) -> None:
+        en = json.loads((COMPONENT / "translations" / "en.json").read_text(encoding="utf-8"))
+        it = json.loads((COMPONENT / "translations" / "it.json").read_text(encoding="utf-8"))
+        self.assertEqual(set(en.get("exceptions", {})), set(it.get("exceptions", {})))
 
 
 if __name__ == "__main__":

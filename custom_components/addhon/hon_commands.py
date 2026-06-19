@@ -19,6 +19,8 @@ import logging
 
 from homeassistant.exceptions import HomeAssistantError
 
+from .const import DOMAIN
+
 _LOGGER = logging.getLogger(__name__)
 
 # pyhOn commands from which the "set" controls (number/switch/select-mode) read
@@ -108,7 +110,10 @@ async def async_send_command(
     win anyway over whatever pre_send has set.
     """
     if not appliance or not client:
-        raise HomeAssistantError("Comando: appliance o client non disponibile")
+        raise HomeAssistantError(
+            translation_domain=DOMAIN,
+            translation_key="appliance_or_client_unavailable",
+        )
 
     def _do_send():
         async def _inner():

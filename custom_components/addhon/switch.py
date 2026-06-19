@@ -143,7 +143,10 @@ class HonWashingMachinePauseSwitch(HonBaseEntity, SwitchEntity):
         appliance = self._appliance
         client = self._hon_client
         if not appliance or not client:
-            raise HomeAssistantError("Pausa: appliance o client non disponibile")
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="appliance_or_client_unavailable",
+            )
         _LOGGER.debug(
             "Switch debug: sending pause command '%s' value=%s id=%s commands=%s",
             command_name,
@@ -187,7 +190,11 @@ class HonWashingMachinePauseSwitch(HonBaseEntity, SwitchEntity):
             await self._async_request_command_refresh()
         except Exception as err:
             _LOGGER.error("Pause %s: Error: %s", command_name, err, exc_info=True)
-            raise HomeAssistantError(f"Pausa {command_name}: errore comando: {err}") from err
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="command_error",
+                translation_placeholders={"error": str(err)},
+            ) from err
 
     async def async_turn_on(self, **kwargs) -> None:
         await self._send_pause_command("pauseProgram", "1")
@@ -228,7 +235,10 @@ class HonAcSwitch(HonBaseEntity, SwitchEntity):
         appliance = self._appliance
         client = self._hon_client
         if not appliance or not client:
-            raise HomeAssistantError("Switch AC: appliance o client non disponibile")
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="appliance_or_client_unavailable",
+            )
         param = self._desc.param
         try:
             _LOGGER.debug("Switch debug: AC set %s=%s id=%s", param, value, self._appliance_id)
@@ -238,4 +248,8 @@ class HonAcSwitch(HonBaseEntity, SwitchEntity):
             raise
         except Exception as err:
             _LOGGER.error("AC switch: set error %s=%s: %s", param, value, err, exc_info=True)
-            raise HomeAssistantError(f"Switch AC: errore comando {param}: {err}") from err
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="command_error",
+                translation_placeholders={"error": str(err)},
+            ) from err

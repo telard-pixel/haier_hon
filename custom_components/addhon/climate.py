@@ -198,12 +198,16 @@ class HaierClimateEntity(HonBaseEntity, ClimateEntity):
         appliance = self._appliance
         if not appliance:
             raise HomeAssistantError(
-                f"Climate: appliance non disponibile per {self._appliance_id}"
+                translation_domain=DOMAIN,
+                translation_key="appliance_or_client_unavailable",
             )
         try:
             client = self._hon_client
             if client is None:
-                raise HomeAssistantError("Climate: HonClient non disponibile")
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN,
+                    translation_key="appliance_or_client_unavailable",
+                )
 
             if hvac_mode == HVACMode.OFF:
                 _LOGGER.debug("Climate debug: set_hvac_mode OFF -> onOffStatus=0")
@@ -226,7 +230,11 @@ class HaierClimateEntity(HonBaseEntity, ClimateEntity):
             await self._async_request_command_refresh()
         except Exception as err:
             _LOGGER.error("Climate: set_hvac_mode error: %s", err, exc_info=True)
-            raise HomeAssistantError(f"Climate: errore set_hvac_mode: {err}") from err
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="command_error",
+                translation_placeholders={"error": str(err)},
+            ) from err
 
     async def async_turn_on(self) -> None:
         """Turn on the air conditioner, putting it in COOL mode."""
@@ -245,21 +253,31 @@ class HaierClimateEntity(HonBaseEntity, ClimateEntity):
         appliance = self._appliance
         client = self._hon_client
         if not appliance or not client:
-            raise HomeAssistantError("Climate: appliance o client non disponibile")
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="appliance_or_client_unavailable",
+            )
         try:
             _LOGGER.debug("Climate debug: set_temperature %s -> tempSel=%s", temp, int(temp))
             await self._send_command_in_executor(client, appliance, {"tempSel": str(int(temp))})
             await self._async_request_command_refresh()
         except Exception as err:
             _LOGGER.error("Climate: set_temperature error: %s", err, exc_info=True)
-            raise HomeAssistantError(f"Climate: errore set_temperature: {err}") from err
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="command_error",
+                translation_placeholders={"error": str(err)},
+            ) from err
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         """Send the fan speed based on the map in const.py."""
         appliance = self._appliance
         client = self._hon_client
         if not appliance or not client:
-            raise HomeAssistantError("Climate: appliance o client non disponibile")
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="appliance_or_client_unavailable",
+            )
         try:
             speed_key = AC_FAN_MAP_REVERSE.get(fan_mode, "0")
             _LOGGER.debug("Climate debug: set_fan_mode %s -> windSpeed=%s", fan_mode, speed_key)
@@ -267,7 +285,11 @@ class HaierClimateEntity(HonBaseEntity, ClimateEntity):
             await self._async_request_command_refresh()
         except Exception as err:
             _LOGGER.error("Climate: set_fan_mode error: %s", err, exc_info=True)
-            raise HomeAssistantError(f"Climate: errore set_fan_mode: {err}") from err
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="command_error",
+                translation_placeholders={"error": str(err)},
+            ) from err
 
     async def async_set_swing_mode(self, swing_mode: str) -> None:
         """Enable/disable the vertical oscillation (windDirectionVertical).
@@ -278,11 +300,15 @@ class HaierClimateEntity(HonBaseEntity, ClimateEntity):
         appliance = self._appliance
         client = self._hon_client
         if not appliance or not client:
-            raise HomeAssistantError("Climate: appliance o client non disponibile")
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="appliance_or_client_unavailable",
+            )
         param = settings_param(appliance, AC_SWING_V_PARAM)
         if param is None:
             raise HomeAssistantError(
-                "Climate: il dispositivo non espone windDirectionVertical"
+                translation_domain=DOMAIN,
+                translation_key="swing_not_supported",
             )
         allowed = param_allowed_values(param)
         if swing_mode == AC_SWING_MODE_ON:
@@ -291,7 +317,9 @@ class HaierClimateEntity(HonBaseEntity, ClimateEntity):
             target = fixed_vertical_value(allowed)
         if allowed and target not in allowed:
             raise HomeAssistantError(
-                f"Climate: posizione swing {target} non ammessa (ammessi: {allowed})"
+                translation_domain=DOMAIN,
+                translation_key="swing_position_not_allowed",
+                translation_placeholders={"position": str(target), "allowed": str(allowed)},
             )
         try:
             _LOGGER.debug(
@@ -306,7 +334,11 @@ class HaierClimateEntity(HonBaseEntity, ClimateEntity):
             raise
         except Exception as err:
             _LOGGER.error("Climate: set_swing_mode error: %s", err, exc_info=True)
-            raise HomeAssistantError(f"Climate: errore set_swing_mode: {err}") from err
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="command_error",
+                translation_placeholders={"error": str(err)},
+            ) from err
 
     async def _send_command_in_executor(self, client, appliance, params: dict) -> None:
         """Send the AC settings command (windDirection sanitation included).

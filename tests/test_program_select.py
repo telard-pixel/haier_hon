@@ -436,8 +436,12 @@ class ProgramSelectTest(unittest.IsolatedAsyncioTestCase):
         )
         self._attach(button)
 
-        with self.assertRaisesRegex(HomeAssistantError, "not applicable"):
+        with self.assertRaises(HomeAssistantError) as ctx:
             await button.async_press()
+        # Translatable error: the wrapper carries translation_key="command_error"
+        # and the underlying detail ("not applicable") in the error placeholder.
+        self.assertEqual("command_error", ctx.exception.translation_key)
+        self.assertIn("not applicable", ctx.exception.translation_placeholders["error"])
 
         self.assertEqual(0, start.send_calls)
         self.assertEqual({"washer-1": "2"}, coordinator.pending_programs)
@@ -451,8 +455,10 @@ class ProgramSelectTest(unittest.IsolatedAsyncioTestCase):
         entity = HonProgramSelect(coordinator, "washer-1", FakeClient())
         self._attach(entity)
 
-        with self.assertRaisesRegex(HomeAssistantError, "non trovato"):
+        with self.assertRaises(HomeAssistantError) as ctx:
             await entity.async_select_option("Inesistente")
+        self.assertEqual("program_not_found", ctx.exception.translation_key)
+        self.assertEqual("Inesistente", ctx.exception.translation_placeholders["program"])
 
 
 class LegacyPowerCleanupTest(unittest.TestCase):

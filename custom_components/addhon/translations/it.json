@@ -393,5 +393,28 @@
         "name": "Ferma programma"
       }
     }
+  },
+  "exceptions": {
+    "appliance_or_client_unavailable": {
+      "message": "L'apparecchio o il client non è disponibile."
+    },
+    "command_error": {
+      "message": "Comando non riuscito: {error}"
+    },
+    "program_not_found": {
+      "message": "Programma '{program}' non trovato."
+    },
+    "refresh_after_command_failed": {
+      "message": "Aggiornamento dopo il comando non riuscito."
+    },
+    "refresh_after_command_failed_error": {
+      "message": "Aggiornamento dopo il comando non riuscito: {error}"
+    },
+    "swing_not_supported": {
+      "message": "Questo apparecchio non supporta l'oscillazione verticale."
+    },
+    "swing_position_not_allowed": {
+      "message": "Posizione oscillazione {position} non ammessa (ammesse: {allowed})."
+    }
   }
 }

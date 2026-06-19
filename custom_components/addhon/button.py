@@ -110,7 +110,10 @@ class HonProgramCommandButton(HonBaseEntity, ButtonEntity):
         appliance = self._appliance
         client = self._hon_client
         if not appliance or not client:
-            raise HomeAssistantError("Button: appliance o client non disponibile")
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="appliance_or_client_unavailable",
+            )
 
         # Start: we apply the program chosen from the select (if present).
         # We read it here on the HA event loop and pass it into _inner.
@@ -218,5 +221,7 @@ class HonProgramCommandButton(HonBaseEntity, ButtonEntity):
                 self._command_name, err, exc_info=True,
             )
             raise HomeAssistantError(
-                f"Button {self._command_name}: errore comando: {err}"
+                translation_domain=DOMAIN,
+                translation_key="command_error",
+                translation_placeholders={"error": str(err)},
             ) from err

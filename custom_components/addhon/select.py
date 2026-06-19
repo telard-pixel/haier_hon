@@ -287,7 +287,11 @@ class HonProgramSelect(HonBaseEntity, SelectEntity):
     async def async_select_option(self, option: str) -> None:
         code = self._program_reverse.get(option)
         if code is None:
-            raise HomeAssistantError(f"Select: programma '{option}' non trovato nella mappa")
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="program_not_found",
+                translation_placeholders={"program": option},
+            )
         # "Set only": we store the choice WITHOUT sending any command.
         # Selecting a program must never start the appliance; the start happens
         # with the "Avvia programma" button, which reads this pending program and

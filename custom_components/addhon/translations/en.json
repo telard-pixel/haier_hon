@@ -393,5 +393,28 @@
         "name": "Stop program"
       }
     }
+  },
+  "exceptions": {
+    "appliance_or_client_unavailable": {
+      "message": "The appliance or client is not available."
+    },
+    "command_error": {
+      "message": "Command failed: {error}"
+    },
+    "program_not_found": {
+      "message": "Program '{program}' was not found."
+    },
+    "refresh_after_command_failed": {
+      "message": "Refresh after the command failed."
+    },
+    "refresh_after_command_failed_error": {
+      "message": "Refresh after the command failed: {error}"
+    },
+    "swing_not_supported": {
+      "message": "This device does not support vertical swing."
+    },
+    "swing_position_not_allowed": {
+      "message": "Swing position {position} is not allowed (allowed: {allowed})."
+    }
   }
 }

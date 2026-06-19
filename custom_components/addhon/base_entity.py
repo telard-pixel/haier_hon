@@ -280,5 +280,12 @@ class HonBaseEntity(CoordinatorEntity):
 
         err = getattr(self.coordinator, "last_exception", None)
         if err is None:
-            raise HomeAssistantError("Refresh dopo comando fallito")
-        raise HomeAssistantError(f"Refresh dopo comando fallito: {err}") from err
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="refresh_after_command_failed",
+            )
+        raise HomeAssistantError(
+            translation_domain=DOMAIN,
+            translation_key="refresh_after_command_failed_error",
+            translation_placeholders={"error": str(err)},
+        ) from err
