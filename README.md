@@ -1,11 +1,14 @@
 <div align="center">
+   
 # addhOn
 
-### 
+### Add your Haier devices to your home automation system
 
-***A custom Home Assistant integration for controlling Haier appliances via the hOn cloud API. It discovers your paired appliances, exposes them as Home Assistant entities, and routes control commands to the supported types (see [Supported Devices](#supported-devices)).
+**A custom Home Assistant integration for controlling Haier appliances via the hOn cloud API. It discovers your paired appliances, exposes them as Home Assistant entities, and routes control commands to the supported types**
 
 </div>
+
+---
 
 ## Features
 
