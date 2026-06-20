@@ -112,3 +112,51 @@ delete_remote_tag() {
 
   git push origin ":refs/tags/${tag}" || true
 }
+
+# Existence probes that DISTINGUISH absent from error. A transient auth/network
+# failure must never be silently read as "does not exist" (which would defeat the
+# immutability/preflight gates). Echo: present|absent|error.
+
+remote_tag_state() {
+  local tag="${1:-}"
+  local rc=0
+  # git ls-remote --exit-code: 0 = ref found, 2 = no matching ref, other = failure.
+  git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1 || rc=$?
+  case "${rc}" in
+    0) echo "present" ;;
+    2) echo "absent" ;;
+    *) echo "error" ;;
+  esac
+}
+
+remote_release_state() {
+  local tag="${1:-}"
+  local out
+  local rc=0
+  out="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${tag}" 2>&1)" || rc=$?
+  if [[ "${rc}" -eq 0 ]]; then
+    echo "present"
+  elif printf '%s' "${out}" | grep -qi 'HTTP 404\|Not Found'; then
+    echo "absent"
+  else
+    echo "error"
+  fi
+}
+
+# Hard gates: die on "present" AND on "error" (fail closed). Used where the only
+# acceptable state to proceed is a confirmed "absent".
+assert_release_tag_absent() {
+  local tag="${1:-}"
+  case "$(remote_tag_state "${tag}")" in
+    present) die "Tag ${tag} already exists and is immutable." ;;
+    error)   die "Could not determine whether tag ${tag} exists (git ls-remote failed); aborting." ;;
+  esac
+}
+
+assert_release_absent() {
+  local tag="${1:-}"
+  case "$(remote_release_state "${tag}")" in
+    present) die "Release ${tag} already exists." ;;
+    error)   die "Could not determine whether release ${tag} exists (gh api failed); aborting." ;;
+  esac
+}

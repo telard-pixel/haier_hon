@@ -66,13 +66,18 @@ jobs:
 
           # v* tags are immutable: refuse to start a release whose version is already
           # published or already tagged (we may only ever CREATE a fresh v* tag).
-          if gh release view "${TAG}" >/dev/null 2>&1; then
+          # The probes distinguish absent from error, so a transient failure is NOT
+          # misread as "absent" (fail closed).
+          REL_STATE="$(remote_release_state "${TAG}")"
+          TAG_STATE="$(remote_tag_state "${TAG}")"
+          if [[ "${REL_STATE}" == "present" || "${TAG_STATE}" == "present" ]]; then
             delete_remote_tag "${TRIGGER}"
-            die "Release ${TAG} already exists."
+            die "Version ${TAG} already exists (release=${REL_STATE}, tag=${TAG_STATE}); pick a new version."
           fi
-          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
-            delete_remote_tag "${TRIGGER}"
-            die "Tag ${TAG} already exists and is immutable; pick a new version."
+          if [[ "${REL_STATE}" == "error" || "${TAG_STATE}" == "error" ]]; then
+            # Transient query failure: do NOT open a PR and do NOT delete the trigger,
+            # so re-pushing ${TRIGGER} retries cleanly.
+            die "Could not verify whether ${TAG} already exists (release=${REL_STATE}, tag=${TAG_STATE}); aborting."
           fi
 
           OPEN_PR="$(gh pr list --base main --head dev --state open --json number --jq '.[0].number // ""')"

@@ -93,13 +93,11 @@ jobs:
           fi
 
           # The vX.Y.Z tag is immutable (the ruleset blocks update + deletion), so
-          # it must NOT exist yet: we only ever CREATE it, once, here.
-          if gh release view "${TAG}" >/dev/null 2>&1; then
-            die "Release ${TAG} already exists; refusing to overwrite it."
-          fi
-          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
-            die "Tag ${TAG} already exists; refusing to release onto a pre-existing (stale) tag. Resolve manually."
-          fi
+          # it must NOT exist yet: we only ever CREATE it, once, here. These gates
+          # FAIL CLOSED: a transient auth/network error aborts rather than being
+          # misread as "absent" (which would let us try to publish onto a stale tag).
+          assert_release_absent "${TAG}"
+          assert_release_tag_absent "${TAG}"
 
           # Create the tag AND publish the release in one step. `gh release create`
           # with a not-yet-existing tag CREATES it at --target (the squash commit) =
