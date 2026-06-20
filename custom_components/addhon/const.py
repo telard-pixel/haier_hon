@@ -97,15 +97,6 @@ AC_SWING_V_ON        = "8"                        # 8 = vertical oscillation
 AC_SWING_MODE_ON     = "on"
 AC_SWING_MODE_OFF    = "off"
 AC_ATTR_ON_OFF       = "settings.onOffStatus"
-# ecoMode exists only in startProgram (NOT in settings), confirmed from diagnostics
-AC_ATTR_ECO          = "startProgram.ecoMode"
-AC_ATTR_RAPID        = "settings.rapidMode"
-# silentSleepStatus is the real name; muteStatus is separate (display mute)
-AC_ATTR_SLEEP        = "settings.silentSleepStatus"
-AC_ATTR_SILENT       = "settings.muteStatus"
-AC_ATTR_FILTER       = "settings.filterChangeStatusCloud"
-AC_ATTR_SELF_CLEAN   = "settings.selfCleaningStatus"
-AC_ATTR_LIGHT        = "settings.lightStatus"
 AC_ATTR_COMPRESSOR_FREQ = "compressorFrequency"
 AC_ATTR_TOTAL_ENERGY = "totalElectricityUsed"
 # Air quality (direct attributes, confirmed on Roberto's AC)
@@ -276,4 +267,37 @@ RVC_POWER_MAP = {
     "0": "auto",
     "1": "turbo",
     "2": "quiet",
+}
+
+# Washing-machine stain type (stainType -> app StainTypes enum; codes from the
+# decompiled app, aligned with Andre0512/hon). 0 = none selected. Rendered
+# per-language via the sensor state translations; unmapped codes -> None.
+STAIN_TYPE_MAP = {
+    "0": "none",
+    "1": "wine",
+    "2": "grass",
+    "3": "soil",
+    "4": "blood",
+    "5": "milk",
+    "6": "cooking_oil",
+    "7": "tea",
+    "8": "coffee",
+    "9": "ice_cream",
+    "10": "lip_gloss",
+    "11": "curry",
+    "12": "milk_tea",
+    "13": "rust",
+    "14": "blue_ink",
+    "15": "perfume",
+    "16": "shoe_cream",
+    "17": "oil_pastel",
+    "18": "blueberry",
+    "19": "sweat",
+    "20": "egg",
+    "21": "ketchup",
+    "22": "baby_food",
+    "23": "soy_sauce",
+    "24": "bean_paste",
+    "25": "chili_sauce",
+    "26": "fruit",
 }

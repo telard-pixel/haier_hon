@@ -128,6 +128,9 @@
       "dry_level": {
         "name": "Dry level"
       },
+      "temp_level": {
+        "name": "Temperature level"
+      },
       "spin_speed": {
         "name": "Spin speed"
       },
@@ -136,6 +139,38 @@
       },
       "dirty_level": {
         "name": "Soil level"
+      },
+      "stain_type": {
+        "name": "Stain type",
+        "state": {
+          "none": "None",
+          "wine": "Wine",
+          "grass": "Grass",
+          "soil": "Soil",
+          "blood": "Blood",
+          "milk": "Milk",
+          "cooking_oil": "Cooking oil",
+          "tea": "Tea",
+          "coffee": "Coffee",
+          "ice_cream": "Ice cream",
+          "lip_gloss": "Lip gloss",
+          "curry": "Curry",
+          "milk_tea": "Milk tea",
+          "rust": "Rust",
+          "blue_ink": "Blue ink",
+          "perfume": "Perfume",
+          "shoe_cream": "Shoe cream",
+          "oil_pastel": "Oil pastel",
+          "blueberry": "Blueberry",
+          "sweat": "Sweat",
+          "egg": "Egg",
+          "ketchup": "Ketchup",
+          "baby_food": "Baby food",
+          "soy_sauce": "Soy sauce",
+          "bean_paste": "Bean paste",
+          "chili_sauce": "Chili sauce",
+          "fruit": "Fruit"
+        }
       },
       "temp_indoor": {
         "name": "Indoor temperature"
@@ -357,6 +392,24 @@
       },
       "energy_saving": {
         "name": "Energy saving"
+      },
+      "quick_cool": {
+        "name": "Super cool"
+      },
+      "quick_freeze": {
+        "name": "Super freeze"
+      },
+      "auto_set": {
+        "name": "Auto-set"
+      },
+      "holiday_mode": {
+        "name": "Holiday mode"
+      },
+      "filter_change": {
+        "name": "Filter change"
+      },
+      "ch2o_cleaning": {
+        "name": "Formaldehyde cleaning"
       },
       "light": {
         "name": "Light"

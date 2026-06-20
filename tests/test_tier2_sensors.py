@@ -319,6 +319,19 @@ class Tier2GatingTest(unittest.IsolatedAsyncioTestCase):
         state = next(e for e in added if e._attr_unique_id == "x-1_state")
         self.assertIsNone(state.native_value)
 
+    async def test_dryer_temp_level(self) -> None:
+        # TD gains a temperature-level sensor (tempLevel); live-confirmed on HD100.
+        added = await _build_sensors("TD", {"tempLevel": "4", "machMode": "1"})
+        tl = next(e for e in added if e._attr_unique_id == "x-1_temp_level")
+        self.assertEqual(tl.native_value, 4.0)
+
+    async def test_washer_stain_type_decodes(self) -> None:
+        # WM stain_type ENUM: code -> machine key, 0 -> none, unknown -> None.
+        for raw, expected in (("1", "wine"), ("0", "none"), ("26", "fruit"), ("99", None)):
+            added = await _build_sensors("WM", {"stainType": raw})
+            st = next(e for e in added if e._attr_unique_id == "x-1_stain_type")
+            self.assertEqual(st.native_value, expected)
+
 
 class Tier2BinaryGatingTest(unittest.IsolatedAsyncioTestCase):
     async def test_cooling_binary_gating(self) -> None:
@@ -329,6 +342,24 @@ class Tier2BinaryGatingTest(unittest.IsolatedAsyncioTestCase):
         )
         door = next(e for e in added if e._attr_unique_id == "x-1_door_zone1")
         self.assertTrue(door.is_on)
+
+    async def test_cooling_binary_mode_flags(self) -> None:
+        # Read-only active-mode flags (quickModeZ1/Z2, intelligenceMode, holidayMode),
+        # capability-gated and decoded as 0/1. Live-confirmed present on the real fridge.
+        added = await _build_binary(
+            "REF",
+            {"quickModeZ1": "1", "quickModeZ2": "0", "intelligenceMode": "1", "holidayMode": "0"},
+        )
+        by_id = {e._attr_unique_id: e for e in added}
+        self.assertEqual(
+            set(by_id),
+            {"x-1_quick_cool", "x-1_quick_freeze", "x-1_auto_set",
+             "x-1_holiday_mode", "x-1_connectivity"},
+        )
+        self.assertTrue(by_id["x-1_quick_cool"].is_on)
+        self.assertFalse(by_id["x-1_quick_freeze"].is_on)
+        self.assertTrue(by_id["x-1_auto_set"].is_on)
+        self.assertFalse(by_id["x-1_holiday_mode"].is_on)
 
     async def test_hob_binary_only_present_zones(self) -> None:
         added = await _build_binary("IH", {"panStatusZ1": "1", "panStatusZ3": "0"})
@@ -342,6 +373,17 @@ class Tier2BinaryGatingTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual({e._attr_unique_id for e in added}, {"x-1_child_lock", "x-1_connectivity"})
         lock = next(e for e in added if e._attr_unique_id == "x-1_child_lock")
         self.assertTrue(lock.is_on)
+
+    async def test_ac_binary_gating(self) -> None:
+        # AC gains a per-type binary set (filter change + formaldehyde cleaning),
+        # capability-gated like all binary sensors. Live-confirmed on the real AC.
+        added = await _build_binary("AC", {"filterChangeStatusLocal": "1", "ch2oCleaningStatus": "0"})
+        by_id = {e._attr_unique_id: e for e in added}
+        self.assertEqual(
+            set(by_id), {"x-1_filter_change", "x-1_ch2o_cleaning", "x-1_connectivity"}
+        )
+        self.assertTrue(by_id["x-1_filter_change"].is_on)
+        self.assertFalse(by_id["x-1_ch2o_cleaning"].is_on)
 
 
 class ConnectivityBinaryTest(unittest.IsolatedAsyncioTestCase):

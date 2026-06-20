@@ -22,6 +22,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .base_entity import HonBaseEntity
 from .const import (
+    APPLIANCE_AC,
     APPLIANCE_DW,
     APPLIANCE_FR,
     APPLIANCE_FRE,
@@ -144,6 +145,31 @@ _COOLING_BINARY: tuple[HonBinarySensorEntityDescription, ...] = (
         icon="mdi:leaf",
         attr_key="energySavingStatus",
     ),
+    # Active-mode flags (0/1). Read-only mirrors of the boost/special modes; the
+    # engine also folds these into the derived modeZ1/modeZ2 (ref.py). Live-confirmed
+    # present on the real fridge (quickModeZ1/quickModeZ2/intelligenceMode/holidayMode).
+    HonBinarySensorEntityDescription(
+        key="quick_cool",
+        icon="mdi:snowflake",
+        attr_key="quickModeZ1",
+        device_class=BinarySensorDeviceClass.RUNNING,
+    ),
+    HonBinarySensorEntityDescription(
+        key="quick_freeze",
+        icon="mdi:snowflake-variant",
+        attr_key="quickModeZ2",
+        device_class=BinarySensorDeviceClass.RUNNING,
+    ),
+    HonBinarySensorEntityDescription(
+        key="auto_set",
+        icon="mdi:auto-mode",
+        attr_key="intelligenceMode",
+    ),
+    HonBinarySensorEntityDescription(
+        key="holiday_mode",
+        icon="mdi:palm-tree",
+        attr_key="holidayMode",
+    ),
 )
 
 # Oven (OV).
@@ -196,6 +222,23 @@ _HOOD_BINARY: tuple[HonBinarySensorEntityDescription, ...] = (
     ),
 )
 
+# Air conditioner (AC): status alarms/processes (0/1). Capability-gated like every
+# binary sensor. Live-confirmed present on the real AC (filterChangeStatusLocal,
+# ch2oCleaningStatus).
+_AC_BINARY: tuple[HonBinarySensorEntityDescription, ...] = (
+    HonBinarySensorEntityDescription(
+        key="filter_change",
+        attr_key="filterChangeStatusLocal",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+    ),
+    HonBinarySensorEntityDescription(
+        key="ch2o_cleaning",
+        icon="mdi:molecule",
+        attr_key="ch2oCleaningStatus",
+        device_class=BinarySensorDeviceClass.RUNNING,
+    ),
+)
+
 # Water heater (WH).
 _WATER_HEATER_BINARY: tuple[HonBinarySensorEntityDescription, ...] = (
     HonBinarySensorEntityDescription(
@@ -215,6 +258,7 @@ BINARY_SENSORS: dict[str, tuple[HonBinarySensorEntityDescription, ...]] = {
     APPLIANCE_WM: _WASH_BINARY,
     APPLIANCE_WD: _WASH_BINARY,
     APPLIANCE_TD: _DRY_BINARY,
+    APPLIANCE_AC: _AC_BINARY,
     # Tier 2 (read-only). FR/FRE reuse the fridge set, HOB the hob set.
     APPLIANCE_REF: _COOLING_BINARY,
     APPLIANCE_FR: _COOLING_BINARY,
