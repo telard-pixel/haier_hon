@@ -40,7 +40,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          source .github/scripts/release-policy.sh
+
+          # SECURITY: source the release policy from the TRUSTED base (origin/main),
+          # NEVER from the checked-out tag tree. On a `push: tags` event the default
+          # checkout is the tag = dev HEAD (the to-be-released, not-yet-reviewed code),
+          # so sourcing its release-policy.sh would let a tampered policy govern this
+          # write-credentialed job. Mirrors release-guard (base.sha) and cPSM's intake.
+          # NB: the new pr-v* helpers must already be on main; bootstrap falls back to
+          # the tag's policy only when main has no policy file at all.
+          git fetch --force origin main
+          POLICY="$(mktemp)"
+          if git cat-file -e "origin/main:.github/scripts/release-policy.sh" 2>/dev/null; then
+            git show "origin/main:.github/scripts/release-policy.sh" > "${POLICY}"
+          else
+            echo "::notice::Release policy absent on origin/main; bootstrap release, using the tag's policy."
+            cp .github/scripts/release-policy.sh "${POLICY}"
+          fi
+          # shellcheck source=/dev/null
+          source "${POLICY}"
 
           TRIGGER="${GITHUB_REF_NAME}"
 
