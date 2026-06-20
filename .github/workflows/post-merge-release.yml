@@ -92,30 +92,21 @@ jobs:
             exit 0
           fi
 
+          # The vX.Y.Z tag is immutable (the ruleset blocks update + deletion), so
+          # it must NOT exist yet: we only ever CREATE it, once, here.
           if gh release view "${TAG}" >/dev/null 2>&1; then
             die "Release ${TAG} already exists; refusing to overwrite it."
           fi
-
-          # Publish the tag on the squash commit. Force-push so this does NOT
-          # silently depend on the delete succeeding: a plain (non-forced) tag
-          # push is rejected as non-fast-forward when a stale tag still points
-          # elsewhere, which would abort AFTER dev was already fast-forwarded
-          # and leave a release-less partial state.
-          git tag -f "${TAG}" "${MERGE_SHA}"
-          if ! git push origin --force "refs/tags/${TAG}"; then
-            # Some rulesets forbid force-updating v* tags but allow delete+create.
-            notice "Force-updating tag ${TAG} was rejected; retrying via delete + create."
-            git push origin ":refs/tags/${TAG}" || true
-            git push origin "refs/tags/${TAG}"
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            die "Tag ${TAG} already exists; refusing to release onto a pre-existing (stale) tag. Resolve manually."
           fi
 
-          # Backstop: never cut a release against a stale tag. Fail loudly if the
-          # published tag did not land on the squash commit.
-          PUBLISHED_TAG_SHA="$(git ls-remote --tags origin "refs/tags/${TAG}" | awk 'NR==1{print $1}')"
-          [[ "${PUBLISHED_TAG_SHA}" == "${MERGE_SHA}" ]] \
-            || die "Tag ${TAG} did not publish onto the squash commit ${MERGE_SHA} (remote: ${PUBLISHED_TAG_SHA:-<absent>}); aborting before release."
-
-          RELEASE_ARGS=(release create "${TAG}" --target "${MERGE_SHA}" --title "${TAG}" --verify-tag --generate-notes)
+          # Create the tag AND publish the release in one step. `gh release create`
+          # with a not-yet-existing tag CREATES it at --target (the squash commit) =
+          # a tag CREATION, which the immutable-tag ruleset allows. We never run
+          # `git tag -f`, force-push, or delete on a v* tag. (No --verify-tag: that
+          # would require the tag to pre-exist; we want gh to create it.)
+          RELEASE_ARGS=(release create "${TAG}" --target "${MERGE_SHA}" --title "${TAG}" --generate-notes)
           if is_beta_tag "${TAG}"; then
             RELEASE_ARGS+=(--prerelease)
           fi

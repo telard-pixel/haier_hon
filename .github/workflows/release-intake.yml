@@ -1,9 +1,13 @@
 name: Release Intake
 
+# Started by pushing an UNPROTECTED pr-vX.Y.Z tag on dev. That tag does NOT match
+# the protected v*.*.* ruleset, so it can be created/deleted freely. This workflow
+# never creates or moves a v* tag: the authoritative vX.Y.Z tag is CREATED ONCE on
+# the squash commit by post-merge-release (a tag creation, which the ruleset allows).
 on:
   push:
     tags:
-      - "*"
+      - "pr-v*"
 
 permissions:
   contents: write
@@ -20,103 +24,95 @@ env:
 jobs:
   open-release-pr:
     name: open-release-pr
+    # Skip the tag-DELETION push event (this workflow deletes the pr-v* trigger
+    # tag itself; without this guard that deletion would re-trigger the job).
+    if: ${{ github.event.deleted != true }}
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout tag
+      - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           fetch-depth: 0
           token: ${{ secrets.RELEASE_BOT_TOKEN || github.token }}
 
-      - name: Validate tag and open PR
+      - name: Validate trigger tag and open release PR
         shell: bash
         run: |
           set -euo pipefail
           source .github/scripts/release-policy.sh
 
-          TAG="${GITHUB_REF_NAME}"
+          TRIGGER="${GITHUB_REF_NAME}"
 
-          if ! is_release_tag "${TAG}"; then
-            echo "::error::Invalid release tag '${TAG}'. Allowed formats are vX.Y.Z and vX.Y.Z-beta."
-            delete_remote_tag "${TAG}"
+          if ! is_pr_tag "${TRIGGER}"; then
+            echo "::error::Invalid trigger '${TRIGGER}'. Push pr-vX.Y.Z (or pr-vX.Y.Z-beta) on dev to start a release."
+            delete_remote_tag "${TRIGGER}"
             exit 1
           fi
 
-          git fetch --force origin dev main "refs/tags/${TAG}:refs/tags/${TAG}"
-
-          TAG_SHA="$(git rev-list -n 1 "${TAG}")"
-          DEV_SHA="$(git rev-parse origin/dev)"
-          MAIN_SHA="$(git rev-parse origin/main)"
+          TAG="$(release_tag_from_pr_tag "${TRIGGER}")"
           RELEASE_VERSION="$(version_from_tag "${TAG}")"
-          CURRENT_VERSION="$(manifest_version_at_ref "${TAG_SHA}")"
 
-          if [[ "${TAG_SHA}" == "${MAIN_SHA}" && "${DEV_SHA}" == "${MAIN_SHA}" && "${CURRENT_VERSION}" == "${RELEASE_VERSION}" ]]; then
-            notice "Tag ${TAG} already points at the synchronized main/dev release commit."
-            exit 0
-          fi
+          git fetch --force origin dev main "refs/tags/${TRIGGER}:refs/tags/${TRIGGER}"
 
-          if [[ "${TAG_SHA}" != "${DEV_SHA}" ]]; then
-            echo "::error::Tag ${TAG} must point to HEAD of dev (${DEV_SHA}), but points to ${TAG_SHA}."
-            delete_remote_tag "${TAG}"
+          TRIGGER_SHA="$(git rev-list -n 1 "${TRIGGER}")"
+          DEV_SHA="$(git rev-parse origin/dev)"
+
+          if [[ "${TRIGGER_SHA}" != "${DEV_SHA}" ]]; then
+            echo "::error::${TRIGGER} must point to HEAD of dev (${DEV_SHA}), but points to ${TRIGGER_SHA}."
+            delete_remote_tag "${TRIGGER}"
             exit 1
           fi
 
+          # v* tags are immutable: refuse to start a release whose version is already
+          # published or already tagged (we may only ever CREATE a fresh v* tag).
           if gh release view "${TAG}" >/dev/null 2>&1; then
+            delete_remote_tag "${TRIGGER}"
             die "Release ${TAG} already exists."
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            delete_remote_tag "${TRIGGER}"
+            die "Tag ${TAG} already exists and is immutable; pick a new version."
           fi
 
           OPEN_PR="$(gh pr list --base main --head dev --state open --json number --jq '.[0].number // ""')"
           if [[ -n "${OPEN_PR}" ]]; then
             PR_BODY="$(gh pr view "${OPEN_PR}" --json body --jq '.body')"
             export PR_BODY
-
-            if PR_TAG="$(extract_pr_marker release-tag)" && PR_SOURCE_SHA="$(extract_pr_marker release-source-sha)"; then
-              if [[ "${PR_TAG}" == "${TAG}" && "${PR_SOURCE_SHA}" == "${TAG_SHA}" && "${DEV_SHA}" == "${TAG_SHA}" ]]; then
-                notice "Release PR #${OPEN_PR} for ${TAG} already exists."
-                exit 0
-              fi
+            if PR_TAG="$(extract_pr_marker release-tag)" && [[ "${PR_TAG}" == "${TAG}" ]]; then
+              notice "Release PR #${OPEN_PR} for ${TAG} already open."
+              delete_remote_tag "${TRIGGER}"
+              exit 0
             fi
-
-            die "An open dev -> main PR already exists (#${OPEN_PR}). Close or merge it before pushing a new release tag."
+            delete_remote_tag "${TRIGGER}"
+            die "An open dev -> main PR already exists (#${OPEN_PR}). Close or merge it before starting a new release."
           fi
 
+          # Align the version source on dev with the requested release. dev is not
+          # protected, so this normal commit + push is fine.
+          CURRENT_VERSION="$(manifest_version_at_ref "${DEV_SHA}")"
           if [[ "${CURRENT_VERSION}" != "${RELEASE_VERSION}" ]]; then
             notice "Updating manifest.json from ${CURRENT_VERSION} to ${RELEASE_VERSION} for ${TAG}."
-
             git checkout -B dev origin/dev
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
             set_manifest_version "${RELEASE_VERSION}"
-
             if ! git diff --quiet -- custom_components/addhon/manifest.json; then
               git add custom_components/addhon/manifest.json
               git commit -m "chore: set manifest version ${RELEASE_VERSION}"
               git push origin HEAD:refs/heads/dev
             fi
-
-            TAG_SHA="$(git rev-parse HEAD)"
-            DEV_SHA="$(git rev-parse HEAD)"
-
-            # The "release tag policy" ruleset blocks deleting/updating
-            # refs/tags/v*.*.*; the delete+recreate needed to move the tag onto
-            # the bump commit fails ("fatal error in commit_refs"). Do NOT move
-            # the tag here. Drop the now-stale tag (it points at the pre-bump,
-            # manifest-mismatched commit) if the ruleset allows it, but tolerate
-            # failure so the PR is still opened. The authoritative published tag
-            # is (re)created on the squash commit by post-merge-release at merge.
-            git push origin ":refs/tags/${TAG}" || true
-            notice "Bumped manifest on dev (${DEV_SHA}); stale tag ${TAG} dropped (tolerated if blocked). Published ${TAG} is created on the squash commit at merge."
           else
-            assert_manifest_matches_tag "${TAG_SHA}" "${TAG}"
+            assert_manifest_matches_tag "${DEV_SHA}" "${TAG}"
           fi
+
+          # The trigger tag has done its job. Remove it (unprotected -> allowed).
+          delete_remote_tag "${TRIGGER}"
 
           BODY="$(cat <<EOF
           Automated release PR for \`${TAG}\`.
 
           <!-- release-tag: ${TAG} -->
-          <!-- release-source-sha: ${TAG_SHA} -->
           EOF
           )"
 

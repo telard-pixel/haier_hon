@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
 RELEASE_TAG_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+(-beta)?$'
+# Unprotected trigger tag that starts a release. It deliberately does NOT match
+# the protected v*.*.* ruleset, so it can be created/deleted freely; the real
+# vX.Y.Z tag is created once on the squash commit by post-merge-release.
+PR_TAG_REGEX='^pr-v[0-9]+\.[0-9]+\.[0-9]+(-beta)?$'
 
 die() {
   echo "::error::$*" >&2
@@ -25,6 +29,20 @@ validate_release_tag() {
 
 is_beta_tag() {
   [[ "${1:-}" == *-beta ]]
+}
+
+is_pr_tag() {
+  [[ "${1:-}" =~ ${PR_TAG_REGEX} ]]
+}
+
+# pr-vX.Y.Z -> vX.Y.Z (the release tag that will be CREATED at merge).
+release_tag_from_pr_tag() {
+  local pr_tag="${1:-}"
+
+  if ! is_pr_tag "${pr_tag}"; then
+    die "Invalid trigger tag '${pr_tag}'. Expected pr-vX.Y.Z or pr-vX.Y.Z-beta."
+  fi
+  printf '%s\n' "${pr_tag#pr-}"
 }
 
 version_from_tag() {
