@@ -15,6 +15,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 import logging
+import math
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -25,6 +26,7 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     UnitOfEnergy,
+    UnitOfMass,
     UnitOfTemperature,
     UnitOfTime,
     UnitOfVolume,
@@ -115,6 +117,10 @@ class HonSensorEntityDescription(SensorEntityDescription):
     attr_key: str
     value_fn: Callable[[object], object] | None = None
     gated: bool = False
+    # Alternative attribute names to try (in order) when `attr_key` is absent.
+    # Used for params reported under different names across models (e.g. a
+    # dishwasher wash temperature under `temp` or `temperature`).
+    attr_fallbacks: tuple[str, ...] = ()
 
 
 # State + remaining time: identical for washer/washer-dryer/tumble dryer.
@@ -198,6 +204,96 @@ def _stain(raw) -> str | None:
     return STAIN_TYPE_MAP.get(str(raw))
 
 
+def _loading_pct(raw) -> float | None:
+    """Average drum-load percentage from the loadingPercentage attribute.
+
+    Laundry devices report loadingPercentage as a history LIST of
+    {"current", "max", "date"} records (load vs drum capacity over past cycles),
+    not a scalar, so the generic float() path would raise on the list and the
+    sensor would stay unknown. Following the official app's "Loading Percentage"
+    statistic, a record whose own max is 0/missing borrows the largest max in the
+    list, each record's current is clamped to its max, and the load percent
+    (current / max * 100) is averaged across the records. The clamp keeps the
+    result within 0..100. A plain scalar / numeric string is passed through
+    unchanged for forward/backward compatibility.
+
+    The app limits the average to the five most recent records by `date`. We
+    deliberately average ALL records instead and ignore `date`: its serialization
+    is not verified against a live washer (the only known sample is the app's mock
+    of JS Date objects), so any ordering would be unreliable, and the app's own
+    backfill reducer is buggy. Real statistics lists observed so far are short
+    (<= 5), where averaging all and "the most recent five" are identical. Revisit
+    the windowing once a washer is available to validate the `date` shape live.
+
+    Returns None (sensor "unknown", not a crash) when the value is missing, the
+    list is empty/malformed, or no usable max can be derived (e.g. a device with
+    no completed cycle yet, whose records all report max == 0 so drum capacity is
+    unknown).
+    """
+    if raw is None:
+        return None
+    # Scalar / numeric-string passthrough (a model that ever reports a plain value).
+    if not isinstance(raw, (list, tuple)):
+        try:
+            value = float(raw)
+        except (ValueError, TypeError):
+            return None
+        return value if math.isfinite(value) else None
+    records = [r for r in raw if isinstance(r, dict) and r.get("current") is not None]
+    if not records:
+        return None
+    # Fleet-wide fallback for records whose own max is 0/missing: borrow the
+    # largest known drum capacity (a clean global max, unlike the app's reducer).
+    valid_maxes = []
+    for record in records:
+        try:
+            candidate = float(record["max"])
+        except (KeyError, ValueError, TypeError):
+            continue
+        if math.isfinite(candidate) and candidate > 0:
+            valid_maxes.append(candidate)
+    fallback_max = max(valid_maxes) if valid_maxes else None
+    ratios = []
+    for record in records:
+        try:
+            current = float(record["current"])
+        except (ValueError, TypeError):
+            continue
+        try:
+            maximum = float(record.get("max"))
+        except (ValueError, TypeError):
+            maximum = 0.0
+        # A non-finite/non-positive own max is unusable; borrow the fleet capacity.
+        usable_max = maximum if (math.isfinite(maximum) and maximum > 0) else None
+        denom = usable_max if usable_max else fallback_max
+        if not denom or denom <= 0:
+            continue
+        current = min(current, denom)  # clamp like the app's Math.min(current, max)
+        ratio = current / denom * 100.0
+        if math.isfinite(ratio) and ratio >= 0:
+            ratios.append(ratio)
+    if not ratios:
+        return None
+    return round(sum(ratios) / len(ratios), 1)
+
+
+def _g_grams(key: str, attr: str) -> "HonSensorEntityDescription":
+    """Gated mass sensor in grams (e.g. auto-dosed detergent/softener weight)."""
+    return HonSensorEntityDescription(
+        key=key,
+        attr_key=attr,
+        native_unit_of_measurement=UnitOfMass.GRAMS,
+        device_class=SensorDeviceClass.WEIGHT,
+        state_class=SensorStateClass.MEASUREMENT,
+        gated=True,
+    )
+
+
+def _g_int(key: str, attr: str, icon: str | None = None) -> "HonSensorEntityDescription":
+    """Gated plain-integer sensor: no device_class/unit, default float() render."""
+    return HonSensorEntityDescription(key=key, attr_key=attr, icon=icon, gated=True)
+
+
 _PROGRAM_NAME = HonSensorEntityDescription(
     key="program_name",
     icon="mdi:format-list-bulleted",
@@ -240,6 +336,7 @@ _LOADING = HonSensorEntityDescription(
     attr_key=WM_ATTR_LOADING,
     native_unit_of_measurement="%",
     state_class=SensorStateClass.MEASUREMENT,
+    value_fn=_loading_pct,
 )
 _DRY_LEVEL = HonSensorEntityDescription(
     key="dry_level",
@@ -277,28 +374,49 @@ _WASH_EXTRA: tuple[HonSensorEntityDescription, ...] = (
     ),
 )
 
-# Washer (WM): state/time + program + wash extras + load/delay + consumption.
+# Auto-dose / cycle telemetry (premium features, not on every model). gated=True so
+# they self-suppress where absent. currentWashCycle/remainingRinseIterations are
+# gvigroux-live-tested bare params (the decomp has only the WM-prefixed statistics
+# form), so gating is essential.
+_WASH_DOSE: tuple[HonSensorEntityDescription, ...] = (
+    _g_int("current_wash_cycle", "currentWashCycle", icon="mdi:counter"),
+    _g_int("remaining_rinses", "remainingRinseIterations", icon="mdi:water-sync"),
+    HonSensorEntityDescription(
+        # Auto-dose strength relative to a standard dose (0=off/70=eco/100=std/
+        # 120=boost), not a continuous tank level: keep the "%" but no state_class
+        # (it is a stepped setpoint, not a quantity to graph).
+        key="detergent_level",
+        attr_key="detergentPercent",
+        native_unit_of_measurement="%",
+        icon="mdi:cup-water",
+        gated=True,
+    ),
+    _g_grams("detergent_weight", "haier_DetergentWeight"),
+    _g_grams("softener_weight", "haier_SoftenerWeight"),
+)
+# Washer (WM): state/time + program + wash extras + load/delay + consumption + dose.
 _WASHER: tuple[HonSensorEntityDescription, ...] = (
     _STATE, _REMAINING, _PROGRAM_NAME, _PHASE_WASH, *_WASH_EXTRA, _LOADING, _DELAY,
-    _ERRORS, *_WASH_CONSUMPTION,
+    _ERRORS, *_WASH_CONSUMPTION, *_WASH_DOSE,
 )
 # Washer-dryer (WD = WM + drying): like the washer + dry level.
 _WASHER_DRYER: tuple[HonSensorEntityDescription, ...] = (
     _STATE, _REMAINING, _PROGRAM_NAME, _PHASE_WASH, *_WASH_EXTRA, _DRY_LEVEL, _LOADING,
-    _DELAY, _ERRORS, *_WASH_CONSUMPTION,
+    _DELAY, _ERRORS, *_WASH_CONSUMPTION, *_WASH_DOSE,
 )
 
 # Tumble dryer: no water/energy (hOn does not expose them for the TD). The cycles
 # reuse the "total_washes" suffix but read programsCounter, so the already-
 # registered entity (previously always empty on totalWashCycle) is re-pointed to a
-# real value without changing entity_id.
+# real value without changing entity_id. No loading_percentage: the app gates the
+# Loading Percentage statistic to WM/WD only (TD uses loadEfficiency instead), so
+# the sensor would be perpetually unknown on a dryer.
 _DRYER: tuple[HonSensorEntityDescription, ...] = (
     _STATE,
     _REMAINING,
     _PROGRAM_NAME,
     _PHASE_DRY,
     _DRY_LEVEL,
-    _LOADING,
     _DELAY,
     _ERRORS,
     HonSensorEntityDescription(
@@ -374,6 +492,23 @@ _AC: tuple[HonSensorEntityDescription, ...] = (
         native_unit_of_measurement="mg/m³",
         state_class=SensorStateClass.MEASUREMENT,
     ),
+    # Air-quality sensors on air-quality-capable AC / air-sensor units (gvigroux
+    # live). gated=True (unlike the always-present AC sensors) so a model without
+    # them shows nothing. pm10 is a real mass concentration (ug/m3, like pm25);
+    # voc/coLevel/airQuality are small LEVEL indexes in the app (L1..L4 / 0..3),
+    # NOT ppb/ppm/0-500 AQI, so they are bare integers (class-less AND unit-less)
+    # to avoid asserting a concentration the device does not report.
+    HonSensorEntityDescription(
+        key="pm10",
+        attr_key="pm10ValueIndoor",
+        native_unit_of_measurement="µg/m³",
+        device_class=SensorDeviceClass.PM10,
+        state_class=SensorStateClass.MEASUREMENT,
+        gated=True,
+    ),
+    _g_int("voc", "vocValueIndoor", icon="mdi:molecule"),
+    _g_int("co", "coLevel", icon="mdi:molecule"),
+    _g_int("air_quality", "airQuality", icon="mdi:air-filter"),
 )
 
 # --- Tier 2: read-only sensors (capability-gated) ----------------------------
@@ -416,6 +551,17 @@ def _g_minutes(key: str, attr: str) -> HonSensorEntityDescription:
         icon="mdi:timer-outline",
         native_unit_of_measurement=UnitOfTime.MINUTES,
         device_class=SensorDeviceClass.DURATION,
+        gated=True,
+    )
+
+
+def _g_humidity(key: str, attr: str) -> HonSensorEntityDescription:
+    return HonSensorEntityDescription(
+        key=key,
+        attr_key=attr,
+        native_unit_of_measurement="%",
+        device_class=SensorDeviceClass.HUMIDITY,
+        state_class=SensorStateClass.MEASUREMENT,
         gated=True,
     )
 
@@ -468,10 +614,23 @@ _COOLING: tuple[HonSensorEntityDescription, ...] = (
 _OVEN: tuple[HonSensorEntityDescription, ...] = (
     _g_enum("state", "machMode", MACHINE_MODE_MAP,
             translation_key="machine_mode", icon="mdi:stove"),
+    _g_text("program_name", "programName", icon="mdi:format-list-bulleted"),
     _g_temp("temp_cavity", "temp"),
     _g_minutes("remaining_time", "remainingTimeMM"),
+    _g_minutes("delay_time", "delayTime"),
+    # prTime is the configured cook duration in SECONDS (range 1..86395), not
+    # minutes; map it as a seconds duration so the magnitude is correct.
+    HonSensorEntityDescription(
+        key="program_duration",
+        attr_key="prTime",
+        icon="mdi:timer-outline",
+        native_unit_of_measurement=UnitOfTime.SECONDS,
+        device_class=SensorDeviceClass.DURATION,
+        gated=True,
+    ),
     _g_temp("probe_temp_1", "tempEmployedProbe1"),
     _g_temp("probe_temp_2", "tempEmployedProbe2"),
+    _g_text("errors", "errors", icon="mdi:alert-circle-outline"),
 )
 
 # Dishwasher (DW): state, program, time, salt/rinse-aid levels,
@@ -481,12 +640,17 @@ _DISHWASHER: tuple[HonSensorEntityDescription, ...] = (
             translation_key="machine_mode", icon="mdi:dishwasher"),
     _g_text("program_name", "programName", icon="mdi:format-list-bulleted"),
     _g_minutes("remaining_time", "remainingTimeMM"),
+    _g_minutes("delay_time", "delayTime"),
     _g_enum("salt_level", "saltStatus", DW_LEVEL_MAP, icon="mdi:shaker-outline"),
     _g_enum("rinse_aid_level", "rinseAidStatus", DW_LEVEL_MAP,
             icon="mdi:water-opacity"),
+    _g_int("water_hardness", "waterHard", icon="mdi:water-opacity"),
     HonSensorEntityDescription(
         key="wash_temperature",
-        attr_key="temperature",
+        # Dishwashers report the wash temperature under `temp` (live-confirmed on
+        # real DW) on some models and `temperature` on others; gate/read both.
+        attr_key="temp",
+        attr_fallbacks=("temperature",),
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
@@ -495,11 +659,20 @@ _DISHWASHER: tuple[HonSensorEntityDescription, ...] = (
     _g_text("errors", "errors", icon="mdi:alert-circle-outline"),
 )
 
-# Wine cellar (WC): ambient + zone temperature. Light/presence are binary.
+# Wine cellar (WC): ambient + per-zone temperature + per-zone humidity. Zone 1
+# actual temperature is reported under `temp` (live-confirmed on HWS42/HWS77).
+# Light/presence are binary.
 _WINE: tuple[HonSensorEntityDescription, ...] = (
+    _g_enum("state", "machMode", MACHINE_MODE_MAP,
+            translation_key="machine_mode", icon="mdi:thermometer-wine"),
+    _g_text("program_name", "programName", icon="mdi:format-list-bulleted"),
     _g_temp("temp_ambient", "tempEnv"),
+    _g_temp("temp_zone1", "temp"),
     _g_temp("temp_zone2", "tempZ2"),
+    _g_humidity("humidity_zone1", "humidityZ1"),
+    _g_humidity("humidity_zone2", "humidityZ2"),
     _g_minutes("remaining_time", "remainingTimeMM"),
+    _g_text("errors", "errors", icon="mdi:alert-circle-outline"),
 )
 
 # Induction hob (IH/HOB): temperature per cooking zone. Pan detection
@@ -646,7 +819,11 @@ async def async_setup_entry(
             # Capability-gating (Tier 2 only): skip the sensors whose attribute
             # is not exposed by the device. The historic types (gated=False) stay
             # always created, as before.
-            if description.gated and description.attr_key not in attributes:
+            if (
+                description.gated
+                and description.attr_key not in attributes
+                and not any(k in attributes for k in description.attr_fallbacks)
+            ):
                 continue
             entities.append(HonSensor(coordinator, appliance_id, description))
             created.append(description.key)
@@ -681,6 +858,10 @@ class HonSensor(HonBaseEntity, SensorEntity):
     @property
     def native_value(self):
         raw = self._get_attr(self.entity_description.attr_key)
+        for fallback in self.entity_description.attr_fallbacks:
+            if raw is not None:
+                break
+            raw = self._get_attr(fallback)
         value_fn = self.entity_description.value_fn
         if value_fn is not None:
             return value_fn(raw)
