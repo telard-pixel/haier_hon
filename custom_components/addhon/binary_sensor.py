@@ -181,7 +181,9 @@ _OVEN_BINARY: tuple[HonBinarySensorEntityDescription, ...] = (
         key="preheat",
         icon="mdi:thermometer-chevron-up",
         attr_key="preheatStatus",
-        device_class=BinarySensorDeviceClass.RUNNING,
+        # preheatStatus is 0=idle / 1=preheating / 2=ready; on == "1" (heating in
+        # progress), matching the app's `=='1'` test. HEAT fits the semantics.
+        device_class=BinarySensorDeviceClass.HEAT,
     ),
 )
 

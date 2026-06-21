@@ -116,6 +116,10 @@ class HonSensorEntityDescription(SensorEntityDescription):
     attr_key: str
     value_fn: Callable[[object], object] | None = None
     gated: bool = False
+    # Alternative attribute names to try (in order) when `attr_key` is absent.
+    # Used for params reported under different names across models (e.g. a
+    # dishwasher wash temperature under `temp` or `temperature`).
+    attr_fallbacks: tuple[str, ...] = ()
 
 
 # State + remaining time: identical for washer/washer-dryer/tumble dryer.
@@ -576,9 +580,10 @@ _DISHWASHER: tuple[HonSensorEntityDescription, ...] = (
             icon="mdi:water-opacity"),
     HonSensorEntityDescription(
         key="wash_temperature",
-        # The dishwasher reports the wash temperature under `temp` (live-confirmed
-        # on real DW; `temperature` is not a DW parameter in the app schema).
+        # Dishwashers report the wash temperature under `temp` (live-confirmed on
+        # real DW) on some models and `temperature` on others; gate/read both.
         attr_key="temp",
+        attr_fallbacks=("temperature",),
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
@@ -743,7 +748,11 @@ async def async_setup_entry(
             # Capability-gating (Tier 2 only): skip the sensors whose attribute
             # is not exposed by the device. The historic types (gated=False) stay
             # always created, as before.
-            if description.gated and description.attr_key not in attributes:
+            if (
+                description.gated
+                and description.attr_key not in attributes
+                and not any(k in attributes for k in description.attr_fallbacks)
+            ):
                 continue
             entities.append(HonSensor(coordinator, appliance_id, description))
             created.append(description.key)
@@ -778,6 +787,10 @@ class HonSensor(HonBaseEntity, SensorEntity):
     @property
     def native_value(self):
         raw = self._get_attr(self.entity_description.attr_key)
+        for fallback in self.entity_description.attr_fallbacks:
+            if raw is not None:
+                break
+            raw = self._get_attr(fallback)
         value_fn = self.entity_description.value_fn
         if value_fn is not None:
             return value_fn(raw)

@@ -134,10 +134,41 @@ def _install_homeassistant_stubs() -> None:
         OCCUPANCY = "occupancy"
         LIGHT = "light"
         CONNECTIVITY = "connectivity"
+        HEAT = "heat"
 
     binary_mod.BinarySensorEntityDescription = getattr(binary_mod, "BinarySensorEntityDescription", BinarySensorEntityDescription)
     binary_mod.BinarySensorEntity = getattr(binary_mod, "BinarySensorEntity", BinarySensorEntity)
     binary_mod.BinarySensorDeviceClass = getattr(binary_mod, "BinarySensorDeviceClass", BinarySensorDeviceClass)
+
+    # ── number platform stub (so importing custom_components.addhon.number works
+    #    standalone, not only when an earlier test module installed it) ─────────
+    number_mod = _mod("homeassistant.components.number")
+
+    @dataclasses.dataclass(frozen=True, kw_only=True)
+    class NumberEntityDescription:
+        key: str
+        name: str | None = None
+        translation_key: str | None = None
+        icon: str | None = None
+        device_class: object | None = None
+        native_unit_of_measurement: str | None = None
+        mode: object | None = None
+
+    class NumberEntity:
+        pass
+
+    class NumberDeviceClass:
+        TEMPERATURE = "temperature"
+
+    class NumberMode:
+        BOX = "box"
+        AUTO = "auto"
+        SLIDER = "slider"
+
+    number_mod.NumberEntityDescription = getattr(number_mod, "NumberEntityDescription", NumberEntityDescription)
+    number_mod.NumberEntity = getattr(number_mod, "NumberEntity", NumberEntity)
+    number_mod.NumberDeviceClass = getattr(number_mod, "NumberDeviceClass", NumberDeviceClass)
+    number_mod.NumberMode = getattr(number_mod, "NumberMode", NumberMode)
 
     const = _mod("homeassistant.const")
 
@@ -515,25 +546,47 @@ class GvigrouxImportTest(unittest.IsolatedAsyncioTestCase):
             (50.0, 280.0, 5.0),
         )
 
-    async def test_dishwasher_reads_temp_not_temperature(self) -> None:
-        added = await _build_sensors("DW", {"temp": "45"})
-        wt = next(e for e in added if e._attr_unique_id == "x-1_wash_temperature")
-        self.assertEqual(wt.native_value, 45.0)
-        # The old `temperature` key no longer builds the sensor.
-        added2 = await _build_sensors("DW", {"temperature": "45"})
-        self.assertNotIn(
-            "x-1_wash_temperature", {e._attr_unique_id for e in added2}
-        )
+    async def test_dishwasher_wash_temp_reads_temp_or_temperature(self) -> None:
+        # Both key variants build the sensor and yield the value (gate/read both).
+        for attrs in ({"temp": "45"}, {"temperature": "45"}):
+            added = await _build_sensors("DW", attrs)
+            wt = next(e for e in added if e._attr_unique_id == "x-1_wash_temperature")
+            self.assertEqual(wt.native_value, 45.0)
+
+    def test_oven_delay_time_is_duration_minutes(self) -> None:
+        from homeassistant.components.sensor import SensorDeviceClass
+        from homeassistant.const import UnitOfTime
+
+        from custom_components.addhon.const import APPLIANCE_OV
+        from custom_components.addhon.sensor import SENSORS
+
+        d = {x.key: x for x in SENSORS[APPLIANCE_OV]}["delay_time"]
+        self.assertEqual(d.device_class, SensorDeviceClass.DURATION)
+        self.assertEqual(d.native_unit_of_measurement, UnitOfTime.MINUTES)
+
+    def test_oven_preheat_device_class_is_heat(self) -> None:
+        from homeassistant.components.binary_sensor import BinarySensorDeviceClass
+
+        from custom_components.addhon.binary_sensor import BINARY_SENSORS
+        from custom_components.addhon.const import APPLIANCE_OV
+
+        d = {x.key: x for x in BINARY_SENSORS[APPLIANCE_OV]}["preheat"]
+        self.assertEqual(d.device_class, BinarySensorDeviceClass.HEAT)
 
     async def test_wine_cooler_zone1_temp_and_humidity(self) -> None:
         added = await _build_sensors("WC", {
             "temp": 12, "tempZ2": 8, "humidityZ1": 60, "humidityZ2": 65,
         })
-        uids = {e._attr_unique_id for e in added}
-        self.assertIn("x-1_temp_zone1", uids)
-        self.assertIn("x-1_temp_zone2", uids)
-        self.assertIn("x-1_humidity_zone1", uids)
-        self.assertIn("x-1_humidity_zone2", uids)
+        by_uid = {e._attr_unique_id: e for e in added}
+        self.assertEqual(by_uid["x-1_temp_zone1"].native_value, 12.0)  # reads `temp`
+        self.assertIn("x-1_temp_zone2", by_uid)
+        self.assertIn("x-1_humidity_zone1", by_uid)
+        self.assertIn("x-1_humidity_zone2", by_uid)
+
+    async def test_wine_cooler_zone1_ignores_tempz1(self) -> None:
+        # zone1 actual temp is `temp`, not `tempZ1` (which does not exist for WC).
+        added = await _build_sensors("WC", {"tempZ1": 99})
+        self.assertNotIn("x-1_temp_zone1", {e._attr_unique_id for e in added})
 
 
 if __name__ == "__main__":

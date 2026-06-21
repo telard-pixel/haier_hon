@@ -119,6 +119,7 @@ def _install_stubs() -> None:
     binary_mod.BinarySensorDeviceClass = getattr(binary_mod, "BinarySensorDeviceClass", type("BinarySensorDeviceClass", (), {
         "DOOR": "door", "PROBLEM": "problem", "RUNNING": "running",
         "OCCUPANCY": "occupancy", "LIGHT": "light", "CONNECTIVITY": "connectivity",
+        "HEAT": "heat",
     }))
 
     # number platform
