@@ -62,7 +62,6 @@ jobs:
         uses: hacs/action@main
         with:
           category: integration
-          # This integration is distributed as a custom HACS repo and is not in
-          # the official home-assistant/brands repo; ignore that publish-only
-          # check so the gate validates structure/hacs.json/version, not branding.
-          ignore: brands
+          # Brand icons ship in custom_components/addhon/brand/ (HA 2026.3 brands
+          # proxy); the HACS brands check passes on the local assets, so no
+          # ignore is needed and the gate validates branding too.
