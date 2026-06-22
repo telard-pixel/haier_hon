@@ -251,6 +251,21 @@ class AcClimateWritePathTest(unittest.IsolatedAsyncioTestCase):
         await entity.async_set_hvac_mode(HVACMode.OFF)
         self.assertEqual({"onOffStatus": "0"}, settings.sent)
 
+    async def test_set_hvac_mode_client_none_raises(self) -> None:
+        # client None: must surface appliance_or_client_unavailable (check moved
+        # before the try), NOT be rewrapped into command_error.
+        settings = RecordingCommand({"onOffStatus": Param("0"), "machMode": Param("0")})
+        coordinator = FakeCoordinator(_ac({"settings": settings}))
+        entity = climate.HaierClimateEntity(coordinator, "ac-1", None)
+        entity.hass = FakeHass()
+        with self.assertRaises(HomeAssistantError) as ctx:
+            await entity.async_set_hvac_mode(HVACMode.COOL)
+        self.assertEqual(
+            "appliance_or_client_unavailable",
+            getattr(ctx.exception, "translation_key", None),
+        )
+        self.assertEqual(0, settings.send_calls)
+
     async def test_set_hvac_mode_unknown_defaults_to_cool(self) -> None:
         # A mode whose .value is not in the map must fall back to "1" (cool),
         # exercising the AC_MODE_MAP_REVERSE.get(..., "1") default literal.
@@ -455,11 +470,32 @@ class AcClimateWritePathTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual({"auto", "low", "medium", "high"}, set(entity._attr_fan_modes))
 
     async def test_appliance_unavailable_raises(self) -> None:
+        # Appliance missing (client valid): must surface the specific key from the
+        # pre-try guard, not a generic command_error from the except below.
         coordinator = FakeCoordinator({})  # no appliance data
         entity = climate.HaierClimateEntity(coordinator, "ac-1", FakeClient())
         entity.hass = FakeHass()
-        with self.assertRaises(Exception):
+        with self.assertRaises(HomeAssistantError) as ctx:
             await entity.async_set_hvac_mode(HVACMode.COOL)
+        self.assertEqual(
+            "appliance_or_client_unavailable",
+            getattr(ctx.exception, "translation_key", None),
+        )
+
+    async def test_turn_off_client_none_raises(self) -> None:
+        # turn_off delegates to set_hvac_mode(OFF); with client None the pre-try
+        # guard must surface the specific key through the delegation chain.
+        settings = RecordingCommand({"onOffStatus": Param("1")})
+        coordinator = FakeCoordinator(_ac({"settings": settings}))
+        entity = climate.HaierClimateEntity(coordinator, "ac-1", None)
+        entity.hass = FakeHass()
+        with self.assertRaises(HomeAssistantError) as ctx:
+            await entity.async_turn_off()
+        self.assertEqual(
+            "appliance_or_client_unavailable",
+            getattr(ctx.exception, "translation_key", None),
+        )
+        self.assertEqual(0, settings.send_calls)
 
 
 class AcSwitchWritePathTest(unittest.IsolatedAsyncioTestCase):

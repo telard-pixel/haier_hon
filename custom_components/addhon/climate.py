@@ -268,19 +268,16 @@ class HaierClimateEntity(HonBaseEntity, ClimateEntity):
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Send the mode change, converting the HVACMode into the exact hOn numeric code."""
         appliance = self._appliance
-        if not appliance:
+        client = self._hon_client
+        # Both checks BEFORE the try: a missing appliance/client must surface the
+        # specific key, not be rewrapped into command_error by the except below
+        # (consistent with set_temperature/fan/swing).
+        if not appliance or not client:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
                 translation_key="appliance_or_client_unavailable",
             )
         try:
-            client = self._hon_client
-            if client is None:
-                raise HomeAssistantError(
-                    translation_domain=DOMAIN,
-                    translation_key="appliance_or_client_unavailable",
-                )
-
             if hvac_mode == HVACMode.OFF:
                 _LOGGER.debug("Climate debug: set_hvac_mode OFF -> onOffStatus=0")
                 await self._send_command_in_executor(client, appliance, {"onOffStatus": "0"})
