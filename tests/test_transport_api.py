@@ -658,6 +658,17 @@ class ContentTypeTest(unittest.TestCase):
         app = FakeAppliance(eepromId="EE", fwVersion="1.2", series="S")
         _run(_call(_StrictConnection(body)).load_commands(app))
 
+    def test_send_command_passes_content_type_none(self) -> None:
+        # Write path: the cloud's non-JSON Content-Type response motivated #8.
+        conn = _StrictConnection({"payload": {"resultCode": "0"}})
+        _run(_call(conn).send_command(FakeAppliance(), "setParameters", {"x": 1}, {}))
+
+    def test_load_attributes_passes_content_type_none(self) -> None:
+        _run(_call(_StrictConnection({})).load_attributes(FakeAppliance()))
+
+    def test_load_statistics_passes_content_type_none(self) -> None:
+        _run(_call(_StrictConnection({})).load_statistics(FakeAppliance()))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -189,6 +189,26 @@ class ConnectionTest(unittest.TestCase):
 
         asyncio.run(run())
         self.assertEqual(auth.refresh_calls, 1)
+        # The pre-refresh must happen BEFORE the first request, so the very first
+        # outgoing request already carries the refreshed token (isolates the
+        # pre-refresh from the post-response refresh branch in _intercept).
+        self.assertEqual(conn._session.calls[0]["cognito-token"], "COG2")
+
+    def test_refresh_rotation_propagates_to_connection(self) -> None:
+        # A rotated refresh_token from auth must be stored on the connection, so a
+        # later restart persists the new token (anti IdP-rotation invariant).
+        auth = FakeAuth()
+        auth.cognito_token, auth.id_token = "C", "I"
+        auth.token_expires_soon = True
+        conn = _conn(auth, FakeSession([200]))
+        conn._refresh_token = "RT"
+
+        async def run():
+            async with conn.get("https://x/api"):
+                pass
+
+        asyncio.run(run())
+        self.assertEqual(conn._refresh_token, "RT2")  # FakeAuth.refresh rotates to RT2
 
     def test_single_401_triggers_one_refresh(self) -> None:
         # #14: a single 401 must refresh exactly once (was 3: pre + loop0 + recursion).
