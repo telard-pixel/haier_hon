@@ -355,6 +355,33 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         coordinator.hon_client = hon_client
 
+        # Realtime: wire MQTT pushes to the coordinator (#4). Without this the push
+        # channel was inert and entities only refreshed on the 60s poll. The push
+        # arrives on the awscrt thread, so the snapshot is built THERE (a coherent
+        # intra-thread read of the just-mutated appliances) and the publish is hopped
+        # onto the HA event loop via call_soon_threadsafe; async_set_updated_data
+        # publishes WITHOUT triggering a new poll (the 60s poll stays as a
+        # reconciliation safety-net). Detached on unload.
+        @callback
+        def _publish_realtime(snapshot: dict) -> None:
+            if snapshot:
+                coordinator.async_set_updated_data(snapshot)
+
+        def _on_realtime_push(_arg) -> None:
+            # Runs on the awscrt thread; must never let an exception reach it.
+            try:
+                snapshot = hon_client.build_realtime_snapshot()
+                hass.loop.call_soon_threadsafe(_publish_realtime, snapshot)
+            except Exception as err:  # pragma: no cover - defensive
+                _LOGGER.debug("Setup debug: realtime push handling failed: %s", err)
+
+        try:
+            hon_client.subscribe_updates(_on_realtime_push)
+            entry.async_on_unload(lambda: hon_client.subscribe_updates(None))
+            _LOGGER.debug("Setup debug: realtime MQTT push wired to coordinator")
+        except Exception as err:  # pragma: no cover - realtime is best-effort
+            _LOGGER.warning("Setup debug: could not wire realtime MQTT push: %s", err)
+
         # Integration version, for the diagnostics device's sw_version ("Firmware:"
         # row on the device card). Lazy import so the test stubs that import this
         # package do not need to stub homeassistant.loader; tolerant if unavailable.

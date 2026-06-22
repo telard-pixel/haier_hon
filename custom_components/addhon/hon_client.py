@@ -561,6 +561,60 @@ class HonClient:
             _LOGGER.error("hOn re-authentication failed: %s", err)
             return False
 
+    # -- Realtime push (MQTT) --------------------------------------------------
+
+    @staticmethod
+    def _appliance_id(appliance: Any) -> str:
+        return (
+            getattr(appliance, "unique_id", None)
+            or _get_serial(appliance)
+            or str(id(appliance))
+        )
+
+    @staticmethod
+    def _build_appliance_entry(appliance: Any) -> dict[str, Any]:
+        """Coordinator entry for one appliance from its CURRENT in-memory state.
+
+        Shared by the HTTP poll (async_get_appliances_data) and the realtime
+        snapshot so the two never diverge in shape. Reads only, no network.
+        """
+        return {
+            "appliance": appliance,
+            "type": _get_type(appliance),
+            "name": _get_name(appliance),
+            "model": _get_model(appliance),
+            "serial": _get_serial(appliance),
+            "mac": _get_mac(appliance),
+            "attributes": _get_attributes(appliance),
+            "statistics": _debug_container_to_dict(
+                getattr(appliance, "statistics", None), "statistics"
+            ),
+            "settings": dict(appliance.settings) if hasattr(appliance, "settings") else {},
+        }
+
+    def build_realtime_snapshot(self) -> dict[str, Any]:
+        """Coordinator snapshot from the appliances already mutated in-memory by the
+        MQTT push (NO HTTP poll). Built on the awscrt thread by the notify callback;
+        a failing appliance is skipped, never the whole snapshot."""
+        hon = self._hon_instance
+        appliances = getattr(hon, "appliances", None) or [] if hon is not None else []
+        data: dict[str, Any] = {}
+        for appliance in appliances:
+            try:
+                data[self._appliance_id(appliance)] = self._build_appliance_entry(appliance)
+            except Exception as err:  # pragma: no cover - defensive
+                _LOGGER.debug("Realtime snapshot: skipping an appliance: %s", err)
+        return data
+
+    def subscribe_updates(self, notify_function: Any) -> None:
+        """Register (or clear with None) the realtime notify callback on the session.
+
+        Raises if called before setup_sync (no session yet)."""
+        hon = self._hon_instance
+        if hon is None:
+            raise RuntimeError("subscribe_updates called before setup_sync")
+        hon.subscribe_updates(notify_function)
+
     # -- Data polling ----------------------------------------------------------
 
     async def async_get_appliances_data(self) -> dict[str, Any]:
@@ -638,28 +692,11 @@ class HonClient:
                     if last_err is not None:
                         raise last_err
 
-                    appliance_id = (
-                        getattr(appliance, "unique_id", None)
-                        or _get_serial(appliance)
-                        or str(id(appliance))
-                    )
+                    appliance_id = self._appliance_id(appliance)
                     attributes = _get_attributes(appliance)
                     name = _get_name(appliance)
                     app_type = _get_type(appliance)
-
-                    data[appliance_id] = {
-                        "appliance": appliance,
-                        "type": app_type,
-                        "name": name,
-                        "model": _get_model(appliance),
-                        "serial": _get_serial(appliance),
-                        "mac": _get_mac(appliance),
-                        "attributes": attributes,
-                        "statistics": _debug_container_to_dict(
-                            getattr(appliance, "statistics", None), "statistics"
-                        ),
-                        "settings": dict(appliance.settings) if hasattr(appliance, "settings") else {},
-                    }
+                    data[appliance_id] = self._build_appliance_entry(appliance)
                     _debug_appliance_consumption("coordinator snapshot", appliance, attributes)
                     _LOGGER.debug(
                         "Updated '%s' (type=%s, mac=%s, id=%s) - %d attributes",
