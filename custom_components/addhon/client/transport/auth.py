@@ -216,9 +216,21 @@ class HonAuth:
             if resp.status >= 400:
                 return False
             data = await resp.json(content_type=None)
+        # A malformed 2xx (no id_token/access_token) must NOT raise KeyError: treat
+        # it as a failed refresh so the caller falls back to authenticate(). Do not
+        # touch _expires before validating, or a fake refresh would mask expiry.
+        id_token = data.get("id_token") if isinstance(data, dict) else None
+        access_token = data.get("access_token") if isinstance(data, dict) else None
+        if not id_token or not access_token:
+            _LOGGER.warning("addhOn: refresh response missing tokens; treating as failure")
+            return False
         self._expires = datetime.now(timezone.utc)
-        self.id_token = data["id_token"]
-        self.access_token = data["access_token"]
+        self.id_token = id_token
+        self.access_token = access_token
+        # Honour refresh_token rotation: if the IdP returned a new one, persist it
+        # (otherwise the old token is reused and a future refresh would fail).
+        if new_refresh := (data.get("refresh_token") if isinstance(data, dict) else None):
+            self.refresh_token = new_refresh
         await self._api_auth()
         return True
 

@@ -184,5 +184,49 @@ class NativeAuthFlowTest(unittest.TestCase):
         self.assertEqual(methods, ["GET", "GET", "GET", "GET", "POST", "GET", "GET", "POST"])
 
 
+class RefreshTest(unittest.TestCase):
+    """refresh() token rotation (#15) and malformed-response handling (#7)."""
+
+    def _auth(self, responses, refresh_token="old"):
+        auth = HonAuth(FakeSession(responses), "user@x.it", "pw", HonDevice())
+        auth.refresh_token = refresh_token
+        return auth
+
+    def test_refresh_rotates_refresh_token(self) -> None:
+        # A new refresh_token in the response must be persisted (#15).
+        auth = self._auth([
+            FakeResp(json={"id_token": "I", "access_token": "A", "refresh_token": "NEWRT"}),
+            FakeResp(json={"cognitoUser": {"Token": "COG"}}),  # _api_auth
+        ])
+        ok = asyncio.run(auth.refresh())
+        self.assertTrue(ok)
+        self.assertEqual("NEWRT", auth.refresh_token)
+        self.assertEqual("I", auth.id_token)
+        self.assertEqual("A", auth.access_token)
+
+    def test_refresh_keeps_token_when_not_rotated(self) -> None:
+        auth = self._auth([
+            FakeResp(json={"id_token": "I", "access_token": "A"}),
+            FakeResp(json={"cognitoUser": {"Token": "COG"}}),
+        ])
+        ok = asyncio.run(auth.refresh())
+        self.assertTrue(ok)
+        self.assertEqual("old", auth.refresh_token)
+
+    def test_refresh_malformed_2xx_returns_false(self) -> None:
+        # 200 without id/access token -> False, no KeyError, _expires untouched,
+        # and _api_auth is NOT reached (only the token POST happens).
+        auth = self._auth([FakeResp(json={})])
+        before = auth._expires
+        ok = asyncio.run(auth.refresh())
+        self.assertFalse(ok)
+        self.assertEqual(before, auth._expires)
+        self.assertEqual(1, len(auth._session.calls))  # no _api_auth call
+
+    def test_refresh_4xx_returns_false(self) -> None:
+        auth = self._auth([FakeResp(status=400)])
+        self.assertFalse(asyncio.run(auth.refresh()))
+
+
 if __name__ == "__main__":
     unittest.main()
