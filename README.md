@@ -40,7 +40,7 @@ Add this repository to HACS as a custom integration and install from the UI.
 
 1. Login in Home Assistant UI → Select HACS in the left
 2. Tap the three dots (menu) in the upper-right corner
-3. Select **Customized digital archives**
+3. Select **Custom repositories**
 4. Add the repo link: **https://github.com/tis24dev/addhOn/** and type: **Integration**
 5. Save
 6. Search for **addhOn** and select it
