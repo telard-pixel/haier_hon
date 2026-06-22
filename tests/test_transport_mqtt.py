@@ -9,6 +9,7 @@ the awscrt API (`_start`/`_subscribe`) are validated live.
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import json
 import sys
 import types
@@ -143,11 +144,9 @@ class CreatePathTest(unittest.TestCase):
         import awscrt
         import awsiot
 
-        calls = {}
+        import concurrent.futures
 
-        class FakeSubResult:
-            def result(self, timeout=None):
-                return None
+        calls = {}
 
         class FakeClient:
             def __init__(self) -> None:
@@ -158,9 +157,13 @@ class CreatePathTest(unittest.TestCase):
             def start(self) -> None:
                 self.started = True
 
-            def subscribe(self, packet) -> "FakeSubResult":
+            def subscribe(self, packet):
+                # awscrt subscribe() returns a concurrent.futures.Future; the code now
+                # awaits it via asyncio.wrap_future, so a resolved Future is required.
                 self.subscribed.append(packet)
-                return FakeSubResult()
+                fut: concurrent.futures.Future = concurrent.futures.Future()
+                fut.set_result(None)
+                return fut
 
             def stop(self) -> None:
                 self.stopped = True
@@ -565,6 +568,169 @@ class StartGenerationWiringTest(unittest.TestCase):
         # The current client's disconnection still takes effect.
         gen2["on_lifecycle_disconnection"](None)
         self.assertFalse(m._connection)
+
+
+class WatchdogResilienceTest(unittest.TestCase):
+    """#3: the watchdog must survive a transient rebuild error (instead of dying and
+    leaving realtime dead until a reload), re-raise CancelledError (else shutdown
+    deadlocks), and back off (capped, reset on recovery) on repeated failures."""
+
+    def _drive(self, states, start_fn):
+        import custom_components.addhon.client.transport.mqtt as mod
+        m = NativeMqttClient(FakeHon([]), "MID")
+        intervals: list = []
+        seq = list(states)
+
+        async def fake_sleep(interval):
+            intervals.append(interval)
+            if not seq:
+                raise asyncio.CancelledError
+            m._connection = seq.pop(0)
+
+        async def noop_sub():
+            return None
+
+        m._start = start_fn  # type: ignore[assignment]
+        m._subscribe_appliances = noop_sub  # type: ignore[assignment]
+        real = mod.asyncio.sleep
+        mod.asyncio.sleep = fake_sleep
+        try:
+            loop = asyncio.new_event_loop()
+            try:
+                loop.run_until_complete(m._watchdog())
+            except asyncio.CancelledError:
+                pass
+            finally:
+                loop.close()
+        finally:
+            mod.asyncio.sleep = real
+        return intervals
+
+    def test_watchdog_survives_start_raising(self) -> None:
+        starts: list = []
+
+        async def boom():
+            starts.append(True)
+            raise RuntimeError("load_aws_token 5xx")
+
+        self._drive([False] * 7, boom)  # two rebuild windows
+        # Pre-fix the first raise would end the task -> starts == 1. Surviving -> >= 2.
+        self.assertGreaterEqual(len(starts), 2)
+
+    def test_watchdog_cancelled_propagates(self) -> None:
+        import custom_components.addhon.client.transport.mqtt as mod
+        m = NativeMqttClient(FakeHon([]), "MID")
+
+        async def fake_sleep(_i):
+            raise asyncio.CancelledError
+
+        async def noop_start():
+            return None
+
+        m._start = noop_start  # type: ignore[assignment]
+        real = mod.asyncio.sleep
+        mod.asyncio.sleep = fake_sleep
+        try:
+            loop = asyncio.new_event_loop()
+            try:
+                with self.assertRaises(asyncio.CancelledError):
+                    loop.run_until_complete(m._watchdog())
+            finally:
+                loop.close()
+        finally:
+            mod.asyncio.sleep = real
+
+    def test_watchdog_backoff_grows_and_resets(self) -> None:
+        from custom_components.addhon.client.transport.mqtt import _WATCHDOG_INTERVAL
+
+        async def boom():
+            raise RuntimeError("x")
+
+        intervals = self._drive([False] * 9 + [True], boom)
+        base = _WATCHDOG_INTERVAL
+        self.assertIn(base * 2, intervals)   # grew after the 1st rebuild failure
+        self.assertIn(base * 3, intervals)   # grew again
+        self.assertEqual(intervals[-1], base)  # reset after the recovery tick
+
+    def test_watchdog_backoff_caps(self) -> None:
+        from custom_components.addhon.client.transport.mqtt import (
+            _WATCHDOG_INTERVAL,
+            _RECONNECT_BACKOFF_CAP,
+        )
+
+        async def boom():
+            raise RuntimeError("x")
+
+        intervals = self._drive([False] * 60, boom)
+        self.assertLessEqual(max(intervals), _WATCHDOG_INTERVAL + _RECONNECT_BACKOFF_CAP)
+
+
+class SubscribeNonBlockingTest(unittest.TestCase):
+    """#13: _subscribe must await the awscrt future (yield the loop) instead of a
+    blocking .result(), preserving topic order and the timeout bound."""
+
+    def _client(self, topics):
+        import awscrt
+        awscrt.mqtt5.SubscribePacket = lambda subs: ("pkt", subs)
+        awscrt.mqtt5.Subscription = lambda topic: topic
+        m = NativeMqttClient(FakeHon([]), "MID")
+        app = FakeAppliance("t")
+        app.info = {"topics": {"subscribe": topics}}
+        return m, app
+
+    def test_subscribe_order_preserved(self) -> None:
+        order: list = []
+
+        class C:
+            def subscribe(self, packet):
+                order.append(packet[1])  # ("pkt", [topic])
+                fut: concurrent.futures.Future = concurrent.futures.Future()
+                fut.set_result(None)
+                return fut
+
+        m, app = self._client(["t1", "t2", "t3"])
+        m._client = C()
+        _run(m._subscribe(app))
+        self.assertEqual(order, [["t1"], ["t2"], ["t3"]])
+
+    def test_subscribe_yields_loop(self) -> None:
+        fut: concurrent.futures.Future = concurrent.futures.Future()
+
+        class C:
+            def subscribe(self, packet):
+                return fut  # not resolved yet
+
+        m, app = self._client(["t1"])
+        m._client = C()
+        progressed: list = []
+
+        async def resolver():
+            progressed.append(True)
+            fut.set_result(None)
+
+        async def body():
+            await asyncio.gather(m._subscribe(app), resolver())
+
+        _run(body())
+        # If _subscribe blocked (old .result()), resolver could not run first.
+        self.assertEqual(progressed, [True])
+
+    def test_subscribe_timeout_bound(self) -> None:
+        import custom_components.addhon.client.transport.mqtt as mod
+
+        class C:
+            def subscribe(self, packet):
+                return concurrent.futures.Future()  # never resolves
+
+        m, app = self._client(["t1"])
+        m._client = C()
+        orig = mod._SUBSCRIBE_TIMEOUT
+        mod._SUBSCRIBE_TIMEOUT = 0.01
+        try:
+            with self.assertRaises(asyncio.TimeoutError):
+                _run(m._subscribe(app))
+        finally:
+            mod._SUBSCRIBE_TIMEOUT = orig
 
 
 if __name__ == "__main__":

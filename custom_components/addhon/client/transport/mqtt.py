@@ -47,6 +47,10 @@ _SUBSCRIBE_TIMEOUT = 10  # seconds
 # tear that down and re-hit the AWS authorizer-token endpoint each cycle. Waiting for
 # sustained downtime lets the native reconnect recover first.
 _RECONNECT_AFTER_FAILED_TICKS = 3
+# Additive backoff cap (seconds) applied to the watchdog cadence after consecutive
+# rebuild failures, so a persistent 5xx from the AWS authorizer is not hammered
+# every tick. Reset to 0 on recovery; never masks (each failure still logs WARNING).
+_RECONNECT_BACKOFF_CAP = 60
 
 
 def _subscribed_topics(appliance) -> list:
@@ -87,7 +91,7 @@ class NativeMqttClient:
 
     async def create(self) -> "NativeMqttClient":
         await self._start()
-        self._subscribe_appliances()
+        await self._subscribe_appliances()
         await self._start_watchdog()
         return self
 
@@ -279,15 +283,20 @@ class NativeMqttClient:
         )
         self.client.start()
 
-    def _subscribe_appliances(self) -> None:
+    async def _subscribe_appliances(self) -> None:
         for appliance in self._appliances:
-            self._subscribe(appliance)
+            await self._subscribe(appliance)
 
-    def _subscribe(self, appliance: Any) -> None:
-        for topic in appliance.info.get("topics", {}).get("subscribe", []):
-            self.client.subscribe(
+    async def _subscribe(self, appliance: Any) -> None:
+        for topic in _subscribed_topics(appliance):
+            # awscrt subscribe() returns a concurrent.futures.Future; await it via
+            # wrap_future instead of a blocking .result(), so the hon_loop is not
+            # frozen up to _SUBSCRIBE_TIMEOUT per topic. Order is preserved (await
+            # each before the next); the timeout bound is unchanged.
+            future = self.client.subscribe(
                 mqtt5.SubscribePacket([mqtt5.Subscription(topic)])
-            ).result(_SUBSCRIBE_TIMEOUT)
+            )
+            await asyncio.wait_for(asyncio.wrap_future(future), _SUBSCRIBE_TIMEOUT)
             _LOGGER.info("Subscribed to topic %s", topic)
 
     async def _start_watchdog(self) -> None:
@@ -296,17 +305,35 @@ class NativeMqttClient:
 
     async def _watchdog(self) -> None:
         failed_ticks = 0
+        backoff = 0
         while True:
-            await asyncio.sleep(_WATCHDOG_INTERVAL)
-            if self._connection:
+            # The rebuild (load_aws_token / subscribe) can raise transiently; without
+            # this guard one exception would end the task and kill realtime until a
+            # reload. Re-raise CancelledError FIRST (stop() cancels+awaits us, so
+            # swallowing it would deadlock shutdown); on any other error log and keep
+            # looping with an additive backoff (capped, reset on recovery).
+            try:
+                await asyncio.sleep(_WATCHDOG_INTERVAL + backoff)
+                if self._connection:
+                    failed_ticks = 0
+                    backoff = 0
+                    continue
+                # Sustained downtime only: give awscrt's own auto-reconnect a chance
+                # before forcing a rebuild (see _RECONNECT_AFTER_FAILED_TICKS).
+                failed_ticks += 1
+                if failed_ticks < _RECONNECT_AFTER_FAILED_TICKS:
+                    continue
                 failed_ticks = 0
-                continue
-            # Sustained downtime only: give awscrt's own auto-reconnect a chance
-            # before forcing a rebuild (see _RECONNECT_AFTER_FAILED_TICKS).
-            failed_ticks += 1
-            if failed_ticks < _RECONNECT_AFTER_FAILED_TICKS:
-                continue
-            failed_ticks = 0
-            _LOGGER.info("Restart mqtt connection")
-            await self._start()
-            self._subscribe_appliances()
+                _LOGGER.info("Restart mqtt connection")
+                await self._start()
+                await self._subscribe_appliances()
+                backoff = 0  # rebuild succeeded
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                backoff = min(backoff + _WATCHDOG_INTERVAL, _RECONNECT_BACKOFF_CAP)
+                _LOGGER.warning(
+                    "MQTT watchdog: reconnect failed, retrying in %ss",
+                    _WATCHDOG_INTERVAL + backoff,
+                    exc_info=True,
+                )
