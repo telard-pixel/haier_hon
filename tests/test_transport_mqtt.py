@@ -230,6 +230,54 @@ class PublishReceivedTest(unittest.TestCase):
         self.assertEqual(app.synced, ["settings"])
         self.assertEqual(hon.notified, 1)
 
+    _LOGGER_NAME = "custom_components.addhon.client.transport.mqtt"
+
+    def test_non_dict_parameter_skipped_valid_applied(self) -> None:
+        # A null/garbage element must be skipped; the valid params in the SAME batch
+        # are still applied and notify still fires (no whole-message drop).
+        topic = "haier/things/MAC/event/appliancestatus/update"
+        app = FakeAppliance(topic)
+        m, hon = self._client(app)
+        m._on_publish_received(_packet(topic, {"parameters": [
+            None,
+            {"parName": "temp", "parValue": "5"},
+            "garbage",
+        ]}))
+        self.assertEqual(app.attributes["parameters"]["temp"].updated,
+                         {"parName": "temp", "parValue": "5"})
+        self.assertEqual(app.synced, ["settings"])
+        self.assertEqual(hon.notified, 1)
+
+    def test_parameters_not_a_list_does_not_drop(self) -> None:
+        topic = "haier/things/MAC/event/appliancestatus/update"
+        app = FakeAppliance(topic)
+        m, hon = self._client(app)
+        m._on_publish_received(_packet(topic, {"parameters": None}))
+        m._on_publish_received(_packet(topic, {"parameters": {"x": 1}}))
+        self.assertEqual(hon.notified, 2)  # both still processed + notified
+
+    def test_non_dict_parameter_no_warning(self) -> None:
+        # Dirty cloud data is DEBUG, not WARNING (WARNING is reserved for real bugs).
+        topic = "haier/things/MAC/event/appliancestatus/update"
+        app = FakeAppliance(topic)
+        m, _ = self._client(app)
+        with self.assertNoLogs(self._LOGGER_NAME, level="WARNING"):
+            m._on_publish_received(_packet(topic, {"parameters": [None, "x"]}))
+
+    def test_appliance_topics_null_does_not_block_others(self) -> None:
+        # An appliance whose info["topics"] is null must not break the topic lookup
+        # for the OTHER appliances.
+        good = FakeAppliance("haier/X/appliancestatus")
+        bad = FakeAppliance("haier/Y/appliancestatus")
+        bad.info = {"topics": None}
+        hon = FakeHon([bad, good])
+        m = NativeMqttClient(hon, "MID")
+        m._on_publish_received(_packet("haier/X/appliancestatus",
+                                       {"parameters": [{"parName": "temp", "parValue": "9"}]}))
+        self.assertEqual(good.attributes["parameters"]["temp"].updated,
+                         {"parName": "temp", "parValue": "9"})
+        self.assertEqual(hon.notified, 1)
+
     def test_disconnected_sets_connection_false(self) -> None:
         topic = "haier/things/MAC/event/disconnected"
         app = FakeAppliance(topic)

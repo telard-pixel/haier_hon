@@ -49,6 +49,19 @@ _SUBSCRIBE_TIMEOUT = 10  # seconds
 _RECONNECT_AFTER_FAILED_TICKS = 3
 
 
+def _subscribed_topics(appliance) -> list:
+    """Subscribe topics of an appliance, tolerating null/non-dict info shapes.
+
+    `info.get("topics", {})` returns {} only on a MISSING key, NOT on an explicit
+    null value (the cloud routinely sends nested nulls): `None.get(...)` would then
+    raise and, in the topic-match generator, drop the message for EVERY appliance.
+    """
+    info = getattr(appliance, "info", None)
+    topics = info.get("topics") if isinstance(info, dict) else None
+    sub = topics.get("subscribe") if isinstance(topics, dict) else None
+    return sub if isinstance(sub, list) else []
+
+
 class NativeMqttClient:
     """Realtime push via AWS IoT MQTT5 on top of the native session."""
 
@@ -174,11 +187,7 @@ class NativeMqttClient:
         try:
             # Defensive: appliance not found for this topic -> exit.
             appliance = next(
-                (
-                    a
-                    for a in self._appliances
-                    if topic in a.info.get("topics", {}).get("subscribe", [])
-                ),
+                (a for a in self._appliances if topic in _subscribed_topics(a)),
                 None,
             )
             if appliance is None:
@@ -186,7 +195,24 @@ class NativeMqttClient:
                 return
             if topic and "appliancestatus" in topic:
                 params = appliance.attributes.get("parameters", {})
-                for parameter in payload.get("parameters", []):
+                raw_params = payload.get("parameters")
+                if not isinstance(raw_params, list):
+                    # The cloud may send parameters as null or a non-list; treat as
+                    # empty (dirty data, DEBUG not WARNING) instead of letting it drop
+                    # the whole message at the broad except below.
+                    if raw_params is not None:
+                        _LOGGER.debug(
+                            "MQTT: appliancestatus parameters not a list (%s), skipping",
+                            type(raw_params).__name__,
+                        )
+                    raw_params = []
+                for parameter in raw_params:
+                    # Skip a single malformed element (e.g. a null in the list) so the
+                    # valid parameters in the same batch are still applied (and notify
+                    # still fires), instead of dropping the entire message.
+                    if not isinstance(parameter, dict):
+                        _LOGGER.debug("MQTT: skipping non-dict parameter element: %r", parameter)
+                        continue
                     name = parameter.get("parName")
                     # Only already-known parameters (seeded by load_attributes). A new
                     # parName is recovered at the next HTTP poll; creating it here would
