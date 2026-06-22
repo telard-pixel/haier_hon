@@ -340,5 +340,144 @@ class StartReconnectTest(unittest.TestCase):
         self.assertIs(m._client, built[1])
 
 
+class WatchdogThresholdTest(unittest.TestCase):
+    """Covers the watchdog's sustained-downtime threshold: it must force a rebuild ONLY
+    after _RECONNECT_AFTER_FAILED_TICKS consecutive down ticks, and reset the counter as
+    soon as the connection comes back (an off-by-one or a missing reset would otherwise
+    slip past the leak-fix tests, which only check _start in isolation)."""
+
+    def _rebuilds_for(self, states):
+        # Drive _watchdog over a scripted sequence of self._connection values (one per
+        # tick) and count how many times it forces a rebuild (_start). asyncio.sleep is
+        # stubbed to advance the script and to end the loop when the script runs out.
+        import custom_components.addhon.client.transport.mqtt as mod
+
+        m = NativeMqttClient(FakeHon([]), "MID")
+        starts = []
+        seq = list(states)
+
+        async def fake_start():
+            starts.append(True)
+
+        async def fake_sleep(_interval):
+            if not seq:
+                raise asyncio.CancelledError
+            m._connection = seq.pop(0)
+
+        m._start = fake_start  # type: ignore[assignment]
+        m._subscribe_appliances = lambda: None  # type: ignore[assignment]
+        real_sleep = mod.asyncio.sleep
+        mod.asyncio.sleep = fake_sleep
+        try:
+            loop = asyncio.new_event_loop()
+            try:
+                loop.run_until_complete(m._watchdog())
+            except asyncio.CancelledError:
+                pass
+            finally:
+                loop.close()
+        finally:
+            mod.asyncio.sleep = real_sleep
+        return len(starts)
+
+    def test_no_rebuild_before_threshold(self) -> None:
+        # Two consecutive down ticks (< _RECONNECT_AFTER_FAILED_TICKS=3) -> no rebuild.
+        self.assertEqual(self._rebuilds_for([False, False]), 0)
+
+    def test_rebuild_after_sustained_downtime(self) -> None:
+        # Exactly _RECONNECT_AFTER_FAILED_TICKS down ticks -> a single rebuild.
+        self.assertEqual(self._rebuilds_for([False, False, False]), 1)
+
+    def test_reconnect_resets_failed_ticks(self) -> None:
+        # A healthy tick before the threshold resets the counter, so two down ticks on
+        # either side of it never reach three-in-a-row -> no rebuild.
+        self.assertEqual(self._rebuilds_for([False, False, True, False, False]), 0)
+
+
+class StaleLifecycleCallbackTest(unittest.TestCase):
+    """Covers the generation guard: after a rebuild, a late lifecycle event from the
+    previous (stopped) client must NOT flip self._connection on the new one (awscrt
+    stop() is async, so the old client can emit a disconnection after the new one
+    connected)."""
+
+    def test_stale_callback_does_not_flip_connection(self) -> None:
+        m = NativeMqttClient(FakeHon([]), "MID")
+        # Pretend we are on the 2nd client generation.
+        m._generation = 2
+        # The current generation's success marks the connection up.
+        m._on_lifecycle_connection_success(None, generation=2)
+        self.assertTrue(m._connection)
+        # A late disconnection/failure from the OLD generation (1) is ignored.
+        m._on_lifecycle_disconnection(None, generation=1)
+        self.assertTrue(m._connection)
+        m._on_lifecycle_connection_failure(None, generation=1)
+        self.assertTrue(m._connection)
+        # The current generation's disconnection still takes effect.
+        m._on_lifecycle_disconnection(None, generation=2)
+        self.assertFalse(m._connection)
+
+
+class StartGenerationWiringTest(unittest.TestCase):
+    """Covers the _start <-> guard wiring: _start must bind the state-mutating lifecycle
+    callbacks to the CURRENT generation via functools.partial, so awscrt (which calls
+    them with a single positional `data`) supplies the right generation and a callback
+    captured from a previous client is ignored after a rebuild. Without this test a
+    regression on the partial wiring (or the functools import) would pass every other
+    test (the guard logic test sets the generation by hand, not through _start)."""
+
+    def _make_client(self):
+        import awsiot
+
+        builds: list = []
+
+        class FakeClient:
+            def start(self) -> None:
+                pass
+
+            def stop(self) -> None:
+                pass
+
+        def fake_builder(**kwargs):
+            builds.append(kwargs)
+            return FakeClient()
+
+        awsiot.mqtt5_client_builder.websockets_with_custom_authorizer = fake_builder
+
+        class FakeAuth:
+            id_token = "IDT"
+
+        class FakeApi:
+            auth = FakeAuth()
+
+            async def load_aws_token(self):
+                return "SIGNED"
+
+        hon = FakeHon([])
+        hon.api = FakeApi()
+        return NativeMqttClient(hon, "MID"), builds
+
+    def test_start_binds_callbacks_to_current_generation(self) -> None:
+        m, builds = self._make_client()
+
+        async def body():
+            await m._start()  # generation 1
+            await m._start()  # rebuild -> generation 2 (stops the first)
+
+        _run(body())
+        self.assertEqual(len(builds), 2)
+        gen1, gen2 = builds[0], builds[1]
+        # awscrt invokes the registered callback with a SINGLE positional `data`; the
+        # partial must supply the generation it was bound to (a bare method would raise
+        # TypeError here for the missing generation arg).
+        gen2["on_lifecycle_connection_success"](None)  # current generation -> up
+        self.assertTrue(m._connection)
+        # A late disconnection from the FIRST client (old generation) must be ignored.
+        gen1["on_lifecycle_disconnection"](None)
+        self.assertTrue(m._connection)
+        # The current client's disconnection still takes effect.
+        gen2["on_lifecycle_disconnection"](None)
+        self.assertFalse(m._connection)
+
+
 if __name__ == "__main__":
     unittest.main()

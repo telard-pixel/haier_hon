@@ -425,6 +425,27 @@ class ClusterBehaviorTest(unittest.TestCase):
         c.parameters["mode"].value = "hot"
         self.assertEqual(c.parameters["temp"].value, 22.5)
 
+    def test_sync_params_to_command_preserves_half_degree(self) -> None:
+        # ORACLE (Bug3 at its call-site): a half-degree setpoint (22.5) coming from the
+        # attributes must survive sync_params_to_command into the command settings, not
+        # be truncated to 22. The old code assigned float(new.value) to the range setter,
+        # and str_to_float(22.5)=int(22.5)=22 truncates silently (step 0.5 makes the
+        # truncated 22 pass the off-step check, so no ValueError surfaced). The fix
+        # assigns str(new.value). Without this test a regression to float() would still
+        # leave all other tests green.
+        from custom_components.addhon.client.engine.attributes import HonAttribute
+
+        command = NaCommand(
+            "settings",
+            {"parameters": {"temp": _range(default="20", lo="16", hi="30", inc="0.5")}},
+            FakeAppliance(),
+        )
+        app = NaAppliance(FakeApi(), dict(_INFO), zone=0)
+        app._commands = {"settings": command}
+        app._attributes = {"parameters": {"temp": HonAttribute({"parNewVal": "22.5"})}}
+        app.sync_params_to_command("settings")
+        self.assertEqual(command.settings["temp"].value, 22.5)
+
     def test_ac_eco_nested_rule_fires(self) -> None:
         # REAL AC structure (apk/dump/ac_live): ecoMode=1 with machMode fixed=1
         # must constrain tempSel to 26 and the wind-direction (nested extra-condition).

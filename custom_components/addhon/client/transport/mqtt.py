@@ -23,6 +23,7 @@ it (`NativeHon`) imports it lazily. The lifecycle INFO noise is governed by
 from __future__ import annotations
 
 import asyncio
+import functools
 import json
 import logging
 import secrets
@@ -58,6 +59,11 @@ class NativeMqttClient:
         self._appliances = hon.appliances
         self._client: mqtt5.Client | None = None
         self._connection = False
+        # Bumped on every _start(): the state-mutating lifecycle callbacks are bound
+        # to the generation of the client that registered them, so a late event from a
+        # client we already stopped cannot flip self._connection on the new one (awscrt
+        # stop() is asynchronous). See _is_stale_generation.
+        self._generation = 0
         self._watchdog_task: asyncio.Task[None] | None = None
 
     @property
@@ -91,12 +97,31 @@ class NativeMqttClient:
             self._client = None
 
     # -- lifecycle callbacks ---------------------------------------------------
+    # The callbacks that write self._connection are registered (in _start) bound to the
+    # generation of their client. awscrt stop() is asynchronous, so the client we tear
+    # down during a rebuild can still emit a late disconnection/failure AFTER the new
+    # client reported success; without this guard that stale event would flip
+    # self._connection back to False on a healthy connection and make the watchdog count
+    # a false outage (and possibly force a superfluous rebuild). An event from a
+    # non-current generation is ignored.
+    def _is_stale_generation(self, generation: int) -> bool:
+        if generation != self._generation:
+            _LOGGER.debug(
+                "MQTT: ignoring stale lifecycle event (gen %s != current %s)",
+                generation,
+                self._generation,
+            )
+            return True
+        return False
+
     def _on_lifecycle_stopped(self, data: "mqtt5.LifecycleStoppedData") -> None:
         _LOGGER.info("Lifecycle Stopped: %s", data)
 
     def _on_lifecycle_connection_success(
-        self, data: "mqtt5.LifecycleConnectSuccessData"
+        self, data: "mqtt5.LifecycleConnectSuccessData", generation: int
     ) -> None:
+        if self._is_stale_generation(generation):
+            return
         self._connection = True
         _LOGGER.info("Lifecycle Connection Success: %s", data)
 
@@ -106,14 +131,18 @@ class NativeMqttClient:
         _LOGGER.info("Lifecycle Attempting Connect: %s", data)
 
     def _on_lifecycle_connection_failure(
-        self, data: "mqtt5.LifecycleConnectFailureData"
+        self, data: "mqtt5.LifecycleConnectFailureData", generation: int
     ) -> None:
+        if self._is_stale_generation(generation):
+            return
         self._connection = False
         _LOGGER.info("Lifecycle Connection Failure: %s", data)
 
     def _on_lifecycle_disconnection(
-        self, data: "mqtt5.LifecycleDisconnectData"
+        self, data: "mqtt5.LifecycleDisconnectData", generation: int
     ) -> None:
+        if self._is_stale_generation(generation):
+            return
         self._connection = False
         _LOGGER.info("Lifecycle Disconnection: %s", data)
 
@@ -184,6 +213,11 @@ class NativeMqttClient:
             except Exception as err:  # pragma: no cover - defensive
                 _LOGGER.debug("addhOn: stopping previous MQTT client failed: %s", err)
             self._client = None
+        # Tag this client's state-mutating callbacks with a fresh generation so a late
+        # event from the client just stopped cannot flip self._connection (see
+        # _is_stale_generation).
+        self._generation += 1
+        generation = self._generation
         self._client = mqtt5_client_builder.websockets_with_custom_authorizer(
             endpoint=AWS_ENDPOINT,
             auth_authorizer_name=AWS_AUTHORIZER,
@@ -192,10 +226,16 @@ class NativeMqttClient:
             auth_token_value=self._api.auth.id_token,
             client_id=f"{self._mobile_id}_{secrets.token_hex(8)}",
             on_lifecycle_stopped=self._on_lifecycle_stopped,
-            on_lifecycle_connection_success=self._on_lifecycle_connection_success,
+            on_lifecycle_connection_success=functools.partial(
+                self._on_lifecycle_connection_success, generation=generation
+            ),
             on_lifecycle_attempting_connect=self._on_lifecycle_attempting_connect,
-            on_lifecycle_connection_failure=self._on_lifecycle_connection_failure,
-            on_lifecycle_disconnection=self._on_lifecycle_disconnection,
+            on_lifecycle_connection_failure=functools.partial(
+                self._on_lifecycle_connection_failure, generation=generation
+            ),
+            on_lifecycle_disconnection=functools.partial(
+                self._on_lifecycle_disconnection, generation=generation
+            ),
             on_publish_received=self._on_publish_received,
         )
         self.client.start()
