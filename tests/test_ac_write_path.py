@@ -127,6 +127,17 @@ class DomainErrorCommand(RecordingCommand):
         raise HomeAssistantError(translation_domain="addhon", translation_key=self._key)
 
 
+class RangeParam:
+    """Range parameter stub exposing min/max/step (Param has only value/values),
+    so the climate entity can read the device's real setpoint range."""
+
+    def __init__(self, value, *, mn, mx, step) -> None:
+        self.value = value
+        self.min = mn
+        self.max = mx
+        self.step = step
+
+
 class RuleParam:
     """Parameter whose value setter ALSO mutates `.values` (like the real rules
     mutate siblings). Used to prove the rollback restores the full __dict__
@@ -248,11 +259,43 @@ class AcClimateWritePathTest(unittest.IsolatedAsyncioTestCase):
             await entity.async_set_swing_mode("on")
         self.assertEqual("inner_key", getattr(ctx.exception, "translation_key", None))
 
-    async def test_set_temperature_truncates_to_int_string(self) -> None:
+    async def test_set_temperature_integer_sent_clean(self) -> None:
         entity, settings, _ = _climate({"tempSel": Param("16")})
-        await entity.async_set_temperature(temperature=23.7)
-        # int() truncates (not round); sent as a string, never "23.7"/"24".
+        await entity.async_set_temperature(temperature=23.0)
+        # Integer-valued: clean int string, never "23.0".
         self.assertEqual({"tempSel": "23"}, settings.sent)
+
+    async def test_set_temperature_fractional_not_truncated(self) -> None:
+        entity, settings, _ = _climate({"tempSel": Param("16")})
+        await entity.async_set_temperature(temperature=23.5)
+        # Fractional value keeps its decimals (no int() truncation to "23"); the
+        # engine Range setter validates it against the device step/grid.
+        self.assertEqual({"tempSel": "23.5"}, settings.sent)
+
+    async def test_temp_range_read_from_device(self) -> None:
+        entity, _, _ = _climate(
+            {"tempSel": RangeParam("20", mn=18, mx=28, step=0.5)}
+        )
+        self.assertEqual(18.0, entity.min_temp)
+        self.assertEqual(28.0, entity.max_temp)
+        self.assertEqual(0.5, entity.target_temperature_step)
+
+    async def test_temp_range_is_live_not_snapshot(self) -> None:
+        # The range is read live from the parameter (like number.py), so a runtime
+        # change to the device's min/max/step is reflected, not frozen at __init__.
+        param = RangeParam("20", mn=18, mx=28, step=1)
+        entity, _, _ = _climate({"tempSel": param})
+        param.min, param.max, param.step = 10.0, 32.0, 0.5
+        self.assertEqual(10.0, entity.min_temp)
+        self.assertEqual(32.0, entity.max_temp)
+        self.assertEqual(0.5, entity.target_temperature_step)
+
+    async def test_temp_range_fallback_when_not_a_range(self) -> None:
+        # tempSel present but without min/max/step -> fallback (16, 30, 1.0).
+        entity, _, _ = _climate({"tempSel": Param("20")})
+        self.assertEqual(16.0, entity.min_temp)
+        self.assertEqual(30.0, entity.max_temp)
+        self.assertEqual(1.0, entity.target_temperature_step)
 
     async def test_set_temperature_without_temperature_is_noop(self) -> None:
         entity, settings, coord = _climate({"tempSel": Param("16")})

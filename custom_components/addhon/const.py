@@ -75,6 +75,12 @@ CONF_ENABLE_MQTT_DEBUG = "enable_mqtt_debug"
 # Confirmed from the diagnostics of the AS35PBPHRA-PRE device
 AC_ATTR_MODE         = "settings.machMode"
 AC_ATTR_TEMP         = "settings.tempSel"
+# Parameter NAMES inside the "settings" command (write side), distinct from the
+# dotted attribute paths above (read side): used to read the device's real
+# range/enum schema for the climate entity (setpoint range, hvac/fan modes).
+AC_TEMP_PARAM        = "tempSel"
+AC_MODE_PARAM        = "machMode"
+AC_FAN_PARAM         = "windSpeed"
 # tempIndoor / tempOutdoor are DIRECT attributes (not in settings), confirmed from diagnostics
 AC_ATTR_CURRENT_TEMP     = "tempIndoor"
 AC_ATTR_OUTDOOR_TEMP     = "tempOutdoor"

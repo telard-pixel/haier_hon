@@ -21,6 +21,9 @@ from .const import (
     AC_FAN_MAP_REVERSE,
     AC_ATTR_MODE,
     AC_ATTR_TEMP,
+    AC_TEMP_PARAM,
+    AC_MODE_PARAM,
+    AC_FAN_PARAM,
     AC_ATTR_ON_OFF,
     AC_ATTR_CURRENT_TEMP,
     AC_ATTR_FAN_SPEED,
@@ -37,6 +40,7 @@ from .ac_command import (
     param_allowed_values,
     settings_param,
 )
+from .hon_commands import param_range
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -73,9 +77,14 @@ class HaierClimateEntity(HonBaseEntity, ClimateEntity):
         self._attr_name = None
         self._attr_unique_id = f"{appliance_id}_climate"
         self._attr_temperature_unit = UnitOfTemperature.CELSIUS
-        self._attr_target_temperature_step = 1.0
-        self._attr_min_temp = 16.0
-        self._attr_max_temp = 30.0
+        # Setpoint range/step read from the device's real tempSel parameter (see
+        # min_temp/max_temp/target_temperature_step below), not hardcoded: a model
+        # with a different range or half-degree step must be honoured so the UI
+        # only offers values the device accepts. Fallback to 16-30/1.0 if absent.
+        self._temp_param = settings_param(self._appliance, AC_TEMP_PARAM)
+        self._temp_fallback_range = (
+            param_range(self._temp_param) if self._temp_param is not None else None
+        ) or (16.0, 30.0, 1.0)
         self._attr_supported_features = (
             ClimateEntityFeature.TARGET_TEMPERATURE
             | ClimateEntityFeature.FAN_MODE
@@ -106,9 +115,26 @@ class HaierClimateEntity(HonBaseEntity, ClimateEntity):
             appliance_id,
             self._attr_hvac_modes,
             self._attr_fan_modes,
-            self._attr_min_temp,
-            self._attr_max_temp,
+            self.min_temp,
+            self.max_temp,
         )
+
+    @property
+    def _live_temp_range(self) -> tuple[float, float, float]:
+        """(min, max, step) read from the runtime tempSel parameter, fallback to snapshot."""
+        return param_range(self._temp_param) or self._temp_fallback_range
+
+    @property
+    def min_temp(self) -> float:
+        return self._live_temp_range[0]
+
+    @property
+    def max_temp(self) -> float:
+        return self._live_temp_range[1]
+
+    @property
+    def target_temperature_step(self) -> float:
+        return self._live_temp_range[2]
 
     @property
     def hvac_mode(self) -> HVACMode:
@@ -258,8 +284,13 @@ class HaierClimateEntity(HonBaseEntity, ClimateEntity):
                 translation_key="appliance_or_client_unavailable",
             )
         try:
-            _LOGGER.debug("Climate debug: set_temperature %s -> tempSel=%s", temp, int(temp))
-            await self._send_command_in_executor(client, appliance, {"tempSel": str(int(temp))})
+            # Do NOT int()-truncate: an integer value stays a clean int string
+            # ("23"), a fractional one keeps its decimals ("23.5") and the engine
+            # Range setter validates it against the device's real step/grid
+            # (mirrors number.py; the old int() silently dropped the half degree).
+            send_value = str(int(temp)) if float(temp).is_integer() else str(temp)
+            _LOGGER.debug("Climate debug: set_temperature %s -> tempSel=%s", temp, send_value)
+            await self._send_command_in_executor(client, appliance, {"tempSel": send_value})
             await self._async_request_command_refresh()
         except Exception as err:
             _LOGGER.error("Climate: set_temperature error: %s", err, exc_info=True)
