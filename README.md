@@ -27,41 +27,27 @@
 - **Smart attribute mapping** — device-specific attribute keys extracted from real diagnostics
 - **Full Lovelace support** — integrates seamlessly with Home Assistant UI and automations
 
-## Prerequisites
+## Installation
+
+### Prerequisites
 
 - Home Assistant 2024.12.0 or newer
 - Haier hOn app account credentials
 
-## Installation
-
-### Method 1: Manual (Developer Mode)
-
-1. **Clone or download** this integration to your Home Assistant custom integrations folder:
-
-```bash
-git clone https://github.com/tis24dev/addhOn.git
-cp -r addhOn/custom_components/addhon /path/to/config/custom_components/addhon
-```
-
-If you don't have a `custom_components` folder, create it:
-
-```bash
-mkdir -p /path/to/config/custom_components
-```
-
-2. **Restart Home Assistant** to load the integration.
-
-3. **Add the integration** via Settings → Devices & Services → **Add Integration**, search for **addhOn**, then enter your Haier hOn email and password in the dialog. All configuration happens in the UI; there is no `configuration.yaml` setup.
-
-### Method 2: HACS (if available)
+### Method 1: HACS
 
 Add this repository to HACS as a custom integration and install from the UI.
 
-### Initial setup
-
-1. Go to Settings → Devices & Services → **Add Integration**.
-2. Search for **addhOn** and select it.
-3. Enter your Haier hOn account email and password and submit. The credentials
+1. Login in Home Assistant UI → Select HACS in the left
+2. Tap the three dots (menu) in the upper-right corner
+3. Select **Customized digital archives**
+4. Add the repo link: **https://github.com/tis24dev/addhOn/** and type: **Integration**
+5. Save
+6. Search for **addhOn** and select it
+7. Click the button in the lower right corner to download, then restart
+8. Go to Settings → Devices & Services → **Add Integration**
+9. Search for **addhOn** and select it
+10. Enter your Haier hOn account email and password and submit. The credentials
    are validated against the hOn cloud and stored in the config entry.
 
 If your hOn session later expires, Home Assistant shows a **Reconfigure**
