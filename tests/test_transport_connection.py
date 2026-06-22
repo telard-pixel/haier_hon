@@ -82,6 +82,10 @@ class FakeAuth:
         self.cognito_token = "COG2"
         self.id_token = "IDT2"
         self.refresh_token = "RT2"
+        # Faithful to the real refresh(): resetting _expires clears the expiry
+        # flags, so a guarded pre-refresh does not fire again right after.
+        self.token_expires_soon = False
+        self.token_is_expired = False
         return True
 
 
@@ -154,6 +158,96 @@ class ConnectionTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertGreaterEqual(auth.refresh_calls, 1)
         self.assertEqual(len(session.calls), 2)  # one retry
+
+    def test_no_pre_refresh_when_token_fresh(self) -> None:
+        # #1: a valid, non-expiring token with a refresh_token present must NOT
+        # trigger a pre-request refresh (the old code refreshed on every request).
+        auth = FakeAuth()
+        auth.cognito_token, auth.id_token = "C", "I"
+        auth.token_expires_soon = False
+        conn = _conn(auth, FakeSession([200]))
+        conn._refresh_token = "RT"
+
+        async def run():
+            async with conn.get("https://x/api") as resp:
+                return resp.status
+
+        asyncio.run(run())
+        self.assertEqual(auth.refresh_calls, 0)
+        self.assertEqual(auth.authenticate_calls, 0)
+
+    def test_pre_refresh_when_expires_soon(self) -> None:
+        auth = FakeAuth()
+        auth.cognito_token, auth.id_token = "C", "I"
+        auth.token_expires_soon = True
+        conn = _conn(auth, FakeSession([200]))
+        conn._refresh_token = "RT"
+
+        async def run():
+            async with conn.get("https://x/api"):
+                pass
+
+        asyncio.run(run())
+        self.assertEqual(auth.refresh_calls, 1)
+
+    def test_single_401_triggers_one_refresh(self) -> None:
+        # #14: a single 401 must refresh exactly once (was 3: pre + loop0 + recursion).
+        auth = FakeAuth()
+        auth.cognito_token, auth.id_token = "C", "I"
+        auth.token_expires_soon = False
+        conn = _conn(auth, FakeSession([401, 200]))
+        conn._refresh_token = "RT"
+
+        async def run():
+            async with conn.post("https://x/api") as resp:
+                return resp.status
+
+        status = asyncio.run(run())
+        self.assertEqual(status, 200)
+        self.assertEqual(auth.refresh_calls, 1)
+        self.assertEqual(len(conn._session.calls), 2)
+
+    def test_restart_with_refresh_token_refreshes_not_logins(self) -> None:
+        # State after restart: refresh_token persisted but in-RAM tokens empty and
+        # not yet near expiry -> use the persisted token (refresh) instead of a
+        # full re-login (authenticate).
+        auth = FakeAuth()  # cognito/id empty
+        auth.token_expires_soon = False
+        conn = _conn(auth, FakeSession([200]))
+        conn._refresh_token = "RT"
+
+        async def run():
+            async with conn.get("https://x/api"):
+                pass
+
+        asyncio.run(run())
+        self.assertEqual(auth.refresh_calls, 1)
+        self.assertEqual(auth.authenticate_calls, 0)
+
+    def test_concurrent_requests_single_refresh(self) -> None:
+        # The lock + double-check collapses a burst of concurrent requests (the
+        # asyncio.gather in load_commands) into ONE refresh on the shared token.
+        class SlowFakeAuth(FakeAuth):
+            async def refresh(self, rt: str = "") -> bool:
+                self.refresh_calls += 1
+                await asyncio.sleep(0)  # yield so the other coroutines interleave
+                self.cognito_token, self.id_token, self.refresh_token = "C2", "I2", "RT2"
+                return True
+
+        auth = SlowFakeAuth()  # tokens empty -> all 3 initially _need_refresh
+        conn = _conn(auth, FakeSession([200, 200, 200]))
+        conn._refresh_token = "RT"
+
+        async def one():
+            async with conn.get("https://x/api") as resp:
+                return resp.status
+
+        async def run():
+            return await asyncio.gather(one(), one(), one())
+
+        asyncio.run(run())
+        self.assertEqual(auth.refresh_calls, 1)
+        self.assertEqual(auth.authenticate_calls, 0)
 
     def test_retry_on_403_refreshes(self) -> None:
         # Same branch as the 401 (the code treats them identically) but made explicit

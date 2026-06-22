@@ -8,6 +8,7 @@ Happy path validated live; the retry branches have offline tests with a mocked s
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from collections.abc import AsyncIterator
@@ -41,6 +42,13 @@ class HonConnection:
         self._owns_session = session is None
         self._session = session
         self._auth: HonAuth | None = None
+        # Serializes token refresh/authenticate across concurrent requests (e.g.
+        # the asyncio.gather burst in load_commands): without it, N parallel
+        # _check_headers would each fire a refresh on the SAME refresh_token.
+        # Lives on the connection (stable owner), NOT on HonAuth which create()
+        # replaces. Instantiated here (not in create()) so concurrent coroutines
+        # share the same lock.
+        self._refresh_lock = asyncio.Lock()
 
     @property
     def device(self) -> HonDevice:
@@ -65,13 +73,28 @@ class HonConnection:
         return self
 
     async def _check_headers(self, headers: dict) -> dict:
-        # If I have a refresh_token I try to refresh, otherwise (or if the tokens
-        # are missing) I log in; then I inject the tokens.
-        if self._refresh_token:
-            await self.auth.refresh(self._refresh_token)
-        if not (self.auth.cognito_token and self.auth.id_token):
-            await self.auth.authenticate()
-        self._refresh_token = self.auth.refresh_token
+        # Refresh ONLY when needed: no usable token in RAM (first request, or a
+        # restart with a persisted refresh_token) OR the token is near expiry.
+        # Previously this refreshed on EVERY request (#1) and recursed into a
+        # second refresh on 401 (#14). The 401 recovery lives in _intercept and is
+        # untouched. The lock + re-check (double-checked locking) collapses a burst
+        # of concurrent requests into a single refresh/authenticate (#race), so a
+        # rotating IdP cannot invalidate the shared refresh_token mid-flight.
+        def _need_refresh() -> bool:
+            have_tokens = bool(self.auth.cognito_token and self.auth.id_token)
+            return bool(self._refresh_token) and (not have_tokens or self.auth.token_expires_soon)
+
+        def _need_auth() -> bool:
+            return not (self.auth.cognito_token and self.auth.id_token)
+
+        if _need_refresh() or _need_auth():
+            async with self._refresh_lock:
+                if _need_refresh():
+                    await self.auth.refresh(self._refresh_token)
+                    self._refresh_token = self.auth.refresh_token
+                if _need_auth():
+                    await self.auth.authenticate()
+                    self._refresh_token = self.auth.refresh_token
         return build_auth_headers(self.auth.cognito_token, self.auth.id_token, headers)
 
     @asynccontextmanager
