@@ -72,7 +72,7 @@ class HonApi:
             f"{API_URL}/unified-api/v1/view/appliance-list",
             json={"deviceId": device_id},
         ) as resp:
-            result = await resp.json()
+            result = await resp.json(content_type=None)
         appliances = parse_appliance_list(result)
         if not appliances:
             # Request/auth OK but 0 appliances: log the response structure to
@@ -106,7 +106,7 @@ class HonApi:
             params["series"] = series
         url = f"{API_URL}/commands/v1/retrieve"
         async with self._connection.get(url, params=params) as response:
-            data = await response.json()
+            data = await response.json(content_type=None)
         payload = data.get("payload") if isinstance(data, dict) else None
         # Error-branch on any invalid shape (non-dict or empty payload) -> {}. The pop
         # below REMOVES resultCode from the returned dict (the parser does not want it
@@ -122,7 +122,7 @@ class HonApi:
     async def load_command_history(self, appliance: Any) -> list:
         url = f"{API_URL}/commands/v1/appliance/{appliance.mac_address}/history"
         async with self._connection.get(url) as response:
-            result = await response.json()
+            result = await response.json(content_type=None)
         if not isinstance(result, dict) or not result.get("payload"):
             return []
         payload = result["payload"]
@@ -132,7 +132,7 @@ class HonApi:
     async def load_favourites(self, appliance: Any) -> list:
         url = f"{API_URL}/commands/v1/appliance/{appliance.mac_address}/favourite"
         async with self._connection.get(url) as response:
-            result = await response.json()
+            result = await response.json(content_type=None)
         if not isinstance(result, dict) or not result.get("payload"):
             return []
         payload = result["payload"]
@@ -143,7 +143,7 @@ class HonApi:
         url = f"{API_URL}/commands/v1/retrieve-last-activity"
         params = {"macAddress": appliance.mac_address}
         async with self._connection.get(url, params=params) as response:
-            result = await response.json()
+            result = await response.json(content_type=None)
         if isinstance(result, dict):
             activity = result.get("attributes")
             if isinstance(activity, dict) and activity:
@@ -154,7 +154,7 @@ class HonApi:
         url = f"{API_URL}/commands/v1/appliance-model"
         params = {"code": appliance.code, "macAddress": appliance.mac_address}
         async with self._connection.get(url, params=params) as response:
-            result = await response.json()
+            result = await response.json(content_type=None)
         if isinstance(result, dict):
             payload = result.get("payload")
             if isinstance(payload, dict):
@@ -170,7 +170,7 @@ class HonApi:
         }
         url = f"{API_URL}/commands/v1/context"
         async with self._connection.get(url, params=params) as response:
-            data = await response.json()
+            data = await response.json(content_type=None)
         payload = data.get("payload", {}) if isinstance(data, dict) else {}
         return payload if isinstance(payload, dict) else {}
 
@@ -181,7 +181,7 @@ class HonApi:
         }
         url = f"{API_URL}/commands/v1/statistics"
         async with self._connection.get(url, params=params) as response:
-            data = await response.json()
+            data = await response.json(content_type=None)
         payload = data.get("payload", {}) if isinstance(data, dict) else {}
         return payload if isinstance(payload, dict) else {}
 
@@ -189,14 +189,14 @@ class HonApi:
         url = f"{API_URL}/commands/v1/maintenance-cycle"
         params = {"macAddress": appliance.mac_address}
         async with self._connection.get(url, params=params) as response:
-            data = await response.json()
+            data = await response.json(content_type=None)
         payload = data.get("payload", {}) if isinstance(data, dict) else {}
         return payload if isinstance(payload, dict) else {}
 
     async def load_aws_token(self) -> str:
         url = f"{API_URL}/auth/v1/introspection"
         async with self._connection.get(url) as response:
-            data = await response.json()
+            data = await response.json(content_type=None)
         payload = data.get("payload", {}) if isinstance(data, dict) else {}
         token = payload.get("tokenSigned", "") if isinstance(payload, dict) else ""
         return token if isinstance(token, str) else ""
@@ -230,7 +230,7 @@ class HonApi:
             data["programName"] = program_name.upper()
         url = f"{API_URL}/commands/v1/send"
         async with self._connection.post(url, json=data) as response:
-            json_data = await response.json()
+            json_data = await response.json(content_type=None)
             payload = json_data.get("payload") if isinstance(json_data, dict) else None
             if isinstance(payload, dict) and payload.get("resultCode") == "0":
                 return True

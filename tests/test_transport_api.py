@@ -626,5 +626,38 @@ class ApiIntentionalNarrowingTest(unittest.TestCase):
         self.assertEqual(got, "")
 
 
+_NO_CT = object()
+
+
+class _StrictResponse(FakeResponse):
+    """json() requires content_type=None to be passed explicitly; otherwise it
+    raises, simulating aiohttp's ContentTypeError on a wrong Content-Type."""
+
+    async def json(self, content_type=_NO_CT):
+        if content_type is _NO_CT:
+            raise AssertionError("response.json() called without content_type=None")
+        return self._body
+
+
+class _StrictConnection(FakeConnection):
+    def _ctx(self, method, url, kwargs):
+        return _ReqCtx(self, method, url, kwargs, _StrictResponse(self._body, self._text))
+
+
+class ContentTypeTest(unittest.TestCase):
+    """#8: every api.py call-site must pass content_type=None (the cloud sometimes
+    returns valid JSON with a non-JSON Content-Type)."""
+
+    def test_load_appliances_passes_content_type_none(self) -> None:
+        body = {"modules": {"applianceList": {"payload": {"appliances": [{"a": 1}]}}}}
+        # Would raise if load_appliances called .json() without content_type=None.
+        _run(_call(_StrictConnection(body)).load_appliances())
+
+    def test_load_commands_passes_content_type_none(self) -> None:
+        body = {"payload": {"resultCode": "0"}}
+        app = FakeAppliance(eepromId="EE", fwVersion="1.2", series="S")
+        _run(_call(_StrictConnection(body)).load_commands(app))
+
+
 if __name__ == "__main__":
     unittest.main()
