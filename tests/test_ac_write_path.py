@@ -206,6 +206,27 @@ class AcClimateWritePathTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual({"onOffStatus": "0"}, settings.sent)
         self.assertEqual(1, settings.send_calls)
 
+    async def test_turn_on_send_failure_raises_command_error(self) -> None:
+        entity, settings, coord = _climate_failing({"onOffStatus": Param("0")})
+        with self.assertRaises(HomeAssistantError) as ctx:
+            await entity.async_turn_on()
+        self.assertEqual("command_error", getattr(ctx.exception, "translation_key", None))
+        self.assertEqual(1, settings.send_calls)
+        self.assertEqual(0, coord.refreshes)
+
+    async def test_turn_on_client_none_raises(self) -> None:
+        settings = RecordingCommand({"onOffStatus": Param("0")})
+        coordinator = FakeCoordinator(_ac({"settings": settings}))
+        entity = climate.HaierClimateEntity(coordinator, "ac-1", None)
+        entity.hass = FakeHass()
+        with self.assertRaises(HomeAssistantError) as ctx:
+            await entity.async_turn_on()
+        self.assertEqual(
+            "appliance_or_client_unavailable",
+            getattr(ctx.exception, "translation_key", None),
+        )
+        self.assertEqual(0, settings.send_calls)
+
     async def test_set_hvac_mode_maps_each_mode(self) -> None:
         # Golden codes from AS35: auto=0, cool=1, dry=2, heat=4, fan_only=6.
         cases = [
@@ -403,6 +424,14 @@ class AcClimateWritePathTest(unittest.IsolatedAsyncioTestCase):
             ],
             entity._attr_hvac_modes,
         )
+
+    async def test_hvac_modes_skips_unmapped_enum_code(self) -> None:
+        # Real devices may report machMode codes not in AC_MODE_MAP (e.g. "3","7"):
+        # they must be skipped, not crash the entity construction.
+        entity, _, _ = _climate(
+            {"machMode": Param("0", values=["0", "1", "3", "7"])}
+        )
+        self.assertEqual([HVACMode.OFF, HVACMode.AUTO, HVACMode.COOL], entity._attr_hvac_modes)
 
     async def test_hvac_modes_fallback_when_enum_absent(self) -> None:
         # machMode present but no enum values -> full HA list (no regression).
