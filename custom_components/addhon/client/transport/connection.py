@@ -69,7 +69,14 @@ class HonConnection:
     async def create(self) -> "HonConnection":
         if self._session is None:
             self._session = aiohttp.ClientSession()
-        self._auth = HonAuth(self._session, self._email, self._password, self._device)
+        try:
+            self._auth = HonAuth(self._session, self._email, self._password, self._device)
+        except BaseException:
+            # We just created (and own) the ClientSession; if anything after that fails
+            # a failed create() must not leak it. close() only closes a session WE own
+            # (a caller-supplied session is left alone). (#31 root, defense in depth.)
+            await self.close()
+            raise
         return self
 
     async def _check_headers(self, headers: dict) -> dict:

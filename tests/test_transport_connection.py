@@ -356,5 +356,78 @@ class ConnectionTest(unittest.TestCase):
             asyncio.run(run())
 
 
+class ConnectionCreateCleanupTest(unittest.TestCase):
+    """#31: a failed create() must not leak the aiohttp.ClientSession it created,
+    and must never close a caller-supplied session (which the caller owns)."""
+
+    def _patch(self, obj, name, value):
+        real = getattr(obj, name)
+        setattr(obj, name, value)
+        self.addCleanup(lambda: setattr(obj, name, real))
+
+    def test_create_failure_closes_owned_session(self) -> None:
+        import custom_components.addhon.client.transport.connection as conn_mod
+
+        closed = {"n": 0}
+
+        class FakeSess:
+            async def close(self):
+                closed["n"] += 1
+
+        def boom(*a, **k):
+            raise RuntimeError("auth ctor boom")
+
+        self._patch(conn_mod.aiohttp, "ClientSession", lambda: FakeSess())
+        self._patch(conn_mod, "HonAuth", boom)
+
+        conn = HonConnection("u@x", "p")  # session=None -> connection owns it
+        with self.assertRaises(RuntimeError):
+            asyncio.run(conn.create())
+        self.assertEqual(closed["n"], 1)  # owned session closed, not leaked
+
+    def test_create_failure_leaves_caller_session_open(self) -> None:
+        import custom_components.addhon.client.transport.connection as conn_mod
+
+        closed = {"n": 0}
+
+        class FakeSess:
+            async def close(self):
+                closed["n"] += 1
+
+        def boom(*a, **k):
+            raise RuntimeError("auth ctor boom")
+
+        self._patch(conn_mod, "HonAuth", boom)
+
+        passed = FakeSess()
+        conn = HonConnection("u@x", "p", session=passed)  # caller owns the session
+        with self.assertRaises(RuntimeError):
+            asyncio.run(conn.create())
+        self.assertEqual(closed["n"], 0)  # caller-supplied session must stay open
+
+    def test_create_baseexception_closes_owned_session(self) -> None:
+        # #31: the guard is `except BaseException` on purpose; a CANCELLED create()
+        # (CancelledError is a BaseException, NOT an Exception) must still release
+        # the owned session. `except Exception` would leak it -> kill that mutant.
+        import custom_components.addhon.client.transport.connection as conn_mod
+
+        closed = {"n": 0}
+
+        class FakeSess:
+            async def close(self):
+                closed["n"] += 1
+
+        def cancel_boom(*a, **k):
+            raise asyncio.CancelledError()
+
+        self._patch(conn_mod.aiohttp, "ClientSession", lambda: FakeSess())
+        self._patch(conn_mod, "HonAuth", cancel_boom)
+
+        conn = HonConnection("u@x", "p")  # owns the session
+        with self.assertRaises(asyncio.CancelledError):
+            asyncio.run(conn.create())
+        self.assertEqual(closed["n"], 1)  # owned session closed on BaseException too
+
+
 if __name__ == "__main__":
     unittest.main()

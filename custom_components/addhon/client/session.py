@@ -88,15 +88,26 @@ class NativeHon:
         self._appliances = appliances
 
     async def create(self) -> "NativeHon":
-        self._connection = await HonConnection(
-            self._email,
-            self._password,
-            session=self._session,
-            mobile_id=self._mobile_id,
-            refresh_token=self._refresh_token,
-        ).create()
-        self._api = HonApi(self._connection)
-        await self.setup()
+        try:
+            self._connection = await HonConnection(
+                self._email,
+                self._password,
+                session=self._session,
+                mobile_id=self._mobile_id,
+                refresh_token=self._refresh_token,
+            ).create()
+            self._api = HonApi(self._connection)
+            await self.setup()
+        except BaseException:
+            # setup() makes the first HTTP calls (and may start MQTT) and can raise
+            # (network/auth). When a caller uses `async with NativeHon(...)`, a failure
+            # in __aenter__/create() means __aexit__ is NEVER run, so close() would not
+            # fire and the owned aiohttp.ClientSession (+ any started MQTT client) would
+            # leak. Tear down here (close() is idempotent); BaseException so a cancelled
+            # setup also cleans up, and re-raise to preserve the original error. (#31,
+            # symmetric to the #21 guard on NativeMqttClient.create().)
+            await self.close()
+            raise
         return self
 
     async def _create_appliance(self, appliance_data: dict, zone: int = 0) -> None:
@@ -145,8 +156,22 @@ class NativeHon:
     async def close(self) -> None:
         # Stop the MQTT BEFORE the connection (the watchdog must not retry on
         # a session being closed); we close it to avoid leaking it.
+        #
+        # Best-effort + idempotent: close() runs on normal teardown AND from the
+        # create() failure path, so (a) a cleanup error must NEVER mask the original
+        # setup exception being re-raised (it would flip the config-entry
+        # classification, e.g. hide a reauth-needed error), and (b) a second close()
+        # (setup_sync also calls it after a failed create()) must be a no-op. Each step
+        # is guarded and the reference is cleared before awaiting.
         if self._mqtt_client is not None:
-            await self._mqtt_client.stop()
-            self._mqtt_client = None
+            mqtt, self._mqtt_client = self._mqtt_client, None
+            try:
+                await mqtt.stop()
+            except Exception:  # noqa: BLE001 - cleanup must not mask the real error
+                _LOGGER.debug("addhOn: MQTT stop during close failed", exc_info=True)
         if self._api is not None:
-            await self._api.close()
+            api, self._api = self._api, None
+            try:
+                await api.close()
+            except Exception:  # noqa: BLE001 - cleanup must not mask the real error
+                _LOGGER.debug("addhOn: api close during close failed", exc_info=True)
