@@ -86,5 +86,64 @@ class AuthErrorClassificationTest(unittest.TestCase):
         self.assertTrue(hc._is_auth_error(RuntimeError("token expired")))
 
 
+class CoordinatorErrorClassificationTest(unittest.TestCase):
+    """#11: the setup/update error branches wrap _requires_reauth into the right HA
+    exception. Previously only _requires_reauth was tested in isolation, so a swapped
+    branch (auth -> UpdateFailed instead of ConfigEntryAuthFailed) passed the suite.
+    These exercise the extracted classifiers directly."""
+
+    def _imports(self):
+        from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
+        from homeassistant.helpers.update_coordinator import UpdateFailed
+        from custom_components.addhon import _raise_setup_error, _raise_update_error
+
+        return (
+            ConfigEntryAuthFailed, ConfigEntryNotReady, UpdateFailed,
+            _raise_setup_error, _raise_update_error,
+        )
+
+    def test_setup_auth_error_is_config_entry_auth_failed(self) -> None:
+        AuthFailed, _NotReady, _UF, setup, _upd = self._imports()
+        with self.assertRaises(AuthFailed):
+            setup(NativeAuthError("login failed (status 200)"))
+
+    def test_setup_generic_error_is_config_entry_not_ready(self) -> None:
+        _AF, NotReady, _UF, setup, _upd = self._imports()
+        with self.assertRaises(NotReady):
+            setup(RuntimeError("network down"))
+
+    def test_setup_retryable_5xx_is_not_ready_not_auth(self) -> None:
+        # Auth-named class but a 5xx message -> retryable wins -> NotReady (retry),
+        # NOT a reauth prompt.
+        _AF, NotReady, _UF, setup, _upd = self._imports()
+        with self.assertRaises(NotReady):
+            setup(NativeAuthError("boom status 500"))
+
+    def test_update_auth_error_is_config_entry_auth_failed(self) -> None:
+        AuthFailed, _NotReady, _UF, _setup, upd = self._imports()
+        with self.assertRaises(AuthFailed):
+            upd(HonAuthenticationError("Can't login"))
+
+    def test_update_generic_error_is_update_failed(self) -> None:
+        _AF, _NotReady, UpdateFailed, _setup, upd = self._imports()
+        with self.assertRaises(UpdateFailed):
+            upd(RuntimeError("transient 503-less generic error"))
+
+    def test_update_retryable_5xx_is_update_failed_not_auth(self) -> None:
+        _AF, _NotReady, UpdateFailed, _setup, upd = self._imports()
+        with self.assertRaises(UpdateFailed):
+            upd(NativeAuthError("boom status 500"))
+
+    def test_chaining_preserves_original_error(self) -> None:
+        _AF, _NotReady, UpdateFailed, _setup, upd = self._imports()
+        original = RuntimeError("root cause")
+        try:
+            upd(original)
+        except UpdateFailed as wrapped:
+            self.assertIs(wrapped.__cause__, original)
+        else:
+            self.fail("expected UpdateFailed")
+
+
 if __name__ == "__main__":
     unittest.main()

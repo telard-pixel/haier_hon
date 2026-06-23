@@ -181,6 +181,33 @@ async def _async_close_client(client) -> None:
         _LOGGER.warning("Error closing HonClient: %s", err)
 
 
+def _raise_setup_error(err: Exception) -> None:
+    """Classify a SETUP failure and raise the matching HA exception.
+
+    An auth error triggers the reauth flow (ConfigEntryAuthFailed); anything else is
+    ConfigEntryNotReady so HA retries setup later. Extracted from async_setup_entry so
+    the branch is unit-testable (a swapped branch would otherwise pass the suite). (#11)
+    """
+    from .hon_client import _requires_reauth
+
+    if _requires_reauth(err):
+        raise ConfigEntryAuthFailed(f"Invalid hOn credentials: {err}") from err
+    raise ConfigEntryNotReady(f"Unable to connect to hOn: {err}") from err
+
+
+def _raise_update_error(err: Exception) -> None:
+    """Classify a COORDINATOR update failure and raise the matching HA exception.
+
+    An auth error triggers the reauth flow (ConfigEntryAuthFailed); anything else is a
+    transient UpdateFailed (the coordinator keeps its last good snapshot and retries).
+    Extracted for unit-testing (#11)."""
+    from .hon_client import _requires_reauth
+
+    if _requires_reauth(err):
+        raise ConfigEntryAuthFailed(f"Invalid hOn credentials: {err}") from err
+    raise UpdateFailed(f"hOn update error: {err}") from err
+
+
 # "Washer-only" sensors that were mistakenly created on the tumble dryers (TD)
 # too: a tumble dryer does not use water and does not report loadingPercentage
 # (the app gates that statistic to WM/WD), so they stayed forever "unknown"
@@ -252,7 +279,7 @@ def _remove_legacy_entities(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up the Haier hOn integration from a Config Entry."""
-    from .hon_client import HonClient, _requires_reauth
+    from .hon_client import HonClient
 
     # Silence by default the noise of the realtime MQTT attempts and register
     # the debug service. Done BEFORE the client setup so the logger is already at
@@ -303,9 +330,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     except Exception as err:
         _LOGGER.error("Unable to connect to hOn: %s", err)
         await _async_close_client(hon_client)
-        if _requires_reauth(err):
-            raise ConfigEntryAuthFailed(f"Invalid hOn credentials: {err}") from err
-        raise ConfigEntryNotReady(f"Unable to connect to hOn: {err}") from err
+        _raise_setup_error(err)
 
     async def async_update_data() -> dict:
         """Fetch the updated data from all the hOn devices."""
@@ -335,9 +360,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             return data
         except Exception as err:
             _LOGGER.debug("Coordinator debug: hOn data update failed: %s", err, exc_info=True)
-            if _requires_reauth(err):
-                raise ConfigEntryAuthFailed(f"Invalid hOn credentials: {err}") from err
-            raise UpdateFailed(f"hOn update error: {err}") from err
+            _raise_update_error(err)
 
     stored = False
     try:
