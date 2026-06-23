@@ -46,7 +46,7 @@
   "services": {
     "set_log_level": {
       "name": "Set diagnostic log level",
-      "description": "Change the log level of the Haier hOn integration and the pyhOn loggers used to diagnose login, device discovery, reauth and polling. Use \"debug\" when devices do not appear, then return to \"warning\" to reduce noise. Does not enable MQTT realtime noise: for that use the dedicated set_mqtt_log_level service.",
+      "description": "Change the log level of the Haier hOn integration and the native hOn client loggers used to diagnose login, device discovery, reauth and polling. Use \"debug\" when devices do not appear, then return to \"warning\" to reduce noise. Does not enable MQTT realtime noise: for that use the dedicated set_mqtt_log_level service.",
       "fields": {
         "level": {
           "name": "Level",
@@ -56,11 +56,11 @@
     },
     "set_mqtt_log_level": {
       "name": "Set MQTT log level",
-      "description": "Change the log level of the pyhOn MQTT realtime channel. By default the reconnect-attempt noise is silenced (warning). Set \"debug\" to diagnose realtime push problems, then \"warning\" to silence it again. Not persistent: it returns to silenced after a Home Assistant restart.",
+      "description": "Change the log level of the hOn MQTT realtime channel. By default the reconnect-attempt noise is silenced (warning). Set \"debug\" to diagnose realtime push problems, then \"warning\" to silence it again. Not persistent: it returns to silenced after a Home Assistant restart.",
       "fields": {
         "level": {
           "name": "Level",
-          "description": "Log level to apply to the pyhOn MQTT realtime channel."
+          "description": "Log level to apply to the hOn MQTT realtime channel."
         }
       }
     }
