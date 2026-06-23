@@ -18,8 +18,8 @@
       }
     },
     "error": {
-      "cannot_connect": "Unable to connect to hOn servers. Check your internet connection.",
-      "invalid_auth": "Invalid credentials. Check your email and password.",
+      "cannot_connect": "Unable to connect to hOn servers. Check your internet connection. ({error_code})",
+      "invalid_auth": "Invalid credentials. Check your email and password. ({error_code})",
       "unknown": "Unexpected error. Check Home Assistant logs. ({error_code})",
       "invalid_credentials": "Invalid email or password. ({error_code})",
       "auth_introduce": "Could not start the hOn login. ({error_code})",

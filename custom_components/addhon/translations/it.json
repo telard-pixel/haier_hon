@@ -18,8 +18,8 @@
       }
     },
     "error": {
-      "cannot_connect": "Impossibile connettersi ai server hOn. Controlla la connessione internet.",
-      "invalid_auth": "Credenziali non valide. Controlla email e password.",
+      "cannot_connect": "Impossibile connettersi ai server hOn. Controlla la connessione internet. ({error_code})",
+      "invalid_auth": "Credenziali non valide. Controlla email e password. ({error_code})",
       "unknown": "Errore imprevisto. Controlla i log di Home Assistant. ({error_code})",
       "invalid_credentials": "Email o password non validi. ({error_code})",
       "auth_introduce": "Impossibile avviare il login hOn. ({error_code})",

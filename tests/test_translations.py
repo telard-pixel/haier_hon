@@ -77,13 +77,15 @@ class TranslationsContentTest(unittest.TestCase):
                 self.assertIn(key, errors, f"{lang}: missing error.{key}")
 
     def test_per_code_error_strings_carry_error_code_placeholder(self) -> None:
-        # #30: the precise ADDHON-NNN codes are injected via {error_code}. The two
-        # generic buckets (cannot_connect/invalid_auth) keep no placeholder.
+        # #30: the precise ADDHON-NNN codes are injected via {error_code}. Every
+        # config.error string must carry the placeholder -- including the two
+        # generic buckets (cannot_connect/invalid_auth): a ui=False code routed
+        # there by config_flow._error_base_and_code still yields a non-empty
+        # code.label (e.g. ADDHON-150/210/320), so the buckets must surface it too
+        # (greptile P2: the label was computed and passed but never shown).
         for lang in LANGS:
             errors = self.data[lang]["config"]["error"]
             for key, text in errors.items():
-                if key in ("cannot_connect", "invalid_auth"):
-                    continue
                 self.assertIn(
                     "{error_code}", text, f"{lang}: error.{key} must carry {{error_code}}"
                 )
