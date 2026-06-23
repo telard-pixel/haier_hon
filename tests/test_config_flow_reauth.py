@@ -41,6 +41,9 @@ def _install_stubs() -> None:
             super().__init_subclass__()
 
     config_entries.ConfigFlow = getattr(config_entries, "ConfigFlow", ConfigFlow)
+    config_entries.OptionsFlow = getattr(
+        config_entries, "OptionsFlow", type("OptionsFlow", (), {})
+    )
 
     core = _mod("homeassistant.core")
     core.HomeAssistant = getattr(core, "HomeAssistant", type("HomeAssistant", (), {}))
@@ -239,6 +242,84 @@ class ReauthFlowTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("abort", result["type"])
         self.assertEqual("reauth_account_mismatch", result["reason"])
         self.assertNotIn("update", flow.calls)
+
+
+class UserStepUniqueIdTest(unittest.IsolatedAsyncioTestCase):
+    """#18: async_step_user must set the unique_id and abort an already-configured
+    account BEFORE the costly network validate_input (login + appliance fetch)."""
+
+    def _patch_validate(self, fn) -> None:
+        from custom_components.addhon import config_flow
+
+        original = config_flow.validate_input
+        config_flow.validate_input = fn
+        self.addCleanup(setattr, config_flow, "validate_input", original)
+
+    def _make_user_flow(self):
+        from custom_components.addhon.config_flow import ConfigFlow
+
+        flow = ConfigFlow()
+        flow.hass = object()
+        flow.context = {"source": "user"}
+        flow.unique_id = None
+        flow.calls = {"abort_checked": False, "validated": False}
+
+        async def _set_unique_id(unique_id):
+            flow.unique_id = unique_id
+
+        flow.async_set_unique_id = _set_unique_id
+        flow.async_show_form = lambda **kw: {"type": "form", **kw}
+        flow.async_create_entry = lambda *, title, data: {
+            "type": "create_entry", "title": title, "data": data,
+        }
+        return flow
+
+    async def test_aborts_before_validate_when_already_configured(self) -> None:
+        class AbortFlow(Exception):
+            pass
+
+        flow = self._make_user_flow()
+
+        def _abort_if_configured():
+            flow.calls["abort_checked"] = True
+            raise AbortFlow("already_configured")
+
+        flow._abort_if_unique_id_configured = _abort_if_configured
+
+        async def _validate(hass, data):
+            flow.calls["validated"] = True
+            return {"title": "x", "appliance_count": 1}
+
+        self._patch_validate(_validate)
+
+        with self.assertRaises(AbortFlow):
+            await flow.async_step_user({"email": "Person@Example.com", "password": "p"})
+
+        self.assertTrue(flow.calls["abort_checked"])
+        self.assertFalse(flow.calls["validated"])  # NO network round-trip on re-add
+        self.assertEqual(flow.unique_id, "person@example.com")  # set (lowercased) first
+
+    async def test_creates_entry_when_not_configured(self) -> None:
+        flow = self._make_user_flow()
+        flow._abort_if_unique_id_configured = lambda: flow.calls.__setitem__(
+            "abort_checked", True
+        )
+
+        async def _validate(hass, data):
+            flow.calls["validated"] = True
+            return {"title": "My hOn", "appliance_count": 2}
+
+        self._patch_validate(_validate)
+
+        result = await flow.async_step_user(
+            {"email": "Person@Example.com", "password": "p"}
+        )
+
+        self.assertTrue(flow.calls["abort_checked"])
+        self.assertTrue(flow.calls["validated"])
+        self.assertEqual(result["type"], "create_entry")
+        self.assertEqual(result["title"], "My hOn")
+        self.assertEqual(flow.unique_id, "person@example.com")
 
 
 if __name__ == "__main__":

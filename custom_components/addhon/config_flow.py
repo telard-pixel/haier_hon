@@ -111,6 +111,13 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 "ConfigFlow debug: submit user step for account %s",
                 _redact_email(user_input.get("email")),
             )
+            # Set the unique_id and abort BEFORE the network validation, so re-adding
+            # an already-configured account is rejected without a costly hOn login +
+            # appliance fetch (rate-limited). Must be OUTSIDE the try below: the
+            # AbortFlow raised by _abort_if_unique_id_configured() would otherwise be
+            # swallowed by the broad `except Exception`. (#18)
+            await self.async_set_unique_id(user_input["email"].lower())
+            self._abort_if_unique_id_configured()
             try:
                 info = await validate_input(self.hass, user_input)
             except CannotConnect:
@@ -123,10 +130,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Unexpected error")
                 errors["base"] = "unknown"
             else:
-                # Avoid duplicate entries for the same account
-                await self.async_set_unique_id(user_input["email"].lower())
-                self._abort_if_unique_id_configured()
-
                 _LOGGER.debug(
                     "ConfigFlow debug: creating entry for account %s appliance_count=%s",
                     _redact_email(user_input.get("email")),
