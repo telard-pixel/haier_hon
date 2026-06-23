@@ -125,6 +125,10 @@ class HonSensorEntityDescription(SensorEntityDescription):
     # Used for params reported under different names across models (e.g. a
     # dishwasher wash temperature under `temp` or `temperature`).
     attr_fallbacks: tuple[str, ...] = ()
+    # When True, a zero/empty primary value is treated as a placeholder MISS so the
+    # attr_fallbacks chain keeps looking (e.g. actualWeight=0 -> weight=3). Opt-in:
+    # other sensors may legitimately report 0, so this never changes their behavior.
+    zero_is_missing: bool = False
 
 
 # State + remaining time: identical for washer/washer-dryer/tumble dryer.
@@ -407,6 +411,7 @@ _ESTIMATED_WEIGHT = HonSensorEntityDescription(
     icon="mdi:weight-kilogram",
     attr_key="actualWeight",
     attr_fallbacks=("weight",),
+    zero_is_missing=True,  # actualWeight=0 is a placeholder -> fall back to weight
     native_unit_of_measurement=UnitOfMass.KILOGRAMS,
     device_class=SensorDeviceClass.WEIGHT,
     state_class=SensorStateClass.MEASUREMENT,
@@ -669,6 +674,7 @@ _DISHWASHER: tuple[HonSensorEntityDescription, ...] = (
         # real DW) on some models and `temperature` on others; gate/read both.
         attr_key="temp",
         attr_fallbacks=("temperature",),
+        zero_is_missing=True,  # temp=0 is an idle placeholder -> fall back to temperature
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
@@ -889,6 +895,17 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
+def _is_zeroish(value) -> bool:
+    """True for a placeholder zero/empty value (so a zero_is_missing fallback chain
+    keeps looking). Handles ints, floats and numeric strings ('0', '0.0')."""
+    if value == "":
+        return True
+    try:
+        return float(value) == 0.0
+    except (TypeError, ValueError):
+        return False
+
+
 class HonSensor(HonBaseEntity, SensorEntity):
     """Haier hOn sensor driven by HonSensorEntityDescription."""
 
@@ -907,9 +924,10 @@ class HonSensor(HonBaseEntity, SensorEntity):
 
     @property
     def native_value(self):
+        skip_zero = self.entity_description.zero_is_missing
         raw = self._get_attr(self.entity_description.attr_key)
         for fallback in self.entity_description.attr_fallbacks:
-            if raw is not None:
+            if raw is not None and not (skip_zero and _is_zeroish(raw)):
                 break
             raw = self._get_attr(fallback)
         value_fn = self.entity_description.value_fn
