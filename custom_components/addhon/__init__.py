@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from datetime import timedelta
+from typing import NoReturn
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -181,7 +182,7 @@ async def _async_close_client(client) -> None:
         _LOGGER.warning("Error closing HonClient: %s", err)
 
 
-def _raise_setup_error(err: Exception) -> None:
+def _raise_setup_error(err: Exception) -> NoReturn:
     """Classify a SETUP failure and raise the matching HA exception.
 
     An auth error triggers the reauth flow (ConfigEntryAuthFailed); anything else is
@@ -195,7 +196,7 @@ def _raise_setup_error(err: Exception) -> None:
     raise ConfigEntryNotReady(f"Unable to connect to hOn: {err}") from err
 
 
-def _raise_update_error(err: Exception) -> None:
+def _raise_update_error(err: Exception) -> NoReturn:
     """Classify a COORDINATOR update failure and raise the matching HA exception.
 
     An auth error triggers the reauth flow (ConfigEntryAuthFailed); anything else is a

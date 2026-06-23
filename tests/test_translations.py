@@ -95,6 +95,25 @@ class TranslationsContentTest(unittest.TestCase):
     def test_en_it_have_identical_structure(self) -> None:
         self.assertEqual(_dotted_keys(self.data["en"]), _dotted_keys(self.data["it"]))
 
+    def test_no_dead_pyhon_references(self) -> None:
+        """#17 regression guard: the strangler fully removed pyhOn (native client in
+        hon_client.py), so no user-facing translation string may mention it again.
+        A case-insensitive scan of the raw files catches any re-introduction in any
+        key (service descriptions, labels, etc.), not only the ones #17 touched."""
+        for lang in LANGS:
+            offenders = [
+                line.strip()
+                for line in (TRANSLATIONS / f"{lang}.json")
+                .read_text(encoding="utf-8")
+                .splitlines()
+                if "pyhon" in line.lower()
+            ]
+            self.assertEqual(
+                [],
+                offenders,
+                f"{lang}.json must not reintroduce a dead pyhOn reference (#17): {offenders}",
+            )
+
 
 class TranslationsMatchConfigFlowTest(unittest.TestCase):
     """Strings must cover exactly the keys config_flow.py references."""
