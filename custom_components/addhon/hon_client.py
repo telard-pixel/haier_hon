@@ -266,6 +266,11 @@ class HonClient:
         # entities until a reload. Steady-state polls are resilient (skip the failed
         # appliance, keep the others).
         self._first_poll_done = False
+        # Realtime notify callback, kept on the CLIENT (not the session): the
+        # session is rebuilt on every setup/re-auth with its own _notify_function
+        # reset to None, so storing it here lets setup_sync re-apply it and the
+        # MQTT push survive a re-auth (#20).
+        self._notify_function: Any = None
 
     # -- Dedicated loop management ---------------------------------------------
 
@@ -450,6 +455,11 @@ class HonClient:
                 # Login + aiohttp session init, on the dedicated loop
                 self._api = self._run_on_hon_loop(self._hon_instance.__aenter__())
                 _LOGGER.info("Connection to hOn succeeded for %s", redact_email(self._email))
+                # Re-apply the realtime notify callback to the freshly built session
+                # (rebuilt on every setup/re-auth with _notify_function=None);
+                # without this the MQTT push is a permanent no-op after a re-auth (#20).
+                if self._notify_function is not None:
+                    self._hon_instance.subscribe_updates(self._notify_function)
             except Exception:
                 self._close_sync()
                 raise
@@ -614,13 +624,17 @@ class HonClient:
         return data
 
     def subscribe_updates(self, notify_function: Any) -> None:
-        """Register (or clear with None) the realtime notify callback on the session.
+        """Register (or clear with None) the realtime notify callback.
 
-        Raises if called before setup_sync (no session yet)."""
+        Stored on the client so it survives a re-auth (which rebuilds the session):
+        setup_sync re-applies it to the new session (#20). Forwarded to the current
+        session when one exists; if none exists (before setup, or after close on the
+        unload detach) it is just remembered -- NO raise, so subscribe_updates(None)
+        on unload is a clean no-op (#28)."""
+        self._notify_function = notify_function
         hon = self._hon_instance
-        if hon is None:
-            raise RuntimeError("subscribe_updates called before setup_sync")
-        hon.subscribe_updates(notify_function)
+        if hon is not None:
+            hon.subscribe_updates(notify_function)
 
     # -- Data polling ----------------------------------------------------------
 

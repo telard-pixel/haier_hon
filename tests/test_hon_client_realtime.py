@@ -8,6 +8,7 @@ test_coordinator_config_entry.py).
 """
 from __future__ import annotations
 
+import asyncio
 import sys
 import types
 import unittest
@@ -64,6 +65,12 @@ class FakeSession:
         if self._notify_function:
             self._notify_function(None)
 
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc) -> None:
+        return None
+
 
 class FakeAppliance:
     def __init__(self, uid: str) -> None:
@@ -86,17 +93,96 @@ class HonClientRealtimeTest(unittest.TestCase):
         cb = lambda _arg: None  # noqa: E731
         c.subscribe_updates(cb)
         self.assertIs(c._hon_instance._notify_function, cb)
+        self.assertIs(c._notify_function, cb)  # also stored on the client
 
-    def test_subscribe_updates_before_setup_raises(self) -> None:
+    def test_subscribe_updates_before_setup_is_stored_not_raised(self) -> None:
+        # #28: no raise when there is no session yet; the callback is remembered and
+        # applied by setup_sync. (Old contract raised RuntimeError here.)
         c = HonClient(email="e@x", password="p")  # no _hon_instance yet
-        with self.assertRaises(RuntimeError):
-            c.subscribe_updates(lambda _a: None)
+        cb = lambda _a: None  # noqa: E731
+        c.subscribe_updates(cb)  # must NOT raise
+        self.assertIs(c._notify_function, cb)
+
+    def test_subscribe_none_after_close_is_noop(self) -> None:
+        # #28: the on-unload detach runs subscribe_updates(None) AFTER the client is
+        # closed (_hon_instance None) -> must be a clean no-op, not RuntimeError.
+        c = HonClient(email="e@x", password="p")  # post-close state
+        c.subscribe_updates(None)  # must NOT raise
+        self.assertIsNone(c._notify_function)
 
     def test_subscribe_updates_detach_with_none(self) -> None:
         c = _client()
         c.subscribe_updates(lambda _a: None)
         c.subscribe_updates(None)
         self.assertIsNone(c._hon_instance._notify_function)
+        self.assertIsNone(c._notify_function)
+
+    def test_callback_rewired_after_reauth(self) -> None:
+        # #20: setup_sync (run at initial setup AND on re-auth, which rebuilds the
+        # session) must re-apply the stored notify callback to the NEW session, else
+        # the MQTT push dies permanently after a re-auth.
+        import custom_components.addhon.client.factory as factory
+        new_session = FakeSession([])
+        orig_create = getattr(factory, "create_session", None)
+        factory.create_session = lambda email, password: new_session
+        try:
+            c = HonClient(email="e@x", password="p")
+            cb = lambda _a: None  # noqa: E731
+            c.subscribe_updates(cb)  # stored on the client (no session yet)
+            # run setup_sync offline: stub the dedicated-loop machinery
+            c._start_hon_loop = lambda: None  # type: ignore[assignment]
+            c._run_on_hon_loop = lambda coro: coro.close()  # type: ignore[assignment]
+            c.setup_sync()
+            self.assertIs(c._hon_instance, new_session)
+            self.assertIs(new_session._notify_function, cb)  # re-applied to new session
+        finally:
+            if orig_create is not None:
+                factory.create_session = orig_create
+
+    def test_setup_sync_without_subscribe_does_not_crash(self) -> None:
+        # The constructor MUST init _notify_function: setup_sync runs at initial
+        # setup BEFORE subscribe_updates is ever called, and reads it for the
+        # re-apply. Without the init this raises AttributeError.
+        import custom_components.addhon.client.factory as factory
+        new_session = FakeSession([])
+        orig_create = getattr(factory, "create_session", None)
+        factory.create_session = lambda email, password: new_session
+        try:
+            c = HonClient(email="e@x", password="p")  # never subscribed
+            c._start_hon_loop = lambda: None  # type: ignore[assignment]
+            c._run_on_hon_loop = lambda coro: coro.close()  # type: ignore[assignment]
+            c.setup_sync()  # must NOT raise
+            self.assertIs(c._hon_instance, new_session)
+            self.assertIsNone(new_session._notify_function)  # nothing to apply
+        finally:
+            if orig_create is not None:
+                factory.create_session = orig_create
+
+    def test_setup_sync_failure_closes_and_keeps_callback(self) -> None:
+        # On a failed (re)setup the session is closed (_hon_instance cleared) but the
+        # stored callback PERSISTS on the client, ready for the next setup (#20).
+        import custom_components.addhon.client.factory as factory
+
+        class BoomSession(FakeSession):
+            async def __aenter__(self):
+                raise RuntimeError("login boom")
+
+        boom = BoomSession([])
+        orig_create = getattr(factory, "create_session", None)
+        factory.create_session = lambda email, password: boom
+        try:
+            c = HonClient(email="e@x", password="p")
+            cb = lambda _a: None  # noqa: E731
+            c.subscribe_updates(cb)
+            c._start_hon_loop = lambda: None  # type: ignore[assignment]
+            c._run_on_hon_loop = lambda coro: asyncio.run(coro)  # type: ignore[assignment]
+            with self.assertRaises(Exception):
+                c.setup_sync()
+            self.assertIsNone(c._hon_instance)  # _close_sync ran on failure
+            self.assertIs(c._notify_function, cb)  # callback survives for next setup
+        finally:
+            if orig_create is not None:
+                factory.create_session = orig_create
 
     def test_build_realtime_snapshot_from_memory(self) -> None:
         app = FakeAppliance("ac-1")
