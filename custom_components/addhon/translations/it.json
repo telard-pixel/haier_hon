@@ -20,7 +20,21 @@
     "error": {
       "cannot_connect": "Impossibile connettersi ai server hOn. Controlla la connessione internet.",
       "invalid_auth": "Credenziali non valide. Controlla email e password.",
-      "unknown": "Errore imprevisto. Controlla i log di Home Assistant."
+      "unknown": "Errore imprevisto. Controlla i log di Home Assistant. ({error_code})",
+      "invalid_credentials": "Email o password non validi. ({error_code})",
+      "auth_introduce": "Impossibile avviare il login hOn. ({error_code})",
+      "auth_login": "Login rifiutato: controlla email e password. ({error_code})",
+      "auth_get_token": "Impossibile recuperare il token di sessione hOn. ({error_code})",
+      "auth_api_auth": "hOn ha rifiutato l'autorizzazione API. ({error_code})",
+      "appliance_list_failed": "Impossibile recuperare la lista dei dispositivi. ({error_code})",
+      "network_timeout": "Timeout nel contattare i server hOn. Controlla la connessione internet. ({error_code})",
+      "dns_failure": "Impossibile risolvere i server hOn (DNS). Controlla rete e DNS. ({error_code})",
+      "tls_failure": "Errore TLS/certificato nel contattare hOn. Controlla data/ora di sistema e rete. ({error_code})",
+      "connection_refused": "Impossibile connettersi ai server hOn (rifiutata, interrotta o irraggiungibile). Controlla rete e firewall. ({error_code})",
+      "rate_limited": "Troppe richieste a hOn. Attendi qualche minuto e riprova. ({error_code})",
+      "server_error": "I server hOn hanno restituito un errore. Riprova più tardi. ({error_code})",
+      "loop_timeout": "Timeout durante la configurazione hOn. Controlla la connessione e riprova. ({error_code})",
+      "decode_error": "Risposta illeggibile dai server hOn. Riprova più tardi. ({error_code})"
     },
     "abort": {
       "already_configured": "Questo account hOn è già configurato.",

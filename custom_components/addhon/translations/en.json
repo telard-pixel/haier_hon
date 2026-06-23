@@ -20,7 +20,21 @@
     "error": {
       "cannot_connect": "Unable to connect to hOn servers. Check your internet connection.",
       "invalid_auth": "Invalid credentials. Check your email and password.",
-      "unknown": "Unexpected error. Check Home Assistant logs."
+      "unknown": "Unexpected error. Check Home Assistant logs. ({error_code})",
+      "invalid_credentials": "Invalid email or password. ({error_code})",
+      "auth_introduce": "Could not start the hOn login. ({error_code})",
+      "auth_login": "Login rejected - check your email and password. ({error_code})",
+      "auth_get_token": "Could not retrieve the hOn session token. ({error_code})",
+      "auth_api_auth": "hOn rejected the API authorization. ({error_code})",
+      "appliance_list_failed": "Could not fetch your appliance list. ({error_code})",
+      "network_timeout": "Timed out contacting the hOn servers. Check your internet connection. ({error_code})",
+      "dns_failure": "Could not resolve the hOn servers (DNS). Check your network and DNS. ({error_code})",
+      "tls_failure": "TLS/certificate error contacting hOn. Check the system date/time and network. ({error_code})",
+      "connection_refused": "Could not connect to the hOn servers (refused, reset or unreachable). Check your network and firewall. ({error_code})",
+      "rate_limited": "Too many requests to hOn. Wait a few minutes and try again. ({error_code})",
+      "server_error": "The hOn servers returned an error. Try again later. ({error_code})",
+      "loop_timeout": "hOn setup timed out. Check your internet connection and try again. ({error_code})",
+      "decode_error": "Unreadable response from the hOn servers. Try again later. ({error_code})"
     },
     "abort": {
       "already_configured": "This hOn account is already configured.",

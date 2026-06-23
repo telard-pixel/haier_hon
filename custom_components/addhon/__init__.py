@@ -189,11 +189,13 @@ def _raise_setup_error(err: Exception) -> NoReturn:
     ConfigEntryNotReady so HA retries setup later. Extracted from async_setup_entry so
     the branch is unit-testable (a swapped branch would otherwise pass the suite). (#11)
     """
+    from .error_codes import classify
     from .hon_client import _requires_reauth
 
+    code = classify(err)
     if _requires_reauth(err):
-        raise ConfigEntryAuthFailed(f"Invalid hOn credentials: {err}") from err
-    raise ConfigEntryNotReady(f"Unable to connect to hOn: {err}") from err
+        raise ConfigEntryAuthFailed(f"[{code.label}] Invalid hOn credentials: {err}") from err
+    raise ConfigEntryNotReady(f"[{code.label}] Unable to connect to hOn: {err}") from err
 
 
 def _raise_update_error(err: Exception) -> NoReturn:
@@ -202,11 +204,13 @@ def _raise_update_error(err: Exception) -> NoReturn:
     An auth error triggers the reauth flow (ConfigEntryAuthFailed); anything else is a
     transient UpdateFailed (the coordinator keeps its last good snapshot and retries).
     Extracted for unit-testing (#11)."""
+    from .error_codes import classify
     from .hon_client import _requires_reauth
 
+    code = classify(err)
     if _requires_reauth(err):
-        raise ConfigEntryAuthFailed(f"Invalid hOn credentials: {err}") from err
-    raise UpdateFailed(f"hOn update error: {err}") from err
+        raise ConfigEntryAuthFailed(f"[{code.label}] Invalid hOn credentials: {err}") from err
+    raise UpdateFailed(f"[{code.label}] hOn update error: {err}") from err
 
 
 # "Washer-only" sensors that were mistakenly created on the tumble dryers (TD)
@@ -360,7 +364,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             )
             return data
         except Exception as err:
-            _LOGGER.debug("Coordinator debug: hOn data update failed: %s", err, exc_info=True)
+            from .error_codes import classify
+
+            hon_client.last_error_code = classify(err)
+            _LOGGER.debug(
+                "Coordinator debug: hOn data update failed [%s]: %s",
+                hon_client.last_error_code.label,
+                err,
+                exc_info=True,
+            )
             _raise_update_error(err)
 
     stored = False

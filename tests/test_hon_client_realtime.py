@@ -125,7 +125,7 @@ class HonClientRealtimeTest(unittest.TestCase):
         import custom_components.addhon.client.factory as factory
         new_session = FakeSession([])
         orig_create = getattr(factory, "create_session", None)
-        factory.create_session = lambda email, password: new_session
+        factory.create_session = lambda email, password, **kw: new_session
         try:
             c = HonClient(email="e@x", password="p")
             cb = lambda _a: None  # noqa: E731
@@ -147,7 +147,7 @@ class HonClientRealtimeTest(unittest.TestCase):
         import custom_components.addhon.client.factory as factory
         new_session = FakeSession([])
         orig_create = getattr(factory, "create_session", None)
-        factory.create_session = lambda email, password: new_session
+        factory.create_session = lambda email, password, **kw: new_session
         try:
             c = HonClient(email="e@x", password="p")  # never subscribed
             c._start_hon_loop = lambda: None  # type: ignore[assignment]
@@ -170,7 +170,7 @@ class HonClientRealtimeTest(unittest.TestCase):
 
         boom = BoomSession([])
         orig_create = getattr(factory, "create_session", None)
-        factory.create_session = lambda email, password: boom
+        factory.create_session = lambda email, password, **kw: boom
         try:
             c = HonClient(email="e@x", password="p")
             cb = lambda _a: None  # noqa: E731

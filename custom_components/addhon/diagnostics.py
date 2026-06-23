@@ -408,6 +408,19 @@ def _coordinator(hass: HomeAssistant, entry: ConfigEntry):
     return entry_data.get("coordinator")
 
 
+def _last_error(hass: HomeAssistant, entry: ConfigEntry) -> dict | None:
+    """The last classified setup/update error code, for issue triage.
+
+    Static code+reason (no device identity), pulled from the client. None when no
+    failure has been recorded (or the client is absent, e.g. a failed setup)."""
+    entry_data = hass.data.get(DOMAIN, {}).get(entry.entry_id, {})
+    client = entry_data.get("client")
+    code = getattr(client, "last_error_code", None)
+    if code is None:
+        return None
+    return {"code": code.label, "reason": code.reason_en}
+
+
 async def async_get_config_entry_diagnostics(
     hass: HomeAssistant, entry: ConfigEntry
 ) -> dict:
@@ -436,6 +449,7 @@ async def async_get_config_entry_diagnostics(
             },
             "options": dict(entry.options),
         },
+        "last_error": _last_error(hass, entry),
         "appliances": appliances,
     }
 

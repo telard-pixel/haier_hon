@@ -19,18 +19,31 @@ _LOGGER = logging.getLogger(__name__)
 _NATIVE_APPLIANCE_CLS: Any = None
 
 
-def create_session(email: str, password: str) -> Any:
+def create_session(
+    email: str,
+    password: str,
+    *,
+    enable_mqtt: bool = True,
+    minimal: bool = False,
+) -> Any:
     """Create the NATIVE hOn session (`client.session.NativeHon`).
 
     Auth, connection, api, MQTT, orchestration and parser engine are all OURS.
     The caller uses it as an async context manager (`__aenter__()` -> `.appliances`).
+
+    `enable_mqtt=False` skips the AWS IoT realtime push and `minimal=True` skips the
+    per-appliance command/attribute/statistics loads: the config-flow validation uses
+    both so it only authenticates and counts the appliances, instead of doing the full
+    (and far slower / more fragile) runtime setup (issue #30).
 
     Lazy import of `NativeHon`: avoids the cycle (session.py imports this module) and
     keeps `factory` importable dry (`NativeHon` pulls in awscrt via MQTT).
     """
     from .session import NativeHon
 
-    return NativeHon(email=email, password=password)
+    return NativeHon(
+        email=email, password=password, enable_mqtt=enable_mqtt, minimal=minimal
+    )
 
 
 def _native_engine_appliance_cls() -> Any:

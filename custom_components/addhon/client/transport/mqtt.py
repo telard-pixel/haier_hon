@@ -34,6 +34,7 @@ from awsiot import mqtt5_client_builder  # type: ignore[import-untyped]
 
 from .device import MOBILE_ID
 from ...debug_utils import redact_id, redact_identity, redact_topic
+from ...error_codes import HonCodedError, MQTT_SUBSCRIBE_TIMEOUT
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -90,9 +91,22 @@ class NativeMqttClient:
             raise AttributeError("MQTT client not started")
         return self._client
 
+    def _set_setup_phase(self, phase: str) -> None:
+        """Record the setup phase on the parent session so a dedicated-loop 60s
+        timeout during the FIRST connect is attributed to the right MQTT step. Only
+        set from create() (not the watchdog reconnect, which runs after setup)."""
+        hon = self._hon
+        if hon is not None:
+            try:
+                hon._setup_phase = phase
+            except Exception:  # pragma: no cover - defensive
+                pass
+
     async def create(self) -> "NativeMqttClient":
         try:
+            self._set_setup_phase("mqtt_connect")
             await self._start()
+            self._set_setup_phase("mqtt_subscribe")
             await self._subscribe_appliances()
             await self._start_watchdog()
         except BaseException:
@@ -316,7 +330,12 @@ class NativeMqttClient:
             future = self.client.subscribe(
                 mqtt5.SubscribePacket([mqtt5.Subscription(topic)])
             )
-            await asyncio.wait_for(asyncio.wrap_future(future), _SUBSCRIBE_TIMEOUT)
+            try:
+                await asyncio.wait_for(asyncio.wrap_future(future), _SUBSCRIBE_TIMEOUT)
+            except asyncio.TimeoutError as err:
+                # Attribute the stall to a stable code. No identity in the message
+                # (the topic embeds the MAC) -> the bare timeout str only.
+                raise HonCodedError(MQTT_SUBSCRIBE_TIMEOUT, str(err)) from err
             _LOGGER.info("Subscribed to topic %s", redact_topic(topic))
 
     async def _start_watchdog(self) -> None:

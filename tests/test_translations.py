@@ -76,6 +76,18 @@ class TranslationsContentTest(unittest.TestCase):
             for key in ("cannot_connect", "invalid_auth", "unknown"):
                 self.assertIn(key, errors, f"{lang}: missing error.{key}")
 
+    def test_per_code_error_strings_carry_error_code_placeholder(self) -> None:
+        # #30: the precise ADDHON-NNN codes are injected via {error_code}. The two
+        # generic buckets (cannot_connect/invalid_auth) keep no placeholder.
+        for lang in LANGS:
+            errors = self.data[lang]["config"]["error"]
+            for key, text in errors.items():
+                if key in ("cannot_connect", "invalid_auth"):
+                    continue
+                self.assertIn(
+                    "{error_code}", text, f"{lang}: error.{key} must carry {{error_code}}"
+                )
+
     def test_abort_keys_present(self) -> None:
         for lang in LANGS:
             abort = self.data[lang]["config"]["abort"]

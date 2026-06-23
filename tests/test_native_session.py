@@ -293,6 +293,36 @@ class NativeSessionSetupTest(unittest.TestCase):
         self.assertEqual(h.mqtt_calls, [])
         self.assertIsNone(nh._mqtt_client)
 
+    def test_minimal_skips_per_appliance_loads_and_mqtt(self) -> None:
+        # #30: config-flow validation builds + counts the appliances but does NOT run
+        # the per-appliance load_commands/attributes/statistics, and never starts MQTT.
+        data = [
+            {"macAddress": "A", "applianceTypeName": "REF"},
+            {"macAddress": "B", "applianceTypeName": "WM"},
+        ]
+        h = _Harness(self, data)
+        h.install()
+        nh = self._nh_with_api(h, enable_mqtt=False, minimal=True)
+        _run(nh.setup())
+        # appliances are built (so the flow can count + type them) ...
+        self.assertEqual([a.mac_address for a in nh.appliances], ["A", "B"])
+        # ... but only load_appliances ran: no per-appliance cmd/attr/stat, no mqtt.
+        self.assertEqual(h.events, ["load_appliances"])
+        self.assertEqual(h.mqtt_calls, [])
+        self.assertIsNone(nh._mqtt_client)
+        self.assertEqual(nh._setup_phase, "")  # cleared after a clean setup
+
+    def test_minimal_empty_mac_still_skipped(self) -> None:
+        data = [
+            {"macAddress": "", "applianceTypeName": "GHOST"},
+            {"macAddress": "B", "applianceTypeName": "WM"},
+        ]
+        h = _Harness(self, data)
+        h.install()
+        nh = self._nh_with_api(h, enable_mqtt=False, minimal=True)
+        _run(nh.setup())
+        self.assertEqual([a.mac_address for a in nh.appliances], ["B"])
+
     def test_create_builds_connection_api_then_setup(self) -> None:
         data = [{"macAddress": "A", "applianceTypeName": "REF"}]
         h = _Harness(self, data)

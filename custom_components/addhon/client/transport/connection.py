@@ -23,6 +23,15 @@ from .headers import build_auth_headers
 
 _LOGGER = logging.getLogger(__name__)
 
+# Per-request HTTP timeouts on the session WE own. Without them aiohttp defaults to
+# a 300s total, so a dead/blocked endpoint (e.g. api-iot.he.services or AWS IoT
+# unreachable on the user's network) only failed when the 60s dedicated-loop cap
+# fired, as an opaque message-less timeout (issue #30). These bound each request
+# well under that cap, so a stuck endpoint fails fast and attributable.
+_CONNECT_TIMEOUT = 10  # TCP connect + TLS handshake to one endpoint
+_TOTAL_TIMEOUT = 30  # whole request incl. response read
+_SOCK_READ_TIMEOUT = 20  # gap between received chunks
+
 
 class HonConnection:
     """Authenticated HTTP session: creates/owns aiohttp.ClientSession + HonAuth."""
@@ -68,7 +77,14 @@ class HonConnection:
 
     async def create(self) -> "HonConnection":
         if self._session is None:
-            self._session = aiohttp.ClientSession()
+            self._session = aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(
+                    total=_TOTAL_TIMEOUT,
+                    connect=_CONNECT_TIMEOUT,
+                    sock_connect=_CONNECT_TIMEOUT,
+                    sock_read=_SOCK_READ_TIMEOUT,
+                )
+            )
         try:
             self._auth = HonAuth(self._session, self._email, self._password, self._device)
         except BaseException:

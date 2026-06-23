@@ -53,6 +53,8 @@ def _install_stubs() -> None:
     aio.ClientSession = getattr(aio, "ClientSession", type("ClientSession", (), {}))
     aio.ClientResponse = getattr(aio, "ClientResponse", type("ClientResponse", (), {}))
     aio.ContentTypeError = getattr(aio, "ContentTypeError", type("ContentTypeError", (Exception,), {}))
+    # connection.create() now passes an explicit timeout; the stub just records kwargs.
+    aio.ClientTimeout = getattr(aio, "ClientTimeout", lambda **kw: kw)
 
 
 _install_stubs()
@@ -377,13 +379,36 @@ class ConnectionCreateCleanupTest(unittest.TestCase):
         def boom(*a, **k):
             raise RuntimeError("auth ctor boom")
 
-        self._patch(conn_mod.aiohttp, "ClientSession", lambda: FakeSess())
+        self._patch(conn_mod.aiohttp, "ClientSession", lambda *a, **k: FakeSess())
         self._patch(conn_mod, "HonAuth", boom)
 
         conn = HonConnection("u@x", "p")  # session=None -> connection owns it
         with self.assertRaises(RuntimeError):
             asyncio.run(conn.create())
         self.assertEqual(closed["n"], 1)  # owned session closed, not leaked
+
+    def test_owned_session_gets_explicit_timeout(self) -> None:
+        # #30: the session WE create must carry an explicit ClientTimeout (so a dead
+        # endpoint fails fast, not after aiohttp's 300s default).
+        import custom_components.addhon.client.transport.connection as conn_mod
+
+        captured = {}
+
+        class FakeSess:
+            async def close(self):
+                pass
+
+        def fake_client_session(*a, **k):
+            captured.update(k)
+            return FakeSess()
+
+        self._patch(conn_mod.aiohttp, "ClientSession", fake_client_session)
+        self._patch(conn_mod, "HonAuth", lambda *a, **k: object())
+
+        conn = HonConnection("u@x", "p")  # owns the session
+        asyncio.run(conn.create())
+        self.assertIn("timeout", captured)
+        self.assertIsNotNone(captured["timeout"])
 
     def test_create_failure_leaves_caller_session_open(self) -> None:
         import custom_components.addhon.client.transport.connection as conn_mod
@@ -420,7 +445,7 @@ class ConnectionCreateCleanupTest(unittest.TestCase):
         def cancel_boom(*a, **k):
             raise asyncio.CancelledError()
 
-        self._patch(conn_mod.aiohttp, "ClientSession", lambda: FakeSess())
+        self._patch(conn_mod.aiohttp, "ClientSession", lambda *a, **k: FakeSess())
         self._patch(conn_mod, "HonAuth", cancel_boom)
 
         conn = HonConnection("u@x", "p")  # owns the session

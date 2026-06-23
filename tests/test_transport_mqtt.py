@@ -1002,6 +1002,10 @@ class SubscribeNonBlockingTest(unittest.TestCase):
 
     def test_subscribe_timeout_bound(self) -> None:
         import custom_components.addhon.client.transport.mqtt as mod
+        from custom_components.addhon.error_codes import (
+            MQTT_SUBSCRIBE_TIMEOUT,
+            HonCodedError,
+        )
 
         class C:
             def subscribe(self, packet):
@@ -1012,8 +1016,12 @@ class SubscribeNonBlockingTest(unittest.TestCase):
         orig = mod._SUBSCRIBE_TIMEOUT
         mod._SUBSCRIBE_TIMEOUT = 0.01
         try:
-            with self.assertRaises(asyncio.TimeoutError):
+            # The bound still holds, but the stall is now surfaced as a coded error
+            # (its cause is the underlying asyncio.TimeoutError).
+            with self.assertRaises(HonCodedError) as ctx:
                 _run(m._subscribe(app))
+            self.assertIs(ctx.exception.error_code, MQTT_SUBSCRIBE_TIMEOUT)
+            self.assertIsInstance(ctx.exception.__cause__, asyncio.TimeoutError)
         finally:
             mod._SUBSCRIBE_TIMEOUT = orig
 

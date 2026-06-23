@@ -632,5 +632,26 @@ class IdentityKeysDriftGuardTest(unittest.TestCase):
         )
 
 
+class LastErrorDiagnosticsTest(unittest.TestCase):
+    """#30: the config-entry diagnostics expose the last classified error code."""
+
+    def test_last_error_none_without_client(self) -> None:
+        # FakeHass stores only the coordinator -> no recorded error.
+        result = _run(diagnostics.async_get_config_entry_diagnostics(FakeHass(_build_coordinator()), FakeEntry()))
+        self.assertIn("last_error", result)
+        self.assertIsNone(result["last_error"])
+
+    def test_last_error_reports_code_and_reason(self) -> None:
+        from custom_components.addhon import error_codes as ec
+
+        class _Client:
+            last_error_code = ec.NETWORK_TIMEOUT
+
+        hass = FakeHass(_build_coordinator())
+        hass.data[DOMAIN]["e1"]["client"] = _Client()
+        result = _run(diagnostics.async_get_config_entry_diagnostics(hass, FakeEntry()))
+        self.assertEqual(result["last_error"], {"code": "ADDHON-400", "reason": ec.NETWORK_TIMEOUT.reason_en})
+
+
 if __name__ == "__main__":
     unittest.main()

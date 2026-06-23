@@ -29,6 +29,7 @@ from . import device as _device
 from .connection import HonConnection
 from .parse import parse_appliance_list
 from ...debug_utils import redact_identity
+from ...error_codes import APPLIANCE_LIST_EMPTY
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -80,9 +81,10 @@ class HonApi:
             # unified-api list includes offline ones too).
             modules = result.get("modules") if isinstance(result, dict) else None
             _LOGGER.warning(
-                "hOn API: 0 appliances (request OK). result keys=%s; modules keys=%s. "
+                "[%s] hOn API: 0 appliances (request OK). result keys=%s; modules keys=%s. "
                 "If the appliances appear in the hOn app, it is more likely an API change "
                 "than an empty/unshared account.",
+                APPLIANCE_LIST_EMPTY.label,
                 sorted(result.keys()) if isinstance(result, dict) else "n/a",
                 sorted(modules.keys()) if isinstance(modules, dict) else "n/a",
             )

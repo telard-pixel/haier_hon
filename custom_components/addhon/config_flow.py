@@ -12,9 +12,26 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 
 from .const import CONF_ENABLE_DEBUG, CONF_ENABLE_MQTT_DEBUG, DOMAIN
+from .error_codes import UNKNOWN, HonErrorCode, classify
 from .hon_client import HonClient, _requires_reauth
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _error_base_and_code(exc: BaseException, fallback_base: str) -> tuple[str, str]:
+    """Map a validation exception to the (form error key, ADDHON-NNN label).
+
+    A code with a localized ``config.error.<slug>`` string (``ui=True``) drives both
+    the precise key AND the shown code; otherwise the generic bucket
+    (cannot_connect / invalid_auth) is used with the bare code label. A code-less
+    exception (legacy string-constructed CannotConnect/InvalidAuth in the tests)
+    falls back to the bucket with no code."""
+    code = getattr(exc, "error_code", None)
+    if isinstance(code, HonErrorCode):
+        if code.ui:
+            return code.slug, code.label
+        return fallback_base, code.label
+    return fallback_base, ""
 
 
 def _redact_email(email: str | None) -> str | None:
@@ -36,7 +53,10 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Validate the hOn credentials."""
     _LOGGER.debug("ConfigFlow debug: starting validation for account %s", _redact_email(data.get("email")))
-    client = HonClient(email=data["email"], password=data["password"])
+    # validation=True: authenticate + count appliances only, NO MQTT and no
+    # per-appliance loads, so a slow/blocked realtime or a single dead endpoint can
+    # no longer make the whole validation hit the 60s loop cap (issue #30).
+    client = HonClient(email=data["email"], password=data["password"], validation=True)
 
     try:
         try:
@@ -46,12 +66,15 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
             await client.async_complete_setup()
             _LOGGER.debug("ConfigFlow debug: client setup completed")
         except ImportError as err:
-            raise CannotConnect("required dependency not installed") from err
+            code = classify(err)
+            _LOGGER.error("Validation failed [%s]: required dependency not installed: %s", code.label, err)
+            raise CannotConnect(code) from err
         except Exception as err:
-            _LOGGER.error("Validation error: %s", err)
+            code = classify(err)
+            _LOGGER.error("Validation failed [%s]: %s", code.label, err)
             if _requires_reauth(err):
-                raise InvalidAuth(str(err)) from err
-            raise CannotConnect(str(err)) from err
+                raise InvalidAuth(code) from err
+            raise CannotConnect(code) from err
 
         try:
             _LOGGER.debug("ConfigFlow debug: fetching appliances for validation")
@@ -69,10 +92,11 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
                 ],
             )
         except Exception as err:
-            _LOGGER.error("Error fetching appliances during validation: %s", err)
+            code = classify(err)
+            _LOGGER.error("Validation failed [%s] fetching appliances: %s", code.label, err)
             if _requires_reauth(err):
-                raise InvalidAuth(str(err)) from err
-            raise CannotConnect(str(err)) from err
+                raise InvalidAuth(code) from err
+            raise CannotConnect(code) from err
     finally:
         try:
             _LOGGER.debug("ConfigFlow debug: closing client after validation")
@@ -105,6 +129,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         """Handle the first user step."""
         errors: dict[str, str] = {}
+        error_code = ""
 
         if user_input is not None:
             _LOGGER.debug(
@@ -120,15 +145,16 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self._abort_if_unique_id_configured()
             try:
                 info = await validate_input(self.hass, user_input)
-            except CannotConnect:
-                _LOGGER.debug("ConfigFlow debug: validation failed cannot_connect")
-                errors["base"] = "cannot_connect"
-            except InvalidAuth:
-                _LOGGER.debug("ConfigFlow debug: validation failed invalid_auth")
-                errors["base"] = "invalid_auth"
+            except CannotConnect as err:
+                errors["base"], error_code = _error_base_and_code(err, "cannot_connect")
+                _LOGGER.debug("ConfigFlow debug: validation failed %s [%s]", errors["base"], error_code)
+            except InvalidAuth as err:
+                errors["base"], error_code = _error_base_and_code(err, "invalid_auth")
+                _LOGGER.debug("ConfigFlow debug: validation failed %s [%s]", errors["base"], error_code)
             except Exception:
                 _LOGGER.exception("Unexpected error")
                 errors["base"] = "unknown"
+                error_code = UNKNOWN.label
             else:
                 _LOGGER.debug(
                     "ConfigFlow debug: creating entry for account %s appliance_count=%s",
@@ -145,7 +171,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=STEP_USER_DATA_SCHEMA,
             errors=errors,
             description_placeholders={
-                "docs_url": "https://github.com/tis24dev/addhOn"
+                "docs_url": "https://github.com/tis24dev/addhOn",
+                "error_code": error_code,
             },
         )
 
@@ -164,6 +191,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         """Ask for the password again (the email stays the entry's one)."""
         errors: dict[str, str] = {}
+        error_code = ""
         reauth_entry = self.hass.config_entries.async_get_entry(
             self.context["entry_id"]
         )
@@ -173,15 +201,16 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data = {"email": email, "password": user_input["password"]}
             try:
                 await validate_input(self.hass, data)
-            except CannotConnect:
-                _LOGGER.debug("ConfigFlow debug: reauth failed cannot_connect")
-                errors["base"] = "cannot_connect"
-            except InvalidAuth:
-                _LOGGER.debug("ConfigFlow debug: reauth failed invalid_auth")
-                errors["base"] = "invalid_auth"
+            except CannotConnect as err:
+                errors["base"], error_code = _error_base_and_code(err, "cannot_connect")
+                _LOGGER.debug("ConfigFlow debug: reauth failed %s [%s]", errors["base"], error_code)
+            except InvalidAuth as err:
+                errors["base"], error_code = _error_base_and_code(err, "invalid_auth")
+                _LOGGER.debug("ConfigFlow debug: reauth failed %s [%s]", errors["base"], error_code)
             except Exception:
                 _LOGGER.exception("Unexpected error during reauth")
                 errors["base"] = "unknown"
+                error_code = UNKNOWN.label
             else:
                 # The credentials must belong to the same account: the email is
                 # not editable by the user, but we verify the unique_id anyway so
@@ -199,7 +228,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="reauth_confirm",
             data_schema=vol.Schema({vol.Required("password"): str}),
             errors=errors,
-            description_placeholders={"email": email},
+            description_placeholders={"email": email, "error_code": error_code},
         )
 
 
@@ -246,9 +275,25 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         )
 
 
-class CannotConnect(HomeAssistantError):
+class _CodedFlowError(HomeAssistantError):
+    """Base for the two flow errors: optionally carries a HonErrorCode.
+
+    Accepts either a HonErrorCode (the new path) or a plain string/None (legacy
+    callers and tests). The carried code drives the precise UI key + the shown
+    ADDHON-NNN; a string is just the message with no code."""
+
+    def __init__(self, code: HonErrorCode | str | None = None) -> None:
+        if isinstance(code, HonErrorCode):
+            self.error_code: HonErrorCode | None = code
+            super().__init__(str(code))
+        else:
+            self.error_code = None
+            super().__init__("" if code is None else str(code))
+
+
+class CannotConnect(_CodedFlowError):
     """Connection error."""
 
 
-class InvalidAuth(HomeAssistantError):
+class InvalidAuth(_CodedFlowError):
     """Invalid credentials."""

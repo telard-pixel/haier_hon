@@ -8,6 +8,7 @@ import threading
 from typing import Any
 
 from .debug_utils import debug_key_sample, redact_email, redact_id, redact_mac
+from .error_codes import HonCodedError, classify, phase_timeout_code
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -231,6 +232,12 @@ def _is_missing_session_error(err: BaseException) -> bool:
 
 
 def _requires_reauth(err: BaseException) -> bool:
+    # A coded error already decided its routing (e.g. a phase-attributed loop timeout
+    # is non-reauth; an auth-step code is reauth). Duck-typed so this stays decoupled
+    # from error_codes.HonErrorCode and keeps working under the test stubs.
+    code = getattr(err, "error_code", None)
+    if code is not None and hasattr(code, "requires_reauth"):
+        return bool(code.requires_reauth)
     return (
         _is_auth_error(err) or _is_missing_session_error(err)
     ) and not _is_retryable_server_error(err)
@@ -251,9 +258,14 @@ class HonClient:
     _RUN_TIMEOUT = 60
     _CANCEL_TIMEOUT = 5
 
-    def __init__(self, email: str, password: str) -> None:
+    def __init__(self, email: str, password: str, validation: bool = False) -> None:
         self._email = email
         self._password = password
+        # validation=True (config-flow): authenticate + count appliances only, no MQTT
+        # and no per-appliance loads (issue #30). Runtime keeps the full setup.
+        self._validation = validation
+        # Last classified error code (for the downloadable diagnostics / log parity).
+        self.last_error_code: Any = None
         self._hon_instance = None
         self._api = None
         self._hon_loop: asyncio.AbstractEventLoop | None = None
@@ -344,7 +356,7 @@ class HonClient:
 
             try:
                 return future.result(timeout=self._RUN_TIMEOUT)
-            except concurrent.futures.TimeoutError:
+            except concurrent.futures.TimeoutError as timeout_err:
                 drain_future: concurrent.futures.Future = concurrent.futures.Future()
 
                 def _cancel_and_drain() -> None:
@@ -375,7 +387,14 @@ class HonClient:
                     drain_future.result(timeout=self._CANCEL_TIMEOUT)
                 except Exception as err:
                     _LOGGER.debug("Timeout while cancelling hOn task: %s", err)
-                raise
+                # The bare concurrent.futures.TimeoutError has no message and the
+                # cancelled coroutine's own exception is gone, so re-raise it as a
+                # phase-attributed coded error: the dedicated loop runs setup() on the
+                # hOn session, which records where it stalled (auth / appliance list /
+                # MQTT) in _setup_phase. This is what turns the #30 "spins then
+                # cannot_connect" into a precise ADDHON-NNN. (phase "" -> LOOP_TIMEOUT.)
+                phase = getattr(self._hon_instance, "_setup_phase", "") or ""
+                raise HonCodedError(phase_timeout_code(phase), phase=phase) from timeout_err
 
     def _cancel_pending_tasks(self, loop: asyncio.AbstractEventLoop) -> None:
         """Cancel leftover tasks before stopping the dedicated loop."""
@@ -449,7 +468,12 @@ class HonClient:
                 if self._hon_loop is None or not self._hon_loop.is_running():
                     self._start_hon_loop()
 
-                self._hon_instance = create_session(self._email, self._password)
+                self._hon_instance = create_session(
+                    self._email,
+                    self._password,
+                    enable_mqtt=not self._validation,
+                    minimal=self._validation,
+                )
                 _LOGGER.debug("Hon instance created")
 
                 # Login + aiohttp session init, on the dedicated loop
@@ -460,7 +484,11 @@ class HonClient:
                 # without this the MQTT push is a permanent no-op after a re-auth (#20).
                 if self._notify_function is not None:
                     self._hon_instance.subscribe_updates(self._notify_function)
-            except Exception:
+            except Exception as err:
+                self.last_error_code = classify(err)
+                _LOGGER.error(
+                    "hOn setup failed [%s]: %s", self.last_error_code.label, err
+                )
                 self._close_sync()
                 raise
 

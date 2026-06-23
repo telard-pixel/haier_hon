@@ -58,7 +58,11 @@ class TotalDetachGuardTest(unittest.TestCase):
     def test_hon_client_uses_native_factory(self) -> None:
         src = _HON_CLIENT.read_text(encoding="utf-8")
         self.assertIn("from .client.factory import create_session", src)
-        self.assertIn("create_session(self._email, self._password)", src)
+        # create_session is called with the credentials (now also with the
+        # enable_mqtt/minimal flags for the lightweight config-flow validation).
+        self.assertIn("create_session(", src)
+        self.assertIn("self._email", src)
+        self.assertIn("self._password", src)
         self.assertNotIn("ensure_enum_patch", src)
 
 
