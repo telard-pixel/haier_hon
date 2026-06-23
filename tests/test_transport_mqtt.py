@@ -214,6 +214,186 @@ class CreatePathTest(unittest.TestCase):
         self.assertTrue(fake_client.stopped)
         self.assertIsNone(m._watchdog_task)
 
+    def test_create_stops_client_when_subscribe_fails(self) -> None:
+        # #21: _start() already started the awscrt client; if a later step raises,
+        # create() must stop it before re-raising (otherwise NativeHon never gets a
+        # reference and the client leaks).
+        class StoppableClient:
+            def __init__(self) -> None:
+                self.stops = 0
+
+            def stop(self) -> None:
+                self.stops += 1
+
+        m = NativeMqttClient(FakeHon([]), "MID")
+        client = StoppableClient()
+
+        async def fake_start():
+            m._client = client  # _start started the awscrt client
+
+        async def boom_subscribe():
+            raise asyncio.TimeoutError("subscribe timeout")
+
+        m._start = fake_start  # type: ignore[assignment]
+        m._subscribe_appliances = boom_subscribe  # type: ignore[assignment]
+
+        with self.assertRaises(asyncio.TimeoutError):
+            _run(m.create())
+        self.assertEqual(client.stops, 1)   # stopped -> no leak
+        self.assertIsNone(m._client)        # stop() cleared the reference
+
+    def test_create_stops_client_when_watchdog_start_fails(self) -> None:
+        # Same guarantee if the failure is in _start_watchdog (after subscribe).
+        class StoppableClient:
+            def __init__(self) -> None:
+                self.stops = 0
+
+            def stop(self) -> None:
+                self.stops += 1
+
+        m = NativeMqttClient(FakeHon([]), "MID")
+        client = StoppableClient()
+
+        async def fake_start():
+            m._client = client
+
+        async def ok_subscribe():
+            return None
+
+        async def boom_watchdog():
+            raise RuntimeError("watchdog boom")
+
+        m._start = fake_start  # type: ignore[assignment]
+        m._subscribe_appliances = ok_subscribe  # type: ignore[assignment]
+        m._start_watchdog = boom_watchdog  # type: ignore[assignment]
+
+        with self.assertRaises(RuntimeError):
+            _run(m.create())
+        self.assertEqual(client.stops, 1)
+        self.assertIsNone(m._client)
+
+    def test_create_stops_client_on_cancellation(self) -> None:
+        # The cleanup must catch BaseException (not just Exception): a setup cancelled
+        # mid-subscribe (CancelledError) must still stop the started client.
+        class StoppableClient:
+            def __init__(self) -> None:
+                self.stops = 0
+
+            def stop(self) -> None:
+                self.stops += 1
+
+        m = NativeMqttClient(FakeHon([]), "MID")
+        client = StoppableClient()
+
+        async def fake_start():
+            m._client = client
+
+        async def cancelled_subscribe():
+            raise asyncio.CancelledError
+
+        m._start = fake_start  # type: ignore[assignment]
+        m._subscribe_appliances = cancelled_subscribe  # type: ignore[assignment]
+
+        with self.assertRaises(asyncio.CancelledError):
+            _run(m.create())
+        self.assertEqual(client.stops, 1)  # stopped despite cancellation
+        self.assertIsNone(m._client)
+
+    def test_create_stops_client_on_keyboardinterrupt(self) -> None:
+        # Pins the `except BaseException` (vs a narrower (Exception, CancelledError)):
+        # a non-Exception, non-CancelledError BaseException must still clean up.
+        class StoppableClient:
+            def __init__(self) -> None:
+                self.stops = 0
+
+            def stop(self) -> None:
+                self.stops += 1
+
+        m = NativeMqttClient(FakeHon([]), "MID")
+        client = StoppableClient()
+
+        async def fake_start():
+            m._client = client
+
+        async def boom_subscribe():
+            raise KeyboardInterrupt
+
+        m._start = fake_start  # type: ignore[assignment]
+        m._subscribe_appliances = boom_subscribe  # type: ignore[assignment]
+
+        with self.assertRaises(KeyboardInterrupt):
+            _run(m.create())
+        self.assertEqual(client.stops, 1)
+        self.assertIsNone(m._client)
+
+    def test_create_stops_client_when_start_method_raises(self) -> None:
+        # Real _start path: the builder returns a client whose start() raises AFTER
+        # _start assigned self._client; create() must stop it (covers the real
+        # self.client.start() line, not just a stubbed _start).
+        import awscrt
+        import awsiot
+
+        class FakeClient:
+            def __init__(self) -> None:
+                self.stops = 0
+
+            def start(self) -> None:
+                raise RuntimeError("native start boom")
+
+            def stop(self) -> None:
+                self.stops += 1
+
+        fake_client = FakeClient()
+        awsiot.mqtt5_client_builder.websockets_with_custom_authorizer = lambda **kw: fake_client
+        awscrt.mqtt5.SubscribePacket = lambda subs: ("pkt", subs)
+        awscrt.mqtt5.Subscription = lambda topic: topic
+
+        class FakeAuth:
+            id_token = "IDT"
+
+        class FakeApi:
+            auth = FakeAuth()
+
+            async def load_aws_token(self):
+                return "SIGNED"
+
+        hon = FakeHon([])
+        hon.api = FakeApi()
+        m = NativeMqttClient(hon, "MID")
+        with self.assertRaises(RuntimeError):
+            _run(m.create())
+        self.assertEqual(fake_client.stops, 1)
+        self.assertIsNone(m._client)
+
+    def test_double_stop_after_failed_create(self) -> None:
+        # After create() self-cleaned, an extra stop() (e.g. from a later close())
+        # is idempotent: the client is not stopped twice and stays cleared.
+        class StoppableClient:
+            def __init__(self) -> None:
+                self.stops = 0
+
+            def stop(self) -> None:
+                self.stops += 1
+
+        m = NativeMqttClient(FakeHon([]), "MID")
+        client = StoppableClient()
+
+        async def fake_start():
+            m._client = client
+
+        async def boom_subscribe():
+            raise asyncio.TimeoutError
+
+        m._start = fake_start  # type: ignore[assignment]
+        m._subscribe_appliances = boom_subscribe  # type: ignore[assignment]
+
+        with self.assertRaises(asyncio.TimeoutError):
+            _run(m.create())
+        self.assertEqual(client.stops, 1)
+        _run(m.stop())  # second teardown
+        self.assertEqual(client.stops, 1)  # not stopped again
+        self.assertIsNone(m._client)
+
 
 class PublishReceivedTest(unittest.TestCase):
     def _client(self, appliance):

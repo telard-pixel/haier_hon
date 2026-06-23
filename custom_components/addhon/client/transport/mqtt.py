@@ -90,9 +90,19 @@ class NativeMqttClient:
         return self._client
 
     async def create(self) -> "NativeMqttClient":
-        await self._start()
-        await self._subscribe_appliances()
-        await self._start_watchdog()
+        try:
+            await self._start()
+            await self._subscribe_appliances()
+            await self._start_watchdog()
+        except BaseException:
+            # _start() has already started the awscrt client; if a later step fails
+            # create() raises BEFORE NativeHon stores us (session._make_mqtt), so
+            # NativeHon.close() can never reach the client -> the socket + native
+            # worker threads leak. Tear it down here (stop() is idempotent and
+            # exception-guarded). BaseException so a cancelled setup also cleans up;
+            # we re-raise to preserve the original error/cancellation.
+            await self.stop()
+            raise
         return self
 
     async def stop(self) -> None:
