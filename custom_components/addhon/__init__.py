@@ -197,7 +197,10 @@ _TD_REMOVED_SUFFIXES = (
 def _remove_legacy_entities(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Remove from the registry the legacy entities no longer provided by the integration.
 
-    - "Power" switch (unique_id '<id>_power'), removed in the 2.3/2.4 refactor.
+    - "Power" SWITCH (unique_id '<id>_power'), removed in the 2.3/2.4 refactor.
+      Scoped to the switch domain on purpose: the legitimate WH `power` sensor
+      (unique_id '<id>_power') and KT `current_power` sensor (unique_id
+      '<id>_current_power') both end in '_power' and must NOT be purged.
     - Washer-only sensors on the tumble dryers (TD): '<td_id>_total_water',
       '_total_energy', '_current_energy', '_current_water', '_loading_percentage'.
       Removed ONLY on devices of type TD (cross-checked with the coordinator),
@@ -227,10 +230,11 @@ def _remove_legacy_entities(hass: HomeAssistant, entry: ConfigEntry) -> None:
     for reg_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
         checked += 1
         unique_id = reg_entry.unique_id or ""
-        if unique_id.endswith("_power"):
+        domain = (reg_entry.entity_id or "").split(".", 1)[0]
+        if domain == "switch" and unique_id.endswith("_power"):
             registry.async_remove(reg_entry.entity_id)
             removed += 1
-            _LOGGER.info("Removed legacy power entity: %s", reg_entry.entity_id)
+            _LOGGER.info("Removed legacy power switch: %s", reg_entry.entity_id)
         elif unique_id in td_orphans:
             registry.async_remove(reg_entry.entity_id)
             removed += 1
