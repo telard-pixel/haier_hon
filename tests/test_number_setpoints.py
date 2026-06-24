@@ -564,28 +564,41 @@ class NumberSetpointTest(unittest.TestCase):
         self.assertFalse(N._value_in_set(2.1, s))
         self.assertFalse(N._value_in_set(None, s))  # non-float -> False, no crash
 
-    def test_value_in_set_tolerance_passes_guard_via_set_native_value(self) -> None:
-        # A value with sub-tolerance drift from a set member must NOT be rejected by
-        # the up-front membership guard (kills tolerance 1e-6 -> strict equality:
-        # under strict-eq this would raise invalid_setpoint). We assert the guard
-        # specifically does not raise invalid_setpoint; the downstream enum setter
-        # may still reject the drifted string, but that is a different code path.
-        from homeassistant.exceptions import HomeAssistantError
-
+    def test_within_tolerance_drift_snapped_to_canonical_int_sends(self) -> None:
+        # CR#7: a sub-tolerance drift (2.0000001) must be SNAPPED to the canonical
+        # member and SENT as "2" -- NOT serialized raw as "2.0000001", which the cloud
+        # enum setter rejects, surfacing as a generic command_error instead of applying.
         commands = {"settings": RecordingCommand({"tempSelZ3": EnumParam(["0", "2", "5"])})}
         app = FakeAppliance(commands)
         client = FakeClient()
         added = asyncio.run(_build("REF", app, {}, client=client))
         z3 = next(e for e in added if e.entity_description.key == "target_temp_zone3")
-        try:
-            asyncio.run(z3.async_set_native_value(2.0000001))  # within 1e-6 of 2
-        except HomeAssistantError as err:
-            # Must NOT be the membership rejection; if it is, the tolerance is gone.
-            self.assertNotEqual(
-                getattr(err, "translation_key", None),
-                "invalid_setpoint",
-                "membership guard rejected a within-tolerance value (tolerance lost)",
-            )
+        asyncio.run(z3.async_set_native_value(2.0000001))  # within 1e-6 of 2
+        self.assertEqual(commands["settings"].send_calls, 1)
+        self.assertEqual(commands["settings"].parameters["tempSelZ3"].value, "2")
+
+    def test_within_tolerance_drift_snapped_to_canonical_fraction_sends(self) -> None:
+        # Fractional set (where min+n*step float drift actually bites): 10.5000001 must
+        # be sent as "10.5", not "10.5000001".
+        commands = {"settings": RecordingCommand({"tempSel": EnumParam(["10", "10.5", "11"])})}
+        app = FakeAppliance(commands)
+        client = FakeClient()
+        added = asyncio.run(_build("WC", app, {}, client=client))
+        ent = next(e for e in added if e.entity_description.key == "target_temp")
+        asyncio.run(ent.async_set_native_value(10.5000001))  # within 1e-6 of 10.5
+        self.assertEqual(commands["settings"].send_calls, 1)
+        self.assertEqual(commands["settings"].parameters["tempSel"].value, "10.5")
+
+    def test_snap_to_set_returns_canonical_member_or_none(self) -> None:
+        # Unit: snap returns the CANONICAL member (not the drifted input) or None.
+        from custom_components.addhon import number as N
+
+        s = [0.0, 2.0, 5.0]
+        self.assertEqual(N._snap_to_set(2.0000001, s), 2.0)  # canonical, not the input
+        self.assertEqual(N._snap_to_set(2.0, s), 2.0)
+        self.assertIsNone(N._snap_to_set(2.0 + 5e-6, s))     # just beyond tolerance (1e-6)
+        self.assertIsNone(N._snap_to_set(2.1, s))            # well beyond tolerance
+        self.assertIsNone(N._snap_to_set(None, s))           # non-float, no crash
 
     def test_numeric_enum_set_skips_when_any_value_non_numeric(self) -> None:
         # KILLS the `return None`->`continue` mutant in _numeric_enum_set: a single

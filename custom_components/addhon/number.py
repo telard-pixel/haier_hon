@@ -182,13 +182,37 @@ def _enum_step(values: list[float]) -> float:
     return smallest if smallest > 0 else 1.0
 
 
-def _value_in_set(value: float, enum_set: list[float]) -> bool:
-    """Membership in a discrete numeric set with a small float tolerance."""
+# Tolerance for matching a UI value to a discrete enum member. A value can drift from
+# the canonical member by float arithmetic (e.g. a step-0.5 set: min + n*step). ONE
+# source for both the membership guard and the snap so they can never disagree.
+_SET_EPSILON = 1e-6
+
+
+def _snap_to_set(value: float, enum_set: list[float]) -> float | None:
+    """Nearest enum member within _SET_EPSILON of `value`, else None (incl. non-float).
+
+    The caller must SERIALIZE this snapped (canonical) member, NOT the raw drifted
+    value -- otherwise a tolerated value like 2.0000001 is sent as "2.0000001" and the
+    cloud enum setter rejects it (clean_value not in the allowed set), surfacing as an
+    opaque command_error instead of being applied (CR#7)."""
     try:
         wanted = float(value)
     except (TypeError, ValueError):
-        return False
-    return any(abs(wanted - allowed) < 1e-6 for allowed in enum_set)
+        return None
+    best: float | None = None
+    best_delta = _SET_EPSILON
+    for allowed in enum_set:
+        delta = abs(wanted - allowed)
+        if delta < best_delta:
+            best, best_delta = allowed, delta
+    return best
+
+
+def _value_in_set(value: float, enum_set: list[float]) -> bool:
+    """Membership in a discrete numeric set with a small float tolerance.
+
+    Thin predicate over _snap_to_set so the guard and the snap share one tolerance."""
+    return _snap_to_set(value, enum_set) is not None
 
 
 async def async_setup_entry(
@@ -330,18 +354,23 @@ class HonNumber(HonBaseEntity, NumberEntity):
         # Enum setpoint: reject a value outside the discrete set up front (clear message,
         # no pointless cloud round-trip) instead of letting the cloud enum setter raise an
         # opaque ValueError that would surface as a generic command_error.
-        if self._enum_set is not None and not _value_in_set(value, self._enum_set):
-            raise HomeAssistantError(
-                translation_domain=DOMAIN,
-                translation_key="invalid_setpoint",
-                translation_placeholders={
-                    "value": str(value),
-                    "allowed": ", ".join(
-                        str(int(v)) if float(v).is_integer() else str(v)
-                        for v in self._enum_set
-                    ),
-                },
-            )
+        if self._enum_set is not None:
+            snapped = _snap_to_set(value, self._enum_set)
+            if snapped is None:
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN,
+                    translation_key="invalid_setpoint",
+                    translation_placeholders={
+                        "value": str(value),  # the original drifted value, for the user
+                        "allowed": ", ".join(
+                            str(int(v)) if float(v).is_integer() else str(v)
+                            for v in self._enum_set
+                        ),
+                    },
+                )
+            # Snap to the canonical member so the serialize below emits the exact enum
+            # string ("2", "10.5"), not the drifted "2.0000001" the cloud would reject.
+            value = snapped
         # ALWAYS send a string: the client's str_to_float does `int(string)` and catches
         # only ValueError, so a fractional float (5.5) would be truncated to 5
         # WITHOUT error. The string "5.5" instead stays 5.5 and the range setter
