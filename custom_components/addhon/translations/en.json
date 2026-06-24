@@ -15,6 +15,14 @@
         "data": {
           "password": "Password"
         }
+      },
+      "2fa": {
+        "title": "Two-factor verification",
+        "description": "Your hOn account has two-factor authentication enabled. Enter the verification code we emailed to you. To get a new code, tick \"Resend code\" and submit.",
+        "data": {
+          "code": "Verification code",
+          "resend": "Resend code"
+        }
       }
     },
     "error": {
@@ -26,6 +34,8 @@
       "auth_login": "Login rejected - check your email and password. ({error_code})",
       "auth_get_token": "Could not retrieve the hOn session token. ({error_code})",
       "auth_api_auth": "hOn rejected the API authorization. ({error_code})",
+      "mfa_required": "A verification code is required to finish signing in. ({error_code})",
+      "mfa_code_invalid": "The verification code is wrong or has expired. Enter it again or resend a new one. ({error_code})",
       "appliance_list_failed": "Could not fetch your appliance list. ({error_code})",
       "network_timeout": "Timed out contacting the hOn servers. Check your internet connection. ({error_code})",
       "dns_failure": "Could not resolve the hOn servers (DNS). Check your network and DNS. ({error_code})",
@@ -39,7 +49,8 @@
     "abort": {
       "already_configured": "This hOn account is already configured.",
       "reauth_successful": "Re-authentication was successful.",
-      "reauth_account_mismatch": "The new credentials must belong to the same hOn account."
+      "reauth_account_mismatch": "The new credentials must belong to the same hOn account.",
+      "mfa_no_challenge": "The two-factor session expired. Please start again."
     }
   },
   "options": {

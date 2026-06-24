@@ -25,6 +25,7 @@ def create_session(
     *,
     enable_mqtt: bool = True,
     minimal: bool = False,
+    refresh_token: str = "",
 ) -> Any:
     """Create the NATIVE hOn session (`client.session.NativeHon`).
 
@@ -42,7 +43,11 @@ def create_session(
     from .session import NativeHon
 
     return NativeHon(
-        email=email, password=password, enable_mqtt=enable_mqtt, minimal=minimal
+        email=email,
+        password=password,
+        enable_mqtt=enable_mqtt,
+        minimal=minimal,
+        refresh_token=refresh_token,
     )
 
 

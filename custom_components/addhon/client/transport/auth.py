@@ -18,16 +18,23 @@ from typing import Any
 
 from yarl import URL
 
+from ...error_codes import MFA_CODE_INVALID, MFA_REQUIRED
 from .device import HonDevice
 from .headers import USER_AGENT
 from .oauth import (
+    APEXREMOTE_PATH,
     AUTH_API,
     CLIENT_ID,
+    MfaContext,
     build_authorize_url,
+    build_finish_body,
     build_login_payload,
+    build_remoting_payload,
+    detect_progressive_otp,
     extract_login_url,
     generate_nonce,
     is_oauth_done,
+    parse_remoting_result,
 )
 from .tokens import parse_token_fragment
 
@@ -49,6 +56,28 @@ _HREF_RE_PROGRESSIVE = re.compile("href\\s*=\\s*[\"'](.*?)[\"']")
 
 class NativeAuthError(Exception):
     """Error of the native auth flow."""
+
+
+class MFAChallengeRequired(Exception):
+    """A 2FA email-OTP challenge surfaced during login (Salesforce ProgressiveLogin).
+
+    NOT an auth failure: it carries the :class:`MfaContext` needed to send/verify the
+    code and resume on the SAME session. `error_code` routes it like a reauth (so a
+    background setup hitting it fails into the reauth flow that CAN prompt), while the
+    interactive config flow catches the TYPE to drive the 2FA step. Message is a fixed
+    identity-free token."""
+
+    error_code = MFA_REQUIRED
+
+    def __init__(self, context: MfaContext) -> None:
+        self.context = context
+        super().__init__("mfa_required")
+
+
+class MFACodeInvalid(NativeAuthError):
+    """The submitted OTP was rejected by verifyEmailOTP (wrong or expired code)."""
+
+    error_code = MFA_CODE_INVALID
 
 
 class _NoAuthNeeded(Exception):
@@ -157,7 +186,18 @@ class HonAuth:
             async with self._session.get(href[0], headers=self._ua()) as resp:
                 if resp.status != 200:
                     raise NativeAuthError(f"progressive: status {resp.status}")
-                href = _HREF_RE_PROGRESSIVE.findall(await resp.text())
+                prog_text = await resp.text()
+                # resp.url is the final (post-redirect) URL; fall back to the requested
+                # href if the response object does not expose it (e.g. test doubles).
+                prog_url = str(getattr(resp, "url", "") or href[0])
+            # 2FA: when email OTP is enabled this page IS the verification step (no
+            # usable redirect href -- the first one is a CSS asset). Detect it and
+            # pause the login with the context to resume; otherwise behave exactly as
+            # before (follow the redirect). Inert on non-2FA accounts.
+            challenge = detect_progressive_otp(prog_text, prog_url)
+            if challenge is not None:
+                raise MFAChallengeRequired(challenge)
+            href = _HREF_RE_PROGRESSIVE.findall(prog_text)
             if not href:  # like the guard after the first findall: no IndexError
                 raise NativeAuthError("progressive: no href")
         token_url = AUTH_API + href[0]
@@ -201,6 +241,99 @@ class HonAuth:
             await self._api_auth()
         except _NoAuthNeeded:
             return
+
+    # -- Two-factor (email OTP) resume -----------------------------------------
+    # These run on the SAME aiohttp session that hit the challenge (its cookies bind
+    # the Salesforce verification), so they MUST be called on the connection whose
+    # authenticate() raised MFAChallengeRequired. Validated live 2026-06-25.
+
+    async def _mfa_remoting(
+        self, context: MfaContext, descriptor: dict, data: list, tid: int
+    ) -> dict:
+        """One Salesforce JS-Remoting call (POST /apexremote), returns the result entry."""
+        payload = build_remoting_payload(context.vid, descriptor, data, tid)
+        headers = self._ua(
+            {
+                "Content-Type": "application/json",
+                "X-User-Agent": "Visualforce-Remoting",
+                "Referer": context.referer,
+            }
+        )
+        async with self._session.post(
+            context.host + APEXREMOTE_PATH, json=payload, headers=headers
+        ) as resp:
+            status = resp.status
+            text = await resp.text()
+        entry = parse_remoting_result(text)
+        if not entry:
+            raise NativeAuthError(f"mfa: unreadable remoting response (status {status})")
+        return entry
+
+    async def resend_mfa_code(self, context: MfaContext) -> None:
+        """(Re)send the email OTP via resendEmailCode. This is also the FIRST send:
+        merely loading the page does not email a code, the page's JS does."""
+        entry = await self._mfa_remoting(
+            context, context.resend, [{"expid": context.expid, "localeId": context.locale}], 11
+        )
+        if entry.get("result") is not True:
+            raise NativeAuthError("mfa: could not send the verification code")
+
+    async def submit_mfa_code(self, context: MfaContext, code: str) -> None:
+        """Verify the OTP (remoting) -> finish (VF postback) -> obtain the tokens.
+
+        On a wrong/expired code raises MFACodeInvalid so the flow can re-prompt."""
+        entry = await self._mfa_remoting(context, context.verify, [code], 21)
+        if entry.get("result") is not True:
+            # A Salesforce remoting EXCEPTION / 5xx is a transient service error, not a
+            # wrong code: surface it as a generic auth error (cannot_connect) so the user
+            # is not told to re-enter a perfectly good OTP. A plain result==false IS a
+            # wrong/expired code.
+            status = entry.get("statusCode")
+            if entry.get("type") == "exception" or (
+                isinstance(status, int) and status >= 500
+            ):
+                raise NativeAuthError("mfa: verification service error")
+            raise MFACodeInvalid("mfa: invalid verification code")
+        # finishFlowCall: VF form postback (ViewState + the commandLink marker).
+        async with self._session.post(
+            context.vf_action,
+            data=build_finish_body(context),
+            headers=self._ua(
+                {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Referer": context.referer,
+                }
+            ),
+        ) as resp:
+            await resp.text()  # consume the postback response (redirect to retURL)
+        await self._resume_tokens_after_2fa()
+        await self._api_auth()
+
+    async def _resume_tokens_after_2fa(self) -> None:
+        """Re-run authorize on the now-verified session and extract the tokens.
+
+        Post-2FA the authorize redirect carries the tokens. `extract_login_url` matches
+        the `hon://...oauth/done#access_token=...` URL before `is_oauth_done` would, so
+        we parse the tokens from whichever the page yields (with a trailing '&' so the
+        last fragment field is captured)."""
+        url = build_authorize_url(generate_nonce())
+        async with self._session.get(url, headers=self._ua()) as resp:
+            text = await resp.text()
+        self._expires = datetime.now(timezone.utc)
+        # Extract the done-URL FIRST and parse only it (mirrors the live-validated probe).
+        # Parsing the whole page first would let a stray `*_token=...&` substring elsewhere
+        # on the page (inline JS, echoed state) be captured instead of the real token. The
+        # trailing '&' lets parse_token_fragment capture the last fragment field.
+        done_url = extract_login_url(text)
+        if done_url and "access_token" in done_url:
+            tokens = parse_token_fragment(done_url + "&")
+        else:
+            tokens = parse_token_fragment(text)
+        if not tokens.complete:
+            raise NativeAuthError("mfa: token retrieval failed after verification")
+        self.access_token = tokens.access_token
+        self.refresh_token = tokens.refresh_token
+        self.id_token = tokens.id_token
 
     async def refresh(self, refresh_token: str = "") -> bool:
         if refresh_token:

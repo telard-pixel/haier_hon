@@ -24,7 +24,7 @@ import aiohttp
 
 from . import factory
 from .transport.api import HonApi
-from .transport.auth import NativeAuthError
+from .transport.auth import MFAChallengeRequired, NativeAuthError
 from .transport.connection import HonConnection
 from ..error_codes import APPLIANCE_DATA_MALFORMED
 
@@ -106,6 +106,13 @@ class NativeHon:
             ).create()
             self._api = HonApi(self._connection)
             await self.setup()
+        except MFAChallengeRequired:
+            # Interactive 2FA: the email-OTP challenge surfaced during setup(). The
+            # connection/session/api are kept ALIVE (no close()) so submit_mfa_code()
+            # can resume on the SAME session (its cookies bind the verification). The
+            # caller (config flow) drives the resume; a background setup that cannot
+            # prompt closes the client itself and routes to the reauth flow.
+            raise
         except BaseException:
             # setup() makes the first HTTP calls (and may start MQTT) and can raise
             # (network/auth). When a caller uses `async with NativeHon(...)`, a failure
@@ -239,6 +246,32 @@ class NativeHon:
         from .transport.mqtt import NativeMqttClient
 
         return await NativeMqttClient(self, self._mobile_id).create()
+
+    @property
+    def refresh_token(self) -> str:
+        """Current OAuth refresh token (for persistence), or '' if not yet logged in."""
+        conn = self._connection
+        if conn is None:
+            return ""
+        try:
+            return conn.auth.refresh_token
+        except Exception:  # noqa: BLE001 - no auth yet
+            return ""
+
+    async def submit_mfa_code(self, context: Any, code: str) -> "NativeHon":
+        """Resume a paused 2FA login: verify the OTP, then finish setup (load the
+        appliances + start MQTT at runtime) on the same session."""
+        if self._connection is None:
+            raise NativeAuthError("no pending MFA challenge")
+        await self._connection.submit_mfa_code(context, code)
+        await self.setup()
+        return self
+
+    async def resend_mfa_code(self, context: Any) -> None:
+        """(Re)send the email OTP for a pending challenge."""
+        if self._connection is None:
+            raise NativeAuthError("no pending MFA challenge")
+        await self._connection.resend_mfa_code(context)
 
     def subscribe_updates(self, notify_function: Any) -> None:
         self._notify_function = notify_function

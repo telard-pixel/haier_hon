@@ -134,6 +134,26 @@ class CoordinatorErrorClassificationTest(unittest.TestCase):
         with self.assertRaises(UpdateFailed):
             upd(NativeAuthError("boom status 500"))
 
+    def test_setup_mfa_challenge_is_config_entry_auth_failed(self) -> None:
+        # A 2FA challenge during a BACKGROUND setup cannot prompt -> must route to the
+        # reauth flow (ConfigEntryAuthFailed), NOT a ConfigEntryNotReady retry loop that
+        # could never satisfy the OTP (and would re-send emails). Guards the
+        # requires_reauth=True flag on MFA_REQUIRED staying coupled to this routing.
+        from custom_components.addhon.client.transport.auth import MFAChallengeRequired
+        from custom_components.addhon.client.transport.oauth import MfaContext
+
+        AuthFailed, NotReady, _UF, setup, _upd = self._imports()
+        ctx = MfaContext("email", True, "h", "r", "v", {}, {}, "a", {}, "m", "SmartHome", None)
+        with self.assertRaises(AuthFailed):
+            setup(MFAChallengeRequired(ctx))
+
+    def test_update_mfa_code_invalid_is_config_entry_auth_failed(self) -> None:
+        from custom_components.addhon.client.transport.auth import MFACodeInvalid
+
+        AuthFailed, _NotReady, _UF, _setup, upd = self._imports()
+        with self.assertRaises(AuthFailed):
+            upd(MFACodeInvalid("mfa: invalid verification code"))
+
     def test_chaining_preserves_original_error(self) -> None:
         _AF, _NotReady, UpdateFailed, _setup, upd = self._imports()
         original = RuntimeError("root cause")

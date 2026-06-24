@@ -11,8 +11,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 
+from .client.transport.auth import MFAChallengeRequired, MFACodeInvalid
 from .const import CONF_ENABLE_DEBUG, CONF_ENABLE_MQTT_DEBUG, DOMAIN
-from .error_codes import UNKNOWN, HonErrorCode, classify
+from .error_codes import MFA_CODE_INVALID, UNKNOWN, HonErrorCode, classify
 from .hon_client import HonClient, _requires_reauth
 
 _LOGGER = logging.getLogger(__name__)
@@ -57,6 +58,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     # per-appliance loads, so a slow/blocked realtime or a single dead endpoint can
     # no longer make the whole validation hit the 60s loop cap (issue #30).
     client = HonClient(email=data["email"], password=data["password"], validation=True)
+    mfa_pending = False
 
     try:
         try:
@@ -65,6 +67,14 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
             await hass.async_add_executor_job(client.setup_sync)
             await client.async_complete_setup()
             _LOGGER.debug("ConfigFlow debug: client setup completed")
+        except MFAChallengeRequired as err:
+            # 2FA email-OTP: keep the live client (its session holds the challenge) so
+            # the flow can drive the 2FA step. Hand it to the caller and SKIP the close
+            # in `finally`; the flow handler owns the teardown from here on.
+            _LOGGER.debug("ConfigFlow debug: 2FA challenge, deferring to the 2FA step")
+            mfa_pending = True
+            err.client = client
+            raise
         except ImportError as err:
             code = classify(err)
             _LOGGER.error("Validation failed [%s]: required dependency not installed: %s", code.label, err)
@@ -97,16 +107,24 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
             if _requires_reauth(err):
                 raise InvalidAuth(code) from err
             raise CannotConnect(code) from err
+        # Capture the refresh token BEFORE the `finally` closes the client (the close
+        # nulls the session, after which the property returns ""). Persisting it lets a
+        # non-2FA account skip the full login on the next restart too.
+        refresh_token = client.refresh_token
     finally:
-        try:
-            _LOGGER.debug("ConfigFlow debug: closing client after validation")
-            await client.async_close()
-        except Exception as err:
-            _LOGGER.warning("Error closing HonClient after validation: %s", err)
+        # On a 2FA challenge the client must stay open for the 2FA step (the flow
+        # handler closes it); otherwise close it here as before.
+        if not mfa_pending:
+            try:
+                _LOGGER.debug("ConfigFlow debug: closing client after validation")
+                await client.async_close()
+            except Exception as err:
+                _LOGGER.warning("Error closing HonClient after validation: %s", err)
 
     return {
         "title": f"Haier hOn ({data['email']})",
         "appliance_count": len(appliances),
+        "refresh_token": refresh_token,
     }
 
 
@@ -114,6 +132,15 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handles the config flow for Haier hOn Extended."""
 
     VERSION = 1
+
+    # 2FA (email OTP) state, carried across the user/reauth -> 2fa steps. Class-level
+    # defaults so a fresh handler never AttributeErrors; reassigned per-flow in
+    # _mfa_begin. _mfa_client is the LIVE validation client whose session holds the
+    # challenge (the flow owns its teardown). NEVER logged.
+    _mfa_client: HonClient | None = None
+    _mfa_context: Any = None
+    _mfa_data: dict[str, Any] | None = None
+    _mfa_reauth_entry: Any = None
 
     @staticmethod
     def async_get_options_flow(
@@ -145,6 +172,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self._abort_if_unique_id_configured()
             try:
                 info = await validate_input(self.hass, user_input)
+            except MFAChallengeRequired as err:
+                # 2FA required: hold the live client and move to the OTP step.
+                await self._mfa_begin(err, dict(user_input), reauth_entry=None)
+                return await self.async_step_2fa()
             except CannotConnect as err:
                 errors["base"], error_code = _error_base_and_code(err, "cannot_connect")
                 _LOGGER.debug("ConfigFlow debug: validation failed %s [%s]", errors["base"], error_code)
@@ -163,7 +194,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
                 return self.async_create_entry(
                     title=info["title"],
-                    data=user_input,
+                    data={**user_input, "refresh_token": info.get("refresh_token", "")},
                 )
 
         return self.async_show_form(
@@ -200,7 +231,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             data = {"email": email, "password": user_input["password"]}
             try:
-                await validate_input(self.hass, data)
+                info = await validate_input(self.hass, data)
+            except MFAChallengeRequired as err:
+                # 2FA required during reauth: hold the client and move to the OTP step,
+                # which finishes by UPDATING this entry (not creating a new one).
+                await self._mfa_begin(err, data, reauth_entry=reauth_entry)
+                return await self.async_step_2fa()
             except CannotConnect as err:
                 errors["base"], error_code = _error_base_and_code(err, "cannot_connect")
                 _LOGGER.debug("ConfigFlow debug: reauth failed %s [%s]", errors["base"], error_code)
@@ -222,7 +258,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     "ConfigFlow debug: reauth succeeded for %s, updating entry",
                     _redact_email(email),
                 )
-                return self.async_update_reload_and_abort(reauth_entry, data=data)
+                return self.async_update_reload_and_abort(
+                    reauth_entry,
+                    data={**data, "refresh_token": info.get("refresh_token", "")},
+                )
 
         return self.async_show_form(
             step_id="reauth_confirm",
@@ -230,6 +269,123 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
             description_placeholders={"email": email, "error_code": error_code},
         )
+
+    async def _mfa_begin(
+        self, err: MFAChallengeRequired, data: dict[str, Any], reauth_entry: Any
+    ) -> None:
+        """Stash the live 2FA challenge so async_step_2fa can drive it.
+
+        Defensive: if the user/reauth step is re-entered while a previous challenge
+        client is still held, close it first so its loop/thread/session is not orphaned
+        (the guard avoids closing the just-arrived client when it is the same object)."""
+        new_client = getattr(err, "client", None)
+        if self._mfa_client is not None and self._mfa_client is not new_client:
+            await self._async_close_mfa_client()
+        self._mfa_client = new_client
+        self._mfa_context = err.context
+        self._mfa_data = data
+        self._mfa_reauth_entry = reauth_entry
+
+    async def _async_close_mfa_client(self) -> None:
+        """Tear down the held 2FA client. Idempotent (clears the ref first), so it is
+        safe to call from both the success path and the flow-removal hook."""
+        client = self._mfa_client
+        self._mfa_client = None
+        self._mfa_context = None
+        if client is not None:
+            try:
+                await client.async_close()
+            except Exception as err:  # noqa: BLE001 - cleanup must not mask the flow
+                _LOGGER.warning("Error closing HonClient after 2FA: %s", err)
+
+    async def async_remove(self) -> None:
+        """Called by HA when the flow is removed/aborted/abandoned: close the held 2FA
+        client so an unfinished verification does not leak its loop/thread/session."""
+        await self._async_close_mfa_client()
+
+    async def async_step_2fa(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Collect and submit the email OTP for a pending 2FA challenge."""
+        errors: dict[str, str] = {}
+        error_code = ""
+
+        if self._mfa_client is None or self._mfa_context is None:
+            # The challenge state is gone (timed out / stale flow): start over.
+            return self.async_abort(reason="mfa_no_challenge")
+
+        if user_input is None:
+            # First entry: actually SEND the code (loading the page does not email it).
+            try:
+                await self.hass.async_add_executor_job(
+                    self._mfa_client.resend_mfa_code_sync, self._mfa_context
+                )
+                _LOGGER.debug("ConfigFlow debug: 2FA code sent")
+            except Exception as err:  # noqa: BLE001
+                errors["base"], error_code = self._mfa_error(err)
+        elif user_input.get("resend"):
+            try:
+                await self.hass.async_add_executor_job(
+                    self._mfa_client.resend_mfa_code_sync, self._mfa_context
+                )
+                _LOGGER.debug("ConfigFlow debug: 2FA code resent")
+            except Exception as err:  # noqa: BLE001
+                errors["base"], error_code = self._mfa_error(err)
+        else:
+            code = (user_input.get("code") or "").strip()
+            if not code:
+                errors["base"], error_code = "mfa_code_invalid", MFA_CODE_INVALID.label
+            else:
+                try:
+                    await self.hass.async_add_executor_job(
+                        self._mfa_client.submit_mfa_code_sync, self._mfa_context, code
+                    )
+                    refresh_token = self._mfa_client.refresh_token
+                except MFACodeInvalid as err:
+                    errors["base"], error_code = _error_base_and_code(err, "invalid_auth")
+                    _LOGGER.debug("ConfigFlow debug: 2FA code rejected [%s]", error_code)
+                except Exception as err:  # noqa: BLE001
+                    errors["base"], error_code = self._mfa_error(err)
+                    _LOGGER.debug("ConfigFlow debug: 2FA submit failed [%s]", error_code)
+                else:
+                    return await self._async_finish_2fa(refresh_token)
+
+        return self.async_show_form(
+            step_id="2fa",
+            data_schema=vol.Schema(
+                {
+                    # Optional (not Required) so the user can submit with the code empty to
+                    # trigger "Resend code"; the handler validates non-empty before submit.
+                    vol.Optional("code", default=""): str,
+                    vol.Optional("resend", default=False): bool,
+                }
+            ),
+            errors=errors,
+            description_placeholders={"error_code": error_code},
+        )
+
+    @staticmethod
+    def _mfa_error(err: BaseException) -> tuple[str, str]:
+        """(form base, ADDHON label) for a non-code 2FA failure (send/submit)."""
+        code = classify(err)
+        if code.ui:
+            return code.slug, code.label
+        return ("invalid_auth" if _requires_reauth(err) else "cannot_connect"), code.label
+
+    async def _async_finish_2fa(self, refresh_token: str) -> FlowResult:
+        """Create or update the entry after a successful OTP verification."""
+        data = {**(self._mfa_data or {}), "refresh_token": refresh_token}
+        email = data.get("email", "")
+        reauth_entry = self._mfa_reauth_entry
+        await self._async_close_mfa_client()
+        if reauth_entry is not None:
+            await self.async_set_unique_id(email.lower())
+            if reauth_entry.unique_id and self.unique_id != reauth_entry.unique_id:
+                return self.async_abort(reason="reauth_account_mismatch")
+            _LOGGER.debug("ConfigFlow debug: 2FA reauth succeeded, updating entry")
+            return self.async_update_reload_and_abort(reauth_entry, data=data)
+        _LOGGER.debug("ConfigFlow debug: 2FA succeeded, creating entry")
+        return self.async_create_entry(title=f"Haier hOn ({email})", data=data)
 
 
 class OptionsFlowHandler(config_entries.OptionsFlow):

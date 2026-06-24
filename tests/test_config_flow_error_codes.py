@@ -63,6 +63,7 @@ def _install_stubs() -> None:
                 self.key = key
 
         vol.Required = Required
+        vol.Optional = Required
 
 
 _install_stubs()

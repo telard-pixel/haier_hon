@@ -40,6 +40,24 @@ class CoordinatorConfigEntryTest(unittest.TestCase):
             "(HA 2024.11+; omitting it breaks on newer HA)",
         )
 
+    def test_refresh_token_read_and_persisted(self) -> None:
+        # 2FA: async_setup_entry must (a) read the persisted refresh_token from the entry
+        # and pass it to HonClient, and (b) write back a ROTATED token, guarded so it
+        # only writes on a real change (no entry churn / reload storm). A behavioral test
+        # is infeasible with the stub harness, so guard the source. These are the paths
+        # that let an email-OTP account skip the 2FA prompt across restarts.
+        source = INIT.read_text(encoding="utf-8")
+        self.assertIn('entry.data.get("refresh_token"', source,
+                      "must read the persisted refresh_token from the entry")
+        self.assertIn("refresh_token=refresh_token", source,
+                      "must pass the refresh_token to HonClient")
+        self.assertIn("hon_client.refresh_token", source,
+                      "must read back the (possibly rotated) refresh_token")
+        # the write is conditional on a genuine change (truthy AND different)
+        self.assertIn("new_refresh_token and new_refresh_token != refresh_token", source,
+                      "the persist must be gated so it never wipes a token or churns")
+        self.assertIn("async_update_entry", source)
+
     def test_coordinator_summary_redacts_mac(self) -> None:
         # #24: the per-device debug summary must not log the raw MAC (a behavioral
         # test is infeasible: async_update_data is a closure inside async_setup_entry).

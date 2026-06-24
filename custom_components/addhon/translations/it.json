@@ -15,6 +15,14 @@
         "data": {
           "password": "Password"
         }
+      },
+      "2fa": {
+        "title": "Verifica in due passaggi",
+        "description": "Il tuo account hOn ha la verifica in due passaggi attiva. Inserisci il codice di verifica che ti abbiamo inviato via email. Per ricevere un nuovo codice, spunta \"Reinvia codice\" e invia.",
+        "data": {
+          "code": "Codice di verifica",
+          "resend": "Reinvia codice"
+        }
       }
     },
     "error": {
@@ -26,6 +34,8 @@
       "auth_login": "Login rifiutato: controlla email e password. ({error_code})",
       "auth_get_token": "Impossibile recuperare il token di sessione hOn. ({error_code})",
       "auth_api_auth": "hOn ha rifiutato l'autorizzazione API. ({error_code})",
+      "mfa_required": "È richiesto un codice di verifica per completare l'accesso. ({error_code})",
+      "mfa_code_invalid": "Il codice di verifica è errato o scaduto. Reinseriscilo o richiedine uno nuovo. ({error_code})",
       "appliance_list_failed": "Impossibile recuperare la lista dei dispositivi. ({error_code})",
       "network_timeout": "Timeout nel contattare i server hOn. Controlla la connessione internet. ({error_code})",
       "dns_failure": "Impossibile risolvere i server hOn (DNS). Controlla rete e DNS. ({error_code})",
@@ -39,7 +49,8 @@
     "abort": {
       "already_configured": "Questo account hOn è già configurato.",
       "reauth_successful": "Ri-autenticazione completata.",
-      "reauth_account_mismatch": "Le nuove credenziali devono appartenere allo stesso account hOn."
+      "reauth_account_mismatch": "Le nuove credenziali devono appartenere allo stesso account hOn.",
+      "mfa_no_challenge": "La sessione di verifica in due passaggi è scaduta. Riprova da capo."
     }
   },
   "options": {

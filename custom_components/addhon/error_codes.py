@@ -77,6 +77,12 @@ AUTH_LOGIN = _reg(120, "auth_login", "Login rejected (check email or password)",
 AUTH_GET_TOKEN = _reg(130, "auth_get_token", "Token retrieval failed", True)
 AUTH_API_AUTH = _reg(140, "auth_api_auth", "hOn API authorization failed", True)
 AUTH_REFRESH = _reg(150, "auth_refresh", "Session refresh failed", True, ui=False)
+# 16x - two-factor / OTP (reauth; shown in the config-flow 2FA step). Append-only:
+# 162-168 are reserved for future MFA flavours (expired/too-many/channel/cooldown/
+# unsupported); only the codes the flow can actually distinguish are registered (the
+# server returns a single boolean for verifyEmailOTP, so wrong vs expired are one code).
+MFA_REQUIRED = _reg(160, "mfa_required", "Two-factor verification code required", True)
+MFA_CODE_INVALID = _reg(161, "mfa_code_invalid", "Verification code was rejected", True)
 # 2xx - appliance inventory / per-appliance (runtime, logged only)
 APPLIANCE_LIST_FAILED = _reg(200, "appliance_list_failed", "Could not fetch the appliance list")
 APPLIANCE_LIST_EMPTY = _reg(210, "appliance_list_empty", "No appliances on this account", ui=False)

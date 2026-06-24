@@ -305,6 +305,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # FIX: the key saved by the config_flow is "email", not "username"
     email = entry.data.get("email")
     password = entry.data.get("password")
+    # Persisted refresh token (added for 2FA): runtime refreshes instead of doing a
+    # full login, so an account with email-OTP is not re-challenged on every restart.
+    # "" on legacy entries / non-2FA accounts -> a normal login as before.
+    refresh_token = entry.data.get("refresh_token", "")
 
     _LOGGER.debug(
         "Setup debug: starting setup entry=%s title=%s email=%s platforms=%s scan_interval=%ss",
@@ -322,7 +326,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         return False
 
-    hon_client = HonClient(email=email, password=password)
+    hon_client = HonClient(email=email, password=password, refresh_token=refresh_token)
 
     # Initial client setup in executor (does not block HA's event loop)
     try:
@@ -333,9 +337,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await _async_close_client(hon_client)
         raise
     except Exception as err:
+        # A background setup cannot prompt for a 2FA code: an MFA challenge (carried
+        # MFA_REQUIRED -> requires_reauth) is routed by _raise_setup_error to
+        # ConfigEntryAuthFailed -> the reauth flow, which CAN prompt for the OTP.
         _LOGGER.error("Unable to connect to hOn: %s", err)
         await _async_close_client(hon_client)
         _raise_setup_error(err)
+
+    # Persist a rotated refresh token so the next restart keeps skipping the full login
+    # (and the 2FA prompt). Only writes when it actually changed, to avoid entry churn.
+    new_refresh_token = hon_client.refresh_token
+    if new_refresh_token and new_refresh_token != refresh_token:
+        _LOGGER.debug("Setup debug: persisting rotated refresh token")
+        hass.config_entries.async_update_entry(
+            entry, data={**entry.data, "refresh_token": new_refresh_token}
+        )
 
     async def async_update_data() -> dict:
         """Fetch the updated data from all the hOn devices."""

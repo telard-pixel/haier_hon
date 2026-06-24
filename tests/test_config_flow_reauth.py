@@ -85,6 +85,7 @@ def _install_stubs() -> None:
                 self.key = key
 
         vol.Required = Required
+        vol.Optional = Required
 
 
 _install_stubs()
@@ -168,7 +169,7 @@ class ReauthFlowTest(unittest.IsolatedAsyncioTestCase):
 
         async def ok(hass, data):
             seen.update(data)
-            return {"title": "x", "appliance_count": 1}
+            return {"title": "x", "appliance_count": 1, "refresh_token": "rt-123"}
 
         self._patch_validate(ok)
         flow = _make_flow(_FakeEntry())
@@ -179,9 +180,14 @@ class ReauthFlowTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("reauth_successful", result["reason"])
         # validate_input got the existing email + the new password
         self.assertEqual({"email": "person@example.com", "password": "new-pass"}, seen)
-        # the entry is updated keeping the email, changing the password
+        # the entry is updated keeping the email, changing the password, and persisting
+        # the refresh token returned by validate_input (so 2FA isn't re-prompted).
         self.assertEqual(
-            {"email": "person@example.com", "password": "new-pass"},
+            {
+                "email": "person@example.com",
+                "password": "new-pass",
+                "refresh_token": "rt-123",
+            },
             flow.calls["update"]["data"],
         )
 

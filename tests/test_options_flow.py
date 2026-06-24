@@ -98,6 +98,7 @@ def _install_stubs() -> None:
                 self.default = kwargs.get("default")
 
         vol.Required = Required
+        vol.Optional = Required
         vol.In = lambda container=None, *args, **kwargs: container
         vol._addhon_capturing = True
 

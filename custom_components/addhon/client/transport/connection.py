@@ -202,6 +202,16 @@ class HonConnection:
         async with self._intercept(self.session.post, *args, **kwargs) as response:
             yield response
 
+    async def submit_mfa_code(self, context: Any, code: str) -> None:
+        """Resume a paused 2FA login: verify the OTP on the auth, then adopt the
+        freshly minted tokens (so the rest of setup runs without re-authenticating)."""
+        await self.auth.submit_mfa_code(context, code)
+        self._refresh_token = self.auth.refresh_token
+        self._refresh_gen += 1
+
+    async def resend_mfa_code(self, context: Any) -> None:
+        await self.auth.resend_mfa_code(context)
+
     async def close(self) -> None:
         if self._owns_session and self._session is not None:
             await self._session.close()
