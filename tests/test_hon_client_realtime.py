@@ -178,7 +178,7 @@ class HonClientRealtimeTest(unittest.TestCase):
             c.subscribe_updates(cb)
             c._start_hon_loop = lambda: None  # type: ignore[assignment]
             c._run_on_hon_loop = lambda coro: asyncio.run(coro)  # type: ignore[assignment]
-            with self.assertRaises(Exception):
+            with self.assertRaises(RuntimeError):
                 c.setup_sync()
             self.assertIsNone(c._hon_instance)  # _close_sync ran on failure
             self.assertIs(c._notify_function, cb)  # callback survives for next setup

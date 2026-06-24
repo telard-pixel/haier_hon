@@ -388,7 +388,7 @@ class AcClimateWritePathTest(unittest.IsolatedAsyncioTestCase):
     async def test_set_swing_not_supported_raises(self) -> None:
         # settings has no windDirectionVertical -> swing unsupported.
         entity, settings, _ = _climate({"onOffStatus": Param("0")})
-        with self.assertRaises(Exception) as ctx:
+        with self.assertRaises(HomeAssistantError) as ctx:
             await entity.async_set_swing_mode("on")
         self.assertEqual("swing_not_supported", getattr(ctx.exception, "translation_key", None))
         self.assertEqual(0, settings.send_calls)
@@ -398,7 +398,7 @@ class AcClimateWritePathTest(unittest.IsolatedAsyncioTestCase):
         entity, settings, _ = _climate(
             {"windDirectionVertical": Param("2", values=["2", "4", "5"])}
         )
-        with self.assertRaises(Exception) as ctx:
+        with self.assertRaises(HomeAssistantError) as ctx:
             await entity.async_set_swing_mode("on")
         self.assertEqual(
             "swing_position_not_allowed", getattr(ctx.exception, "translation_key", None)
@@ -409,7 +409,7 @@ class AcClimateWritePathTest(unittest.IsolatedAsyncioTestCase):
         entity, settings, coord = _climate_failing(
             {"onOffStatus": Param("0"), "machMode": Param("0")}
         )
-        with self.assertRaises(Exception):
+        with self.assertRaises(HomeAssistantError):
             await entity.async_set_hvac_mode(HVACMode.COOL)
         self.assertEqual(1, settings.send_calls)
         # Rollback restored the pre-send values.
@@ -532,7 +532,7 @@ class AcSwitchWritePathTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_send_failure_rolls_back(self) -> None:
         entity, cmd, _ = self._switch({"echoStatus": Param("0")}, failing=True)
-        with self.assertRaises(Exception):
+        with self.assertRaises(HomeAssistantError):
             await entity.async_turn_on()
         self.assertEqual(1, cmd.send_calls)
         self.assertEqual("0", cmd.parameters["echoStatus"].value)
@@ -652,7 +652,7 @@ class AcCommandUnitTest(unittest.IsolatedAsyncioTestCase):
         param = RuleParam("16", ["16", "17"])
         settings = FailingCommand({"tempSel": param})
         appliance = _ac({"settings": settings})["ac-1"]["appliance"]
-        with self.assertRaises(Exception):
+        with self.assertRaises(RuntimeError):
             await ac_command.async_send_settings(
                 FakeHass(), FakeClient(), appliance, {"tempSel": "20"}
             )
