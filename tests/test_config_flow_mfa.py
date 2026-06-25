@@ -71,6 +71,21 @@ def _install_stubs() -> None:
         vol.Required = _Key
         vol.Optional = _Key
 
+    if "yarl" not in sys.modules:
+        # auth.py (imported transitively below) does `from yarl import URL`; the CI env
+        # is pytest-only, so stub yarl here too -- making this module self-contained
+        # rather than relying solely on conftest._ensure_yarl ordering. The guard makes
+        # whichever runs first win (real yarl, conftest stub, or this), so no conflict.
+        yarl_stub = _mod("yarl")
+        yarl_stub.URL = type(
+            "URL",
+            (),
+            {
+                "__init__": lambda self, s, encoded=False: setattr(self, "_s", s),
+                "__str__": lambda self: self._s,
+            },
+        )
+
 
 _install_stubs()
 
