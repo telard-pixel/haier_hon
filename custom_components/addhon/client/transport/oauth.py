@@ -205,13 +205,29 @@ class MfaContext:
 
 
 def _remote_descriptor(page: str, method: str) -> dict[str, Any]:
-    """Extract one @RemoteAction descriptor ({csrf, authorization, ns, ver}) by name."""
+    """Extract one @RemoteAction descriptor ({csrf, authorization, ns, ver}) by name.
+
+    Defensive: a malformed match (bad JSON, a non-dict payload, or a non-numeric
+    `ver` if Salesforce changes the descriptor shape) yields the empty/default
+    descriptor (no csrf/authorization) so detect_progressive_otp falls back to None
+    instead of raising a hard login failure."""
     match = re.search(r'\{"name":"' + re.escape(method) + r'"[^{}]*\}', page)
-    data = json.loads(match.group(0)) if match else {}
+    try:
+        data = json.loads(match.group(0)) if match else {}
+    except (json.JSONDecodeError, ValueError):
+        data = {}
+    if not isinstance(data, dict):
+        data = {}
+    try:
+        ver = int(float(data.get("ver", 45)))
+    except (TypeError, ValueError, OverflowError):
+        # OverflowError: json.loads (non-strict) accepts Infinity / 1e400, which
+        # int(float(...)) cannot convert -- keep it inert like the other malformed cases.
+        ver = 45
     return {
         "method": method,
         "ns": data.get("ns", ""),
-        "ver": int(float(data.get("ver", 45))),
+        "ver": ver,
         "csrf": data.get("csrf", ""),
         "authorization": data.get("authorization", ""),
     }
@@ -252,6 +268,11 @@ def detect_progressive_otp(page: str, page_url: str) -> MfaContext | None:
         return None  # cannot drive the verify call -> not a usable challenge
     resend = _remote_descriptor(page, "resendEmailCode")
     vid_match = _VID_RE.search(page)
+    if vid_match is None:
+        # The ViewState id is sent in every /apexremote ctx ("vid"); without it the
+        # remoting call would be rejected with a confusing error. Stay inert (like the
+        # csrf/authorization guard) so the caller falls back to the pre-MFA path.
+        return None
     hidden: dict[str, str] = {}
     for tag in _HIDDEN_INPUT_RE.findall(page):
         attrs = {k.lower(): html.unescape(v) for k, v in _ATTR_RE.findall(tag)}
@@ -273,7 +294,7 @@ def detect_progressive_otp(page: str, page_url: str) -> MfaContext | None:
         can_resend=bool(resend["csrf"]),
         host=host,
         referer=page_url,
-        vid=vid_match.group(1) if vid_match else "",
+        vid=vid_match.group(1),
         verify=verify,
         resend=resend,
         vf_action=urljoin(f"{host}/", action),

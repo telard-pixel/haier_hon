@@ -349,6 +349,22 @@ class MfaFlowTest(unittest.IsolatedAsyncioTestCase):
         await flow.async_remove()  # HA removes the abandoned flow
         self.assertTrue(client.closed)
 
+    async def test_teardown_clears_cached_mfa_form_data(self) -> None:
+        # #9: the held _mfa_data (plaintext password) and _mfa_reauth_entry must be
+        # dropped on teardown, not left reachable on the flow object.
+        client = _FakeMfaClient()
+
+        async def challenge(hass, data):
+            raise _challenge(client)
+
+        self._patch_validate(challenge)
+        flow = _make_flow(_FakeEntry())
+        await flow.async_step_user({"email": "p@x.com", "password": "secret-pw"})
+        self.assertIsNotNone(flow._mfa_data)  # cached during the challenge
+        await flow.async_remove()
+        self.assertIsNone(flow._mfa_data)
+        self.assertIsNone(flow._mfa_reauth_entry)
+
     async def test_reentry_closes_previously_held_client(self) -> None:
         # Re-entering the user step while a prior challenge client is still held must
         # close the old client (no orphaned loop/thread/session).

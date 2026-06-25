@@ -142,7 +142,7 @@ class CoordinatorErrorClassificationTest(unittest.TestCase):
         from custom_components.addhon.client.transport.auth import MFAChallengeRequired
         from custom_components.addhon.client.transport.oauth import MfaContext
 
-        AuthFailed, NotReady, _UF, setup, _upd = self._imports()
+        AuthFailed, _NotReady, _UF, setup, _upd = self._imports()
         ctx = MfaContext("email", True, "h", "r", "v", {}, {}, "a", {}, "m", "SmartHome", None)
         with self.assertRaises(AuthFailed):
             setup(MFAChallengeRequired(ctx))

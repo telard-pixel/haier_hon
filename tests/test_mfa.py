@@ -112,6 +112,31 @@ class OauthHelpersTest(unittest.TestCase):
     def test_detect_none_on_non_otp_page(self) -> None:
         self.assertIsNone(oauth.detect_progressive_otp("<html>plain</html>", OTP_URL))
 
+    def test_detect_none_without_vid(self) -> None:
+        # OTP markers + creds present but no ViewState id ("vid") -> stay inert (the vid
+        # is sent in every /apexremote ctx; an empty one would be rejected). (#7)
+        page = OTP_PAGE.replace('"vid":"0664VID"', '"novid":"x"')
+        self.assertIsNone(oauth.detect_progressive_otp(page, OTP_URL))
+
+    def test_remote_descriptor_inert_on_malformed_descriptor(self) -> None:
+        # Malformed JSON and a non-numeric ver must NOT raise: the descriptor falls
+        # back to empty creds (-> detect returns None), not a hard login failure. (#8)
+        bad_json = OTP_PAGE.replace(
+            '{"name":"verifyEmailOTP","len":1,"ns":"","ver":45.0,"csrf":"VCSRF","authorization":"VAUTH"}',
+            '{"name":"verifyEmailOTP","len":1,"ns":"","ver":45.0,"csrf":"VCSRF" BROKEN}',
+        )
+        desc = oauth._remote_descriptor(bad_json, "verifyEmailOTP")
+        self.assertEqual("", desc["csrf"])
+        self.assertEqual(45, desc["ver"])  # default ver, no crash
+        self.assertIsNone(oauth.detect_progressive_otp(bad_json, OTP_URL))
+        # non-numeric ver -> default 45, no ValueError
+        bad_ver = OTP_PAGE.replace('"ver":45.0,"csrf":"VCSRF"', '"ver":"NaN","csrf":"VCSRF"')
+        self.assertEqual(45, oauth._remote_descriptor(bad_ver, "verifyEmailOTP")["ver"])
+        # json.loads (non-strict) accepts 1e400/Infinity -> int(float()) OverflowErrors;
+        # must still default, not crash the login.
+        inf_ver = OTP_PAGE.replace('"ver":45.0,"csrf":"VCSRF"', '"ver":1e400,"csrf":"VCSRF"')
+        self.assertEqual(45, oauth._remote_descriptor(inf_ver, "verifyEmailOTP")["ver"])
+
     def test_detect_relative_url_falls_back_to_auth_host(self) -> None:
         ctx = oauth.detect_progressive_otp(OTP_PAGE, "/apex/ProgressiveLogin?x=1")
         self.assertEqual(AUTH, ctx.host)
@@ -381,6 +406,26 @@ class HonClientMfaCaptureTest(unittest.TestCase):
             client.submit_mfa_code_sync(object(), "0")
         self.assertEqual(error_codes.MFA_CODE_INVALID, client.last_error_code)
         self.assertEqual("mfa_verify", client.last_error_phase)
+
+    def test_submit_failure_threads_phase_into_classify(self) -> None:
+        # #10: the recorded phase is passed INTO classify(), not dropped. This is
+        # defensive/future-proofing: no auth/MFA phase is in _PHASE_TIMEOUT today, so it
+        # does not change the resulting code yet -- the test pins that the arg is threaded
+        # (a bare classify(err) would record phase=None) so the wiring is in place.
+        import custom_components.addhon.hon_client as hc
+        captured = {}
+        original = hc.classify
+
+        def spy(err, *, phase=None):
+            captured["phase"] = phase
+            return original(err, phase=phase)
+
+        hc.classify = spy
+        self.addCleanup(setattr, hc, "classify", original)
+        client = self._client(self._FakeHon(MFACodeInvalid("bad")))
+        with self.assertRaises(MFACodeInvalid):
+            client.submit_mfa_code_sync(object(), "0")
+        self.assertEqual("mfa_verify", captured["phase"])
 
     def test_resend_failure_records_send_code(self) -> None:
         client = self._client(self._FakeHon(MFASendFailed("no")))

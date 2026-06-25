@@ -292,6 +292,11 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         client = self._mfa_client
         self._mfa_client = None
         self._mfa_context = None
+        # Drop the cached form data too: _mfa_data holds the plaintext password and
+        # _mfa_reauth_entry the reauth target, so stale credentials/state are not left
+        # reachable on the flow object after success, abort, or async_remove.
+        self._mfa_data = None
+        self._mfa_reauth_entry = None
         if client is not None:
             try:
                 await client.async_close()

@@ -567,7 +567,7 @@ class HonClient:
                 raise
             except Exception as err:
                 self.last_error_phase = getattr(self._hon_instance, "auth_phase", "") or None
-                self.last_error_code = classify(err)
+                self.last_error_code = classify(err, phase=self.last_error_phase)
                 _LOGGER.error(
                     "hOn setup failed [%s] (phase=%s): %s",
                     self.last_error_code.label, self.last_error_phase or "?", err,
@@ -603,7 +603,7 @@ class HonClient:
                 # Record the precise code/phase so the form + diagnostics reflect the real
                 # cause (wrong code vs service error vs token-after-verify), not a stale one.
                 self.last_error_phase = getattr(self._hon_instance, "auth_phase", "") or "mfa_verify"
-                self.last_error_code = classify(err)
+                self.last_error_code = classify(err, phase=self.last_error_phase)
                 raise
             # 2FA resolved: clear the challenge record set by setup_sync's MFA branch so a
             # later (unrelated) failure is never shown with the stale 2FA phase/summary.
@@ -627,7 +627,7 @@ class HonClient:
                 self._run_on_hon_loop(self._hon_instance.resend_mfa_code(context))
             except Exception as err:
                 self.last_error_phase = "mfa_send"
-                self.last_error_code = classify(err)
+                self.last_error_code = classify(err, phase=self.last_error_phase)
                 raise
 
     def run_command_sync(self, coro) -> Any:
