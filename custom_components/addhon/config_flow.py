@@ -278,7 +278,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         Defensive: if the user/reauth step is re-entered while a previous challenge
         client is still held, close it first so its loop/thread/session is not orphaned
         (the guard avoids closing the just-arrived client when it is the same object)."""
-        new_client = getattr(err, "client", None)
+        new_client = err.client
         if self._mfa_client is not None and self._mfa_client is not new_client:
             await self._async_close_mfa_client()
         self._mfa_client = new_client

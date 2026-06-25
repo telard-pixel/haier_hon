@@ -131,6 +131,53 @@ class OAuthPiecesTest(unittest.TestCase):
         self.assertTrue(self.o.is_oauth_done("...oauth/done#access_token=AAA&..."))
         self.assertFalse(self.o.is_oauth_done("normal login page"))
 
+    def test_absolutize_is_byte_identical_to_concat_where_concat_was_valid(self) -> None:
+        # The seam must equal the historical `AUTH_API + href` on every href the old
+        # concat resolved correctly: the live relative token path AND the empty/
+        # query-only/fragment-only hrefs the progressive regex (.*?) can yield.
+        A = self.c.AUTH_API
+        for href in ("/finaltok", "/ProgressiveLogin?x=1",
+                     "/s/login/p?startURL=%2Fhome#f", "", "?only=q", "#frag"):
+            with self.subTest(href=href):
+                self.assertEqual(self.o.absolutize(href), A + href)
+
+    def test_absolutize_fixes_relative_and_absolute(self) -> None:
+        A = self.c.AUTH_API
+        # relative without leading slash (old concat -> '...comfinaltok', not absolute)
+        self.assertEqual(self.o.absolutize("finaltok"), f"{A}/finaltok")
+        self.assertEqual(self.o.absolutize("apex/x"), f"{A}/apex/x")
+        # same-host absolute: returned verbatim (old concat double-hosted it)
+        self.assertEqual(self.o.absolutize(f"{A}/abs/tok"), f"{A}/abs/tok")
+        # custom-scheme redirect preserved verbatim (non-http -> not pinned)
+        self.assertEqual(
+            self.o.absolutize("hon://mobilesdk/detect/oauth/done#access_token=AAA"),
+            "hon://mobilesdk/detect/oauth/done#access_token=AAA",
+        )
+
+    def test_absolutize_pins_off_host_to_auth_host(self) -> None:
+        # The login flow never legitimately leaves the auth host: every off-host
+        # http(s) result is re-pinned, with the foreign host demoted to a path
+        # segment. The check is on the RESOLVED host, so whitespace/control-char and
+        # protocol-relative bypasses (which urljoin strips before resolving) cannot
+        # slip the token fetch off-host.
+        from urllib.parse import urlsplit
+        auth_host = urlsplit(self.c.AUTH_API).netloc
+        for href in ("//evil.com/x", " //evil.com/x", "\t//evil.com/x",
+                     "/\t/evil.com/x", "\\\\evil.com/x", "https://evil.com/x",
+                     "https://other.salesforce.com/apex/x", "//evil.com:8080/x",
+                     "//user@evil.com/x", "///evil.com/x", "\n//evil.com",
+                     # scheme-mismatch empty-netloc family: 'http:///x' must NOT be
+                     # re-promoted to '//x' by the demotion step (yarl-confirmed).
+                     "http:///evil.com/steal", "http:////evil.com/x", "https:///evil.com/x",
+                     "http://@evil.com/x", "https://account2.hon-smarthome.com@evil.com/x",
+                     # non-http but aiohttp-fetchable schemes (ws/wss/tcp) must also pin:
+                     # aiohttp's TCPConnector connects them, so verbatim would leave-host.
+                     "ws://evil.com/x", "wss://evil.com/x", "tcp://evil.com/x"):
+            with self.subTest(href=href):
+                self.assertEqual(urlsplit(self.o.absolutize(href)).netloc, auth_host)
+        # the canonical protocol-relative case demotes the host to a path segment
+        self.assertEqual(self.o.absolutize("//evil.com/x"), f"{self.c.AUTH_API}/evil.com/x")
+
     def test_constants_match_vendored_const(self) -> None:
         # Drift-guard: the inline constants must equal pyhOn's.
         self.assertEqual(self.o.AUTH_API, self.c.AUTH_API)

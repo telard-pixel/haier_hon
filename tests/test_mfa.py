@@ -352,9 +352,10 @@ class HonClientMfaCaptureTest(unittest.TestCase):
     failure (so diagnostics/form reflect the real cause), and clear it on success."""
 
     class _FakeHon:
-        def __init__(self, exc=None):
+        def __init__(self, exc=None, refresh_token="RT_2FA"):
             self._exc = exc
             self.auth_phase = "mfa_verify"
+            self.refresh_token = refresh_token
 
         async def submit_mfa_code(self, context, code):
             if self._exc:
@@ -397,6 +398,8 @@ class HonClientMfaCaptureTest(unittest.TestCase):
         self.assertIsNone(client.last_error_code)
         self.assertIsNone(client.last_error_phase)
         self.assertIsNone(client.last_mfa_summary)
+        # #1: the seed adopts the token minted by the 2FA flow (no re-OTP on next reauth)
+        self.assertEqual("RT_2FA", client._refresh_token)
 
 
 class MfaErrorCodesTest(unittest.TestCase):
@@ -420,6 +423,14 @@ class MfaErrorCodesTest(unittest.TestCase):
             error_codes.MFA_TOKEN_AFTER_VERIFY_FAILED,
         ):
             self.assertTrue(code.requires_reauth)
+
+    def test_challenge_declares_client_field(self) -> None:
+        # #4: `client` is a declared field (default None), so reading err.client never
+        # AttributeErrors and a caller may carry the live client via the constructor.
+        ctx = oauth.detect_progressive_otp(OTP_PAGE, OTP_URL)
+        self.assertIsNone(MFAChallengeRequired(ctx).client)
+        sentinel = object()
+        self.assertIs(sentinel, MFAChallengeRequired(ctx, client=sentinel).client)
 
     def test_classify_carries_mfa_codes(self) -> None:
         challenge = MFAChallengeRequired(oauth.detect_progressive_otp(OTP_PAGE, OTP_URL))

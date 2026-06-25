@@ -17,10 +17,17 @@ import re
 import secrets
 from dataclasses import dataclass, field
 from typing import Any
-from urllib.parse import parse_qs, quote, unquote, urljoin, urlsplit
+from urllib.parse import parse_qs, quote, unquote, urljoin, urlsplit, urlunsplit
 
 # Endpoints/identifiers of the hOn cloud.
 AUTH_API = "https://account2.hon-smarthome.com"
+_AUTH_HOST = urlsplit(AUTH_API).netloc
+# Schemes aiohttp's TCPConnector will actually connect (allowed_protocol_schema_set):
+# an off-host URL with one of these must be re-pinned, or the login fetch leaves the
+# auth host. Other schemes (hon://, javascript:, data:, file:, ftp:) are refused by
+# aiohttp, so they are left verbatim -- pinning them would WRONGLY turn a refused
+# scheme into a fetchable on-host URL.
+_FETCHABLE_SCHEMES = ("http", "https", "ws", "wss", "tcp")
 APP = "hon"
 CLIENT_ID = (
     "3MVG9QDx8IX8nP5T2Ha8ofvlmjLZl5L_gvfbT9."
@@ -70,6 +77,44 @@ def extract_login_url(text: str) -> str | None:
     if url.startswith("/NewhOnLogin"):
         url = f"{AUTH_API}/s/login{url}"
     return url
+
+
+def absolutize(href: str) -> str:
+    """Resolve a scraped login href against the auth host.
+
+    The login pages return token / ProgressiveLogin hrefs that may be RELATIVE
+    ('/finaltok', 'apex/x'), already ABSOLUTE ('https://account2.../x'), or a
+    custom-scheme redirect ('hon://...'). The aiohttp ClientSession has no
+    `base_url`, so a relative href must be made absolute before it is fetched
+    (a bare relative URL raises InvalidUrlClientError). This is the single seam
+    that unifies the URL handling of the login flow.
+
+    `urljoin(AUTH_API, href)` is byte-identical to the historical `AUTH_API + href`
+    concat on every href the concat resolved correctly -- including the live
+    relative token path AND the empty/query-only href the progressive regex can
+    yield -- and fixes the relative-vs-absolute mismatch (a relative href that
+    was previously fetched bare, and an absolute href that was previously concat-
+    corrupted).
+
+    Security: the login flow never legitimately leaves the auth host, so the result
+    is PINNED to it. The check is on the RESOLVED host (not the raw text), so it
+    cannot be slipped by a protocol-relative '//host', an injected absolute URL, a
+    whitespace/control-char bypass (' //evil', '/\\t/evil'), a scheme-mismatch empty
+    authority ('http:///evil'), or a non-http but still-fetchable scheme ('ws://evil')
+    -- any off-host result whose scheme aiohttp would connect is re-pinned to AUTH_API
+    with the foreign host demoted to a path segment. Schemes aiohttp refuses (e.g. the
+    'hon://' redirect) are returned verbatim.
+    """
+    resolved = urljoin(AUTH_API, href)
+    parts = urlsplit(resolved)
+    if parts.scheme in _FETCHABLE_SCHEMES and parts.netloc != _AUTH_HOST:
+        # Off-host http(s) result: rebuild on the auth host, demoting the foreign
+        # authority+path to a single path. Rebuild with urlunsplit (fixed scheme+host)
+        # rather than re-joining a "/"+netloc string -- the latter re-promotes an empty
+        # netloc ('http:///evil' -> '//evil' -> https://evil) straight back off-host.
+        demoted = "/" + (parts.netloc + parts.path).lstrip("/")
+        resolved = urlunsplit(("https", _AUTH_HOST, demoted, parts.query, parts.fragment))
+    return resolved
 
 
 def generate_nonce() -> str:

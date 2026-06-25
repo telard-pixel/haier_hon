@@ -33,6 +33,7 @@ from .oauth import (
     AUTH_API,
     CLIENT_ID,
     MfaContext,
+    absolutize,
     build_authorize_url,
     build_finish_body,
     build_login_payload,
@@ -76,8 +77,14 @@ class MFAChallengeRequired(Exception):
 
     error_code = MFA_REQUIRED
 
-    def __init__(self, context: MfaContext) -> None:
+    def __init__(self, context: MfaContext, client: Any = None) -> None:
         self.context = context
+        # The live HonClient whose session holds the challenge, attached by the
+        # config flow (validate_input). DECLARED (not a dynamic attribute) so the
+        # carry is part of the contract: any layer that re-raises THIS exception
+        # MUST preserve `client`, otherwise the client is orphaned -- validate_input
+        # deliberately skips its close on a challenge, trusting this handoff.
+        self.client = client
         super().__init__("mfa_required")
 
 
@@ -179,7 +186,7 @@ class HonAuth:
 
     async def _manual_redirect(self, url: str) -> str:
         async with self._session.get(
-            url, allow_redirects=False, headers=self._ua()
+            absolutize(url), allow_redirects=False, headers=self._ua()
         ) as resp:
             return resp.headers.get("Location", "") or url
 
@@ -191,6 +198,10 @@ class HonAuth:
 
     async def _open_login_page(self, login_url: str) -> None:
         self._phase("login_page")
+        # absolutize() then URL(..., encoded=True): urljoin does NOT re-encode the
+        # already-encoded startURL=%2F... query, so the encoded contract is preserved
+        # while a relative login_url no longer crashes the base_url-less session.
+        login_url = absolutize(login_url)
         async with self._session.get(
             URL(login_url, encoded=True), headers=self._ua()
         ) as resp:
@@ -228,7 +239,7 @@ class HonAuth:
 
     async def _get_token(self, url: str) -> None:
         self._phase("get_token")
-        async with self._session.get(url, headers=self._ua()) as resp:
+        async with self._session.get(absolutize(url), headers=self._ua()) as resp:
             if resp.status != 200:
                 self._phase("get_token", status=resp.status)
                 raise NativeAuthError(f"get_token: status {resp.status}")
@@ -237,14 +248,15 @@ class HonAuth:
             self._phase("get_token", status=resp.status, href=False)
             raise NativeAuthError("get_token: no href")
         if "ProgressiveLogin" in href[0]:
-            async with self._session.get(href[0], headers=self._ua()) as resp:
+            async with self._session.get(absolutize(href[0]), headers=self._ua()) as resp:
                 if resp.status != 200:
                     self._phase("progressive_detect", status=resp.status)
                     raise NativeAuthError(f"progressive: status {resp.status}")
                 prog_text = await resp.text()
                 # resp.url is the final (post-redirect) URL; fall back to the requested
-                # href if the response object does not expose it (e.g. test doubles).
-                prog_url = str(getattr(resp, "url", "") or href[0])
+                # href (absolutized, so the MfaContext host derivation is correct) if the
+                # response object does not expose it (e.g. test doubles).
+                prog_url = str(getattr(resp, "url", "") or absolutize(href[0]))
             # 2FA: when email OTP is enabled this page IS the verification step (no
             # usable redirect href -- the first one is a CSS asset). Detect it and
             # pause the login with the context to resume; otherwise behave exactly as
@@ -259,7 +271,7 @@ class HonAuth:
             href = _HREF_RE_PROGRESSIVE.findall(prog_text)
             if not href:  # like the guard after the first findall: no IndexError
                 raise NativeAuthError("progressive: no href")
-        token_url = AUTH_API + href[0]
+        token_url = absolutize(href[0])
         self._phase("get_token", status=200, href=True)
         async with self._session.get(token_url, headers=self._ua()) as resp:
             if resp.status != 200:

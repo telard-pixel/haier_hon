@@ -204,6 +204,36 @@ class MfaFlowTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("2fa", result["step_id"])
         self.assertEqual(1, client.sent)  # entering the step sends the code
 
+    async def test_challenge_constructed_with_client_carries_through(self) -> None:
+        # #4: the carry is a DECLARED field. Constructing MFAChallengeRequired(ctx,
+        # client=c) must drive the 2fa step exactly like the post-hoc err.client = c
+        # assignment, so a future re-raise can preserve the client via the constructor.
+        client = _FakeMfaClient()
+
+        async def challenge(hass, data):
+            raise MFAChallengeRequired(
+                types.SimpleNamespace(challenge_kind="email"), client=client
+            )
+
+        self._patch_validate(challenge)
+        flow = _make_flow(_FakeEntry())
+        result = await flow.async_step_user({"email": "P@x.com", "password": "p"})
+        self.assertEqual("2fa", result["step_id"])
+        self.assertEqual(1, client.sent)
+
+    async def test_lost_carry_aborts_without_attribute_error(self) -> None:
+        # #4: if a re-raise drops the client, the declared field still exists (None),
+        # so _mfa_begin reads err.client WITHOUT AttributeError and the flow aborts
+        # cleanly (mfa_no_challenge) rather than crashing.
+        async def challenge(hass, data):
+            raise MFAChallengeRequired(types.SimpleNamespace(challenge_kind="email"))
+
+        self._patch_validate(challenge)
+        flow = _make_flow(_FakeEntry())
+        result = await flow.async_step_user({"email": "P@x.com", "password": "p"})
+        self.assertEqual("abort", result["type"])
+        self.assertEqual("mfa_no_challenge", result["reason"])
+
     async def test_submit_valid_code_creates_entry_with_refresh_token(self) -> None:
         client = _FakeMfaClient(refresh_token="RT-OK")
 

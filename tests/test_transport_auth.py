@@ -12,6 +12,7 @@ import sys
 import types
 import unittest
 from pathlib import Path
+from urllib.parse import urlsplit
 
 REPO = Path(__file__).resolve().parents[1]
 if str(REPO) not in sys.path:
@@ -107,6 +108,24 @@ class FakeSession:
         return self._next("POST", url)
 
 
+class StrictUrlFakeSession(FakeSession):
+    """Like FakeSession but rejects a non-absolute URL, the way a real aiohttp
+    ClientSession WITHOUT base_url raises InvalidUrlClientError. The plain FakeSession
+    ignores the URL, so the relative-href crash (#3) is invisible to it; this double
+    makes the bug -- and its fix -- observable offline.
+
+    Scope: it models the http(s) absolute-URL requirement only (the flow fetches only
+    http(s) after the fix). It is intentionally lenient on non-http schemes, which the
+    flow never GETs, so it is a guard for #3 -- not a full aiohttp URL validator."""
+
+    def _next(self, method, url):
+        s = str(url)
+        parts = urlsplit(s)
+        if not parts.scheme or (parts.scheme in ("http", "https") and not parts.netloc):
+            raise ValueError(f"not an absolute URL (no base_url on the session): {s!r}")
+        return super()._next(method, url)
+
+
 def _happy_responses():
     return [
         # _introduce: authorize page with the login url
@@ -146,7 +165,9 @@ class NativeAuthFlowTest(unittest.TestCase):
         ])
         asyncio.run(auth.authenticate())
         self.assertEqual(auth.id_token, "CCC")
-        self.assertEqual(auth.cognito_token, "")  # _api_auth skipped (like pyhOn)
+        # The already-authenticated short-circuit returns before _api_auth, so the
+        # cognito token (minted only by _api_auth) is never set.
+        self.assertEqual(auth.cognito_token, "")
 
     def test_login_page_without_fwuid_raises(self) -> None:
         auth = self._auth([
@@ -182,6 +203,56 @@ class NativeAuthFlowTest(unittest.TestCase):
         asyncio.run(auth.authenticate())
         methods = [m for m, _ in session.calls]
         self.assertEqual(methods, ["GET", "GET", "GET", "GET", "POST", "GET", "GET", "POST"])
+
+
+class NativeAuthUrlNormalizationTest(unittest.TestCase):
+    """#3: every login href is absolutized through ONE seam, so the whole flow works
+    against a base_url-less session whether the server returns hrefs relative or
+    absolute. Run under StrictUrlFakeSession (rejects non-absolute URLs like real
+    aiohttp), which the plain FakeSession cannot catch (it ignores the URL)."""
+
+    def test_full_flow_is_base_url_safe(self) -> None:
+        # The happy fixture's login_url is RELATIVE ('/s/login/...'); the token href
+        # is RELATIVE ('/finaltok'). Under a base_url-less session this was a latent
+        # crash in BOTH the redirect chain and _get_token. Must now complete clean.
+        session = StrictUrlFakeSession(_happy_responses())
+        auth = HonAuth(session, "u", "p", HonDevice())
+        asyncio.run(auth.authenticate())  # must NOT raise (ValueError = non-absolute)
+        self.assertEqual(auth.access_token, "AAA")
+        self.assertIn(("GET", f"{AUTH}/finaltok"), session.calls)
+
+    def test_absolute_token_href_not_double_hosted(self) -> None:
+        # An ABSOLUTE token href must be fetched verbatim, not concat-corrupted into
+        # AUTH+absolute (the old `token_url = AUTH_API + href[0]` bug).
+        responses = _happy_responses()
+        responses[5] = FakeResp(text=f"href = '{AUTH}/finaltok'")
+        session = StrictUrlFakeSession(responses)
+        auth = HonAuth(session, "u", "p", HonDevice())
+        asyncio.run(auth.authenticate())
+        self.assertIn(("GET", f"{AUTH}/finaltok"), session.calls)
+        self.assertNotIn(("GET", f"{AUTH}{AUTH}/finaltok"), session.calls)
+
+    def test_relative_no_slash_token_href_resolves(self) -> None:
+        # No leading slash: old concat -> '...comfinaltok' (not absolute -> crash).
+        responses = _happy_responses()
+        responses[5] = FakeResp(text="href = 'finaltok'")
+        session = StrictUrlFakeSession(responses)
+        auth = HonAuth(session, "u", "p", HonDevice())
+        asyncio.run(auth.authenticate())
+        self.assertIn(("GET", f"{AUTH}/finaltok"), session.calls)
+
+    def test_relative_progressive_href_does_not_crash(self) -> None:
+        # The ProgressiveLogin first GET used to pass href[0] bare: a relative
+        # '/ProgressiveLogin?x=1' crashed a base_url-less session BEFORE the flow
+        # could classify the 'no href' error. Now it is fetched absolute.
+        responses = _happy_responses()[:5]
+        responses.append(FakeResp(text="href = '/ProgressiveLogin?x=1'"))
+        responses.append(FakeResp(text="progressive page, no usable href, no OTP"))
+        session = StrictUrlFakeSession(responses)
+        auth = HonAuth(session, "u", "p", HonDevice())
+        with self.assertRaises(NativeAuthError):  # 'progressive: no href', NOT a URL ValueError
+            asyncio.run(auth.authenticate())
+        self.assertIn(("GET", f"{AUTH}/ProgressiveLogin?x=1"), session.calls)
 
 
 class RefreshTest(unittest.TestCase):
