@@ -174,7 +174,7 @@ class HonClientRealtimeTest(unittest.TestCase):
             c = HonClient(email="e@x", password="p", refresh_token="RT_OLD")
             c._start_hon_loop = lambda: None  # type: ignore[assignment]
             c._run_on_hon_loop = lambda coro: asyncio.run(coro)  # type: ignore[assignment]
-            with self.assertRaises(Exception):
+            with self.assertRaises(RuntimeError):  # the injected setup failure, re-raised as-is
                 c.setup_sync()
             self.assertEqual("RT_OLD", c._refresh_token)  # seed preserved on failure
         finally:
