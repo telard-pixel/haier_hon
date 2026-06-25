@@ -250,7 +250,7 @@ class CreatePathTest(unittest.TestCase):
             raise asyncio.TimeoutError("subscribe timeout")
 
         m._start = fake_start  # type: ignore[assignment]
-        m._subscribe_appliances = boom_subscribe  # type: ignore[assignment]
+        m._subscribe_missing = boom_subscribe  # type: ignore[assignment]
 
         with self.assertRaises(asyncio.TimeoutError):
             _run(m.create())
@@ -279,7 +279,7 @@ class CreatePathTest(unittest.TestCase):
             raise RuntimeError("watchdog boom")
 
         m._start = fake_start  # type: ignore[assignment]
-        m._subscribe_appliances = ok_subscribe  # type: ignore[assignment]
+        m._subscribe_missing = ok_subscribe  # type: ignore[assignment]
         m._start_watchdog = boom_watchdog  # type: ignore[assignment]
 
         with self.assertRaises(RuntimeError):
@@ -307,7 +307,7 @@ class CreatePathTest(unittest.TestCase):
             raise asyncio.CancelledError
 
         m._start = fake_start  # type: ignore[assignment]
-        m._subscribe_appliances = cancelled_subscribe  # type: ignore[assignment]
+        m._subscribe_missing = cancelled_subscribe  # type: ignore[assignment]
 
         with self.assertRaises(asyncio.CancelledError):
             _run(m.create())
@@ -334,7 +334,7 @@ class CreatePathTest(unittest.TestCase):
             raise KeyboardInterrupt
 
         m._start = fake_start  # type: ignore[assignment]
-        m._subscribe_appliances = boom_subscribe  # type: ignore[assignment]
+        m._subscribe_missing = boom_subscribe  # type: ignore[assignment]
 
         with self.assertRaises(KeyboardInterrupt):
             _run(m.create())
@@ -400,7 +400,7 @@ class CreatePathTest(unittest.TestCase):
             raise asyncio.TimeoutError
 
         m._start = fake_start  # type: ignore[assignment]
-        m._subscribe_appliances = boom_subscribe  # type: ignore[assignment]
+        m._subscribe_missing = boom_subscribe  # type: ignore[assignment]
 
         with self.assertRaises(asyncio.TimeoutError):
             _run(m.create())
@@ -783,18 +783,18 @@ class WatchdogThresholdTest(unittest.TestCase):
         async def fake_sleep(_interval):
             if not seq:
                 raise asyncio.CancelledError
-            # A scripted state is "healthy" (connected + subscribed) or fully "down":
-            # the watchdog now requires BOTH flags to consider a tick healthy, so set
-            # them together to keep this test about the failed-tick/rebuild threshold.
+            # FakeHon([]) has no appliances, so _all_topics() is empty: with the set
+            # model "fully subscribed" reduces to "connected" (no missing topics). A
+            # scripted True is healthy, a scripted False routes to the rebuild path --
+            # which keeps this test about the failed-tick/rebuild threshold.
             state = seq.pop(0)
             m._connection = state
-            m._subscribed = state
 
         async def noop_sub():
             return None
 
         m._start = fake_start  # type: ignore[assignment]
-        m._subscribe_appliances = noop_sub  # type: ignore[assignment]
+        m._subscribe_missing = noop_sub  # type: ignore[assignment]
         real_sleep = mod.asyncio.sleep
         mod.asyncio.sleep = fake_sleep
         try:
@@ -963,18 +963,18 @@ class WatchdogResilienceTest(unittest.TestCase):
             intervals.append(interval)
             if not seq:
                 raise asyncio.CancelledError
-            # Healthy = connected AND subscribed (the watchdog now requires both); a
-            # scripted state drives the pair together so this test stays focused on the
-            # rebuild backoff, not the re-subscribe recovery path.
+            # FakeHon([]) -> _all_topics() empty -> "fully subscribed" reduces to
+            # "connected": a scripted True is healthy, a False routes to the rebuild
+            # path. Keeps this test focused on the rebuild backoff, not the re-subscribe
+            # recovery path.
             state = seq.pop(0)
             m._connection = state
-            m._subscribed = state
 
         async def noop_sub():
             return None
 
         m._start = start_fn  # type: ignore[assignment]
-        m._subscribe_appliances = noop_sub  # type: ignore[assignment]
+        m._subscribe_missing = noop_sub  # type: ignore[assignment]
         real = mod.asyncio.sleep
         mod.asyncio.sleep = fake_sleep
         try:
@@ -1141,27 +1141,36 @@ class SubscribeNonBlockingTest(unittest.TestCase):
             mod._SUBSCRIBE_TIMEOUT = orig
 
 
+_RECOVERY_TOPIC = "haier/things/MAC/event/appliancestatus/update"
+
+
 class WatchdogSubscribedRecoveryTest(unittest.TestCase):
-    """Greptile P1: a single `self._connection` flag conflated 'transport connected'
-    with 'appliance topics subscribed'. The connection-success callback sets
-    _connection=True WITHOUT subscribing, so a rebuild whose _subscribe_appliances()
-    times out (or awscrt's own auto-reconnect on a clean session) left the client
-    connected-but-unsubscribed; the watchdog's `if self._connection:` check then treated
-    it as healthy and never recovered -> realtime pushes silently dead. The fix adds a
-    separate self._subscribed flag and a re-subscribe recovery branch. These tests fail
-    against the pre-fix one-flag watchdog and pass with the fix."""
+    """Greptile P1 + H1: a single `self._connection` flag conflated 'transport
+    connected' with 'appliance topics subscribed'. The connection-success callback sets
+    _connection=True WITHOUT subscribing, so a rebuild whose subscribe times out (or
+    awscrt's own auto-reconnect on a clean session) left the client connected-but-
+    unsubscribed; the watchdog's `if self._connection:` check then treated it as healthy
+    and never recovered -> realtime pushes silently dead. The fix replaces the binary
+    flag with a SET of subscribed topics: the watchdog re-subscribes only the MISSING
+    topics in place, and escalates to a rebuild ONLY on a total blackout (nothing
+    subscribed = dead connection), never on a partial miss (one bad appliance). These
+    tests fail against the pre-fix one-flag watchdog and pass with the fix."""
 
     def _drive(self, scripts, sub_fn=None):
         """Drive the REAL _watchdog over a scripted sequence. Each script entry is a
         (connection, subscribed) pair applied to the instance at the START of a tick
         (i.e. it is the state the awscrt callbacks would have produced before this
-        tick's health check). asyncio.sleep is stubbed to advance the script and end
-        the loop (CancelledError) when it runs out. Returns (resub_calls, rebuilds,
-        m), where `rebuilds` holds the 1-based tick index of each full _start()
+        tick's health check). `subscribed` True means the single target topic is in the
+        set, False means it is missing. asyncio.sleep is stubbed to advance the script
+        and end the loop (CancelledError) when it runs out. Returns (resub_calls,
+        rebuilds, m), where `rebuilds` holds the 1-based tick index of each full _start()
         rebuild (so a test can pin WHEN the rebuild fired, not just that it did)."""
         import custom_components.addhon.client.transport.mqtt as mod
 
-        m = NativeMqttClient(FakeHon([]), "MID")
+        # ONE appliance/topic: _all_topics() == {_RECOVERY_TOPIC}, so "fully subscribed"
+        # is exactly "the topic is in the set". With a single topic, a subscribe failure
+        # is a TOTAL blackout (the escalation trigger); a success fully subscribes.
+        m = NativeMqttClient(FakeHon([FakeAppliance(_RECOVERY_TOPIC)]), "MID")
         seq = list(scripts)
         rebuilds = []
         resub_calls = []
@@ -1169,14 +1178,24 @@ class WatchdogSubscribedRecoveryTest(unittest.TestCase):
 
         async def fake_start():
             rebuilds.append(tick["n"])
-            # The real _start() clears _subscribed (fresh client). Mirror that so a
-            # rebuild that does not re-subscribe is correctly seen as unsubscribed.
-            m._subscribed = False
+            # The real _start() clears the set (fresh client). Mirror that so a rebuild
+            # that does not re-subscribe is correctly seen as unsubscribed.
+            m._subscribed_topics_set = set()
 
         async def counted_sub():
+            # Replaces the real _subscribe_missing(): record the call, then either fail
+            # (sub_fn raises -> leave the topic out of the set = blackout, mirroring the
+            # real method which SWALLOWS a per-topic HonCodedError without adding it and
+            # returns normally) or succeed (add the single target topic).
+            from custom_components.addhon.error_codes import HonCodedError
+
             resub_calls.append(True)
             if sub_fn is not None:
-                await sub_fn()
+                try:
+                    await sub_fn()
+                except HonCodedError:
+                    return  # per-topic failure swallowed, topic stays missing
+            m._subscribed_topics_set = m._subscribed_topics_set | {_RECOVERY_TOPIC}
 
         async def fake_sleep(_interval):
             if not seq:
@@ -1184,10 +1203,10 @@ class WatchdogSubscribedRecoveryTest(unittest.TestCase):
             tick["n"] += 1
             conn, sub = seq.pop(0)
             m._connection = conn
-            m._subscribed = sub
+            m._subscribed_topics_set = {_RECOVERY_TOPIC} if sub else set()
 
         m._start = fake_start  # type: ignore[assignment]
-        m._subscribe_appliances = counted_sub  # type: ignore[assignment]
+        m._subscribe_missing = counted_sub  # type: ignore[assignment]
         real_sleep = mod.asyncio.sleep
         mod.asyncio.sleep = fake_sleep
         try:
@@ -1209,7 +1228,8 @@ class WatchdogSubscribedRecoveryTest(unittest.TestCase):
         resub, rebuilds, m = self._drive([(True, False), (True, False)])
         self.assertEqual(len(resub), 2)        # re-subscribed on each tick
         self.assertEqual(len(rebuilds), 0)     # no full rebuild: transport is up
-        self.assertTrue(m._subscribed)         # recovered to healthy
+        # recovered to fully subscribed (the single target topic is in the set)
+        self.assertEqual(m._subscribed_topics_set, {_RECOVERY_TOPIC})
 
     def test_resubscribe_failure_retries_next_tick_no_stuck_healthy(self) -> None:
         # If the in-place re-subscribe RAISES (e.g. MQTT_SUBSCRIBE_TIMEOUT), the
@@ -1234,7 +1254,8 @@ class WatchdogSubscribedRecoveryTest(unittest.TestCase):
         )
         self.assertEqual(len(resub), 2)     # retried after the first failure
         self.assertEqual(len(rebuilds), 0)  # never escalated to a full rebuild
-        self.assertTrue(m._subscribed)      # recovered on the 2nd attempt
+        # recovered on the 2nd attempt (the target topic is now in the set)
+        self.assertEqual(m._subscribed_topics_set, {_RECOVERY_TOPIC})
 
     def test_healthy_when_connected_and_subscribed(self) -> None:
         # Both flags set -> healthy -> neither re-subscribe nor rebuild.
@@ -1357,18 +1378,12 @@ class WatchdogSubscribedRecoveryTest(unittest.TestCase):
     def test_lost_update_disconnect_mid_resubscribe_not_marked_healthy(self) -> None:
         # Issue 3 at the re-subscribe site: a disconnection callback lands DURING the
         # in-place re-subscribe await (flips _connection=False on the awscrt thread).
-        # The post-await assignment must re-check connection (and generation) instead of
-        # an unconditional True, so _subscribed ends up False (not clobbered) and the
-        # next tick is NOT treated as healthy.
-        def make_dropper(m):
-            async def dropping_sub():
-                # Simulate the awscrt disconnection callback landing mid-subscribe.
-                m._connection = False
-            return dropping_sub
-
+        # The post-await commit must re-check connection (and generation) instead of
+        # trusting the set, so the set ends EMPTY (not committed) and the next tick is
+        # NOT treated as healthy.
         import custom_components.addhon.client.transport.mqtt as mod
 
-        m = NativeMqttClient(FakeHon([]), "MID")
+        m = NativeMqttClient(FakeHon([FakeAppliance(_RECOVERY_TOPIC)]), "MID")
         # One tick: connected/unsubscribed -> re-subscribe runs, but the connection drops
         # during the await. Then a second scripted tick is NOT applied (loop ends), so we
         # observe the state the re-subscribe left.
@@ -1378,23 +1393,25 @@ class WatchdogSubscribedRecoveryTest(unittest.TestCase):
 
         async def fake_start():
             rebuilds.append(True)
-            m._subscribed = False
-
-        dropping = make_dropper(m)
+            m._subscribed_topics_set = set()
 
         async def counted_sub():
             resub_calls.append(True)
-            await dropping()
+            # The subscribe itself succeeds (topic added), but the awscrt disconnection
+            # callback lands mid-await and flips _connection=False. The watchdog's
+            # post-await guard must then DISCARD the committed set.
+            m._subscribed_topics_set = m._subscribed_topics_set | {_RECOVERY_TOPIC}
+            m._connection = False
 
         async def fake_sleep(_interval):
             if not seq:
                 raise asyncio.CancelledError
             conn, sub = seq.pop(0)
             m._connection = conn
-            m._subscribed = sub
+            m._subscribed_topics_set = {_RECOVERY_TOPIC} if sub else set()
 
         m._start = fake_start  # type: ignore[assignment]
-        m._subscribe_appliances = counted_sub  # type: ignore[assignment]
+        m._subscribe_missing = counted_sub  # type: ignore[assignment]
         real_sleep = mod.asyncio.sleep
         mod.asyncio.sleep = fake_sleep
         try:
@@ -1409,7 +1426,7 @@ class WatchdogSubscribedRecoveryTest(unittest.TestCase):
             mod.asyncio.sleep = real_sleep
 
         self.assertEqual(len(resub_calls), 1)   # re-subscribe attempted
-        self.assertFalse(m._subscribed)         # NOT clobbered back to True
+        self.assertFalse(m._subscribed_topics_set)  # set NOT committed (empty)
         self.assertFalse(m._connection)         # the disconnect stuck
         self.assertEqual(len(rebuilds), 0)      # one tick only: no rebuild yet
 
@@ -1424,7 +1441,7 @@ class WatchdogSubscribedRecoveryTest(unittest.TestCase):
             _RECONNECT_AFTER_FAILED_TICKS,
         )
 
-        m = NativeMqttClient(FakeHon([]), "MID")
+        m = NativeMqttClient(FakeHon([FakeAppliance(_RECOVERY_TOPIC)]), "MID")
         # Sustained not-connected long enough to trip the rebuild threshold; the rebuild's
         # _start() then brings the transport up, but the subscribe drops it again.
         seq = [(False, False)] * _RECONNECT_AFTER_FAILED_TICKS
@@ -1433,14 +1450,17 @@ class WatchdogSubscribedRecoveryTest(unittest.TestCase):
 
         async def fake_start():
             rebuilds.append(True)
-            m._subscribed = False
+            m._subscribed_topics_set = set()
             # _start() built a fresh client; model the awscrt success callback bringing
             # the transport up before the subscribe runs.
             m._connection = True
 
         async def counted_sub():
             resub_calls.append(True)
-            # The disconnection callback lands on the awscrt thread mid-subscribe.
+            # The subscribe succeeds (topic added), but the awscrt disconnection callback
+            # lands mid-await and flips _connection=False; the post-await guard must then
+            # DISCARD the committed set.
+            m._subscribed_topics_set = m._subscribed_topics_set | {_RECOVERY_TOPIC}
             m._connection = False
 
         async def fake_sleep(_interval):
@@ -1448,10 +1468,10 @@ class WatchdogSubscribedRecoveryTest(unittest.TestCase):
                 raise asyncio.CancelledError
             conn, sub = seq.pop(0)
             m._connection = conn
-            m._subscribed = sub
+            m._subscribed_topics_set = {_RECOVERY_TOPIC} if sub else set()
 
         m._start = fake_start  # type: ignore[assignment]
-        m._subscribe_appliances = counted_sub  # type: ignore[assignment]
+        m._subscribe_missing = counted_sub  # type: ignore[assignment]
         real_sleep = mod.asyncio.sleep
         mod.asyncio.sleep = fake_sleep
         try:
@@ -1467,53 +1487,54 @@ class WatchdogSubscribedRecoveryTest(unittest.TestCase):
 
         self.assertEqual(len(rebuilds), 1)   # the rebuild ran
         self.assertEqual(len(resub_calls), 1)
-        self.assertFalse(m._subscribed)      # NOT clobbered back to True
+        self.assertFalse(m._subscribed_topics_set)  # set NOT committed (empty)
         self.assertFalse(m._connection)      # the mid-subscribe disconnect stuck
 
 
 class SubscribedFlagLifecycleTest(unittest.TestCase):
-    """The companion of WatchdogSubscribedRecoveryTest at the flag level: _subscribed
-    must be reset by the disconnection/failure callbacks (respecting the generation
-    guard) and by _start(), and set only after _subscribe_appliances() succeeds."""
+    """The companion of WatchdogSubscribedRecoveryTest at the state level: the subscribed
+    SET must be cleared (rebound to empty) by the disconnection/failure callbacks
+    (respecting the generation guard) and by _start(), and populated only after the
+    subscribe succeeds."""
 
     def test_disconnection_resets_subscribed(self) -> None:
         m = NativeMqttClient(FakeHon([]), "MID")
         m._generation = 1
         m._connection = True
-        m._subscribed = True
+        m._subscribed_topics_set = {"t"}
         m._on_lifecycle_disconnection(None, generation=1)
         self.assertFalse(m._connection)
-        self.assertFalse(m._subscribed)
+        self.assertEqual(m._subscribed_topics_set, set())
 
     def test_connection_failure_resets_subscribed(self) -> None:
         m = NativeMqttClient(FakeHon([]), "MID")
         m._generation = 1
         m._connection = True
-        m._subscribed = True
+        m._subscribed_topics_set = {"t"}
         m._on_lifecycle_connection_failure(None, generation=1)
         self.assertFalse(m._connection)
-        self.assertFalse(m._subscribed)
+        self.assertEqual(m._subscribed_topics_set, set())
 
     def test_connection_success_does_not_set_subscribed(self) -> None:
-        # The success callback only flips _connection: it does NOT subscribe, so
-        # _subscribed must stay False (this is exactly the connected-but-unsubscribed
-        # window the watchdog must recover, incl. awscrt's clean-session auto-reconnect).
+        # The success callback only flips _connection: it does NOT subscribe, so the set
+        # must stay empty (this is exactly the connected-but-unsubscribed window the
+        # watchdog must recover, incl. awscrt's clean-session auto-reconnect).
         m = NativeMqttClient(FakeHon([]), "MID")
         m._generation = 1
         m._on_lifecycle_connection_success(None, generation=1)
         self.assertTrue(m._connection)
-        self.assertFalse(m._subscribed)
+        self.assertEqual(m._subscribed_topics_set, set())
 
     def test_stale_disconnection_does_not_reset_subscribed(self) -> None:
-        # A late event from an OLD generation must not clear _subscribed on the current
+        # A late event from an OLD generation must not clear the set on the current
         # healthy client (same guard that protects _connection).
         m = NativeMqttClient(FakeHon([]), "MID")
         m._generation = 2
         m._connection = True
-        m._subscribed = True
+        m._subscribed_topics_set = {"t"}
         m._on_lifecycle_disconnection(None, generation=1)  # stale
         self.assertTrue(m._connection)
-        self.assertTrue(m._subscribed)
+        self.assertEqual(m._subscribed_topics_set, {"t"})
 
     def test_start_resets_subscribed(self) -> None:
         import awscrt
@@ -1542,13 +1563,13 @@ class SubscribedFlagLifecycleTest(unittest.TestCase):
         hon = FakeHon([])
         hon.api = FakeApi()
         m = NativeMqttClient(hon, "MID")
-        m._subscribed = True  # pretend a previous client was subscribed
+        m._subscribed_topics_set = {"t"}  # pretend a previous client was subscribed
 
         _run(m._start())
-        self.assertFalse(m._subscribed)  # fresh client -> no subscriptions
+        self.assertEqual(m._subscribed_topics_set, set())  # fresh client -> none
 
     def test_start_resets_connection(self) -> None:
-        # CR#1: _start() must also reset _connection (symmetric with _subscribed): the
+        # CR#1: _start() must also reset _connection (symmetric with the set): the
         # new client is not up until ITS connection-success callback fires. An escalation
         # rebuild (connected-but-unsubscribed) reaches _start() with _connection=True
         # carried over from the just-stopped client; leaving it True would make a rebuild
@@ -1586,53 +1607,315 @@ class SubscribedFlagLifecycleTest(unittest.TestCase):
         self.assertFalse(m._connection)  # fresh client -> not up until its success cb
 
     def test_create_sets_subscribed_true_on_success(self) -> None:
-        m = NativeMqttClient(FakeHon([]), "MID")
+        m = NativeMqttClient(FakeHon([FakeAppliance("t")]), "MID")
 
         async def fake_start():
             m._client = object()
             # The real _start() builds the client; the awscrt connection-success
             # callback then flips _connection=True before subscribe completes. create()'s
-            # lost-update guard (Issue 3) only marks _subscribed when _connection is up,
+            # lost-update guard (Issue 3) only commits the set when _connection is up,
             # so model the connected transport here.
             m._connection = True
 
         async def ok_sub():
-            return None
+            # Model _subscribe_missing(): the topic subscribes -> goes into the set.
+            m._subscribed_topics_set = {"t"}
 
         async def ok_watchdog():
             return None
 
         m._start = fake_start  # type: ignore[assignment]
-        m._subscribe_appliances = ok_sub  # type: ignore[assignment]
+        m._subscribe_missing = ok_sub  # type: ignore[assignment]
         m._start_watchdog = ok_watchdog  # type: ignore[assignment]
         _run(m.create())
-        self.assertTrue(m._subscribed)
+        self.assertEqual(m._subscribed_topics_set, {"t"})  # fully subscribed
 
     def test_create_does_not_clobber_subscribed_when_disconnect_lands_mid_subscribe(
         self,
     ) -> None:
         # Issue 3 at the create() site: if a disconnection callback lands DURING the
-        # initial subscribe (flips _connection=False), create() must NOT clobber
-        # _subscribed back to True with an unconditional assignment.
-        m = NativeMqttClient(FakeHon([]), "MID")
+        # initial subscribe (flips _connection=False), create() must DISCARD the set
+        # (not commit a "healthy on a dropped session").
+        m = NativeMqttClient(FakeHon([FakeAppliance("t")]), "MID")
 
         async def fake_start():
             m._client = object()
             m._connection = True
 
         async def dropping_sub():
-            # The awscrt thread fires a disconnection mid-subscribe.
+            # The subscribe adds the topic, but the awscrt thread fires a disconnection
+            # mid-subscribe; create()'s post-await guard must then DISCARD the set.
+            m._subscribed_topics_set = {"t"}
             m._connection = False
-            m._subscribed = False
 
         async def ok_watchdog():
             return None
 
         m._start = fake_start  # type: ignore[assignment]
-        m._subscribe_appliances = dropping_sub  # type: ignore[assignment]
+        m._subscribe_missing = dropping_sub  # type: ignore[assignment]
         m._start_watchdog = ok_watchdog  # type: ignore[assignment]
         _run(m.create())
-        self.assertFalse(m._subscribed)  # not clobbered back to healthy
+        self.assertFalse(m._subscribed_topics_set)  # set discarded, not committed
+
+
+class MultiTopicAppliance:
+    """An appliance that subscribes SEVERAL topics, to exercise the per-topic isolation
+    of _subscribe_missing (the binary _subscribed flag could not represent a partial
+    success)."""
+
+    def __init__(self, topics) -> None:
+        self.info = {"topics": {"subscribe": list(topics)}}
+
+
+class _PerTopicFakeClient:
+    """A fake awscrt mqtt5 client whose subscribe() resolves or stalls PER TOPIC.
+
+    `bad_topics` never SUBACK (their Future never resolves -> _SUBSCRIBE_TIMEOUT fires);
+    every other topic resolves immediately. Requires the test to set
+    awscrt.mqtt5.SubscribePacket/Subscription so the topic is recoverable from the
+    packet the production code builds."""
+
+    def __init__(self, bad_topics) -> None:
+        self.bad_topics = set(bad_topics)
+        self.subscribed: list = []
+
+    def subscribe(self, packet):
+        # SubscribePacket is stubbed to ("pkt", [topic]); pull the single topic out.
+        topic = packet[1][0]
+        self.subscribed.append(topic)
+        fut: concurrent.futures.Future = concurrent.futures.Future()
+        if topic not in self.bad_topics:
+            fut.set_result(None)
+        # else: leave it unresolved so asyncio.wait_for raises TimeoutError.
+        return fut
+
+
+class SubscribeMissingIsolationTest(unittest.TestCase):
+    """H1 direct guard: _subscribe_missing must subscribe every topic it CAN, isolating a
+    single failing topic instead of aborting the whole pass (the old sequential
+    _subscribe raised on the first timeout and starved every appliance after it)."""
+
+    def setUp(self) -> None:
+        import awscrt
+
+        awscrt.mqtt5.SubscribePacket = lambda subs: ("pkt", subs)
+        awscrt.mqtt5.Subscription = lambda topic: topic
+        # Keep the per-topic timeout tiny so the stalled topic fails fast.
+        import custom_components.addhon.client.transport.mqtt as mod
+
+        self._mod = mod
+        self._orig_timeout = mod._SUBSCRIBE_TIMEOUT
+        mod._SUBSCRIBE_TIMEOUT = 0.01
+
+    def tearDown(self) -> None:
+        self._mod._SUBSCRIBE_TIMEOUT = self._orig_timeout
+
+    def test_one_bad_topic_does_not_block_the_others(self) -> None:
+        topics = ["t/good1", "t/bad", "t/good2", "t/good3"]
+        app = MultiTopicAppliance(topics)
+        m = NativeMqttClient(FakeHon([app]), "MID")
+        m._client = _PerTopicFakeClient(bad_topics={"t/bad"})
+
+        _run(m._subscribe_missing())
+
+        # Every topic EXCEPT the broken one ends up subscribed (H1: the bad topic does
+        # not starve the rest).
+        self.assertEqual(m._subscribed_topics_set, {"t/good1", "t/good2", "t/good3"})
+        self.assertNotIn("t/bad", m._subscribed_topics_set)
+        # All four were attempted (the failing one did not short-circuit the loop).
+        self.assertEqual(set(m._client.subscribed), set(topics))
+
+    def test_already_subscribed_topic_is_skipped(self) -> None:
+        # _subscribe_missing only attempts the topics NOT already in the set: an
+        # already-subscribed topic is not re-issued (idempotent retries).
+        topics = ["t/a", "t/b"]
+        app = MultiTopicAppliance(topics)
+        m = NativeMqttClient(FakeHon([app]), "MID")
+        m._client = _PerTopicFakeClient(bad_topics=set())
+        m._subscribed_topics_set = {"t/a"}  # already subscribed
+
+        _run(m._subscribe_missing())
+
+        self.assertEqual(m._subscribed_topics_set, {"t/a", "t/b"})
+        self.assertEqual(m._client.subscribed, ["t/b"])  # only the missing one issued
+
+    def test_recovered_topic_empties_missing_on_a_later_pass(self) -> None:
+        # First pass: the bad topic stalls -> stays missing. Second pass with the topic
+        # now healthy: the remaining miss is filled -> fully subscribed.
+        topics = ["t/good", "t/flaky"]
+        app = MultiTopicAppliance(topics)
+        m = NativeMqttClient(FakeHon([app]), "MID")
+
+        m._client = _PerTopicFakeClient(bad_topics={"t/flaky"})
+        _run(m._subscribe_missing())
+        self.assertEqual(m._subscribed_topics_set, {"t/good"})  # flaky still missing
+
+        # The flaky topic recovers; the next pass only needs to fill the miss.
+        m._client = _PerTopicFakeClient(bad_topics=set())
+        _run(m._subscribe_missing())
+        self.assertEqual(m._subscribed_topics_set, {"t/good", "t/flaky"})  # complete
+        self.assertEqual(m._client.subscribed, ["t/flaky"])  # only the miss re-issued
+
+    def test_one_bad_topic_logs_warning_and_continues(self) -> None:
+        app = MultiTopicAppliance(["t/good", "t/bad"])
+        m = NativeMqttClient(FakeHon([app]), "MID")
+        m._client = _PerTopicFakeClient(bad_topics={"t/bad"})
+        name = "custom_components.addhon.client.transport.mqtt"
+        with self.assertLogs(name, level="WARNING") as cm:
+            _run(m._subscribe_missing())
+        blob = "\n".join(cm.output)
+        self.assertIn("subscribe failed for one topic, continuing", blob)
+        self.assertEqual(m._subscribed_topics_set, {"t/good"})
+
+
+class WatchdogPartialMissEscalationTest(unittest.TestCase):
+    """H1 watchdog discrimination: ONE chronically broken appliance topic (transport
+    alive, other topics subscribed) is appliance-specific and must NOT escalate to a full
+    _start() rebuild (which would drop the healthy subscriptions). A TOTAL blackout
+    (nothing subscribes) IS a dead connection and DOES escalate after the cap."""
+
+    def _drive(self, *, all_topics, healthy_topics, ticks, connected=True):
+        """Drive the REAL _watchdog. _subscribe_missing is replaced with a stub that adds
+        only `healthy_topics` to the set (the rest stay chronically missing). The
+        instance starts connected-but-unsubscribed. Returns (resub_calls, rebuilds, m).
+        """
+        import custom_components.addhon.client.transport.mqtt as mod
+
+        appliance = MultiTopicAppliance(all_topics)
+        m = NativeMqttClient(FakeHon([appliance]), "MID")
+        m._connection = connected
+        seq_ticks = {"left": ticks}
+        rebuilds = []
+        resub_calls = []
+
+        async def fake_start():
+            rebuilds.append(True)
+            m._subscribed_topics_set = set()
+            # Model the awscrt success callback bringing the (new) transport up.
+            m._connection = True
+
+        async def fake_subscribe_missing():
+            resub_calls.append(True)
+            # Per-topic isolation: only the healthy topics make it into the set; the
+            # broken ones stay missing pass after pass.
+            m._subscribed_topics_set = m._subscribed_topics_set | set(healthy_topics)
+
+        async def fake_sleep(_interval):
+            if seq_ticks["left"] <= 0:
+                raise asyncio.CancelledError
+            seq_ticks["left"] -= 1
+            # The state at the start of each tick is connected (the awscrt callback keeps
+            # reporting up) but with the broken topic missing.
+            m._connection = True
+
+        m._start = fake_start  # type: ignore[assignment]
+        m._subscribe_missing = fake_subscribe_missing  # type: ignore[assignment]
+        real_sleep = mod.asyncio.sleep
+        mod.asyncio.sleep = fake_sleep
+        try:
+            loop = asyncio.new_event_loop()
+            try:
+                loop.run_until_complete(m._watchdog())
+            except asyncio.CancelledError:
+                pass
+            finally:
+                loop.close()
+        finally:
+            mod.asyncio.sleep = real_sleep
+        return resub_calls, rebuilds, m
+
+    def test_chronic_bad_topic_does_not_escalate_to_rebuild(self) -> None:
+        from custom_components.addhon.client.transport.mqtt import (
+            _MAX_RESUBSCRIBE_FAILURES,
+        )
+
+        # 3 topics; one is chronically broken. Run many ticks (well past the blackout
+        # cap) -- the watchdog must keep re-subscribing the missing topic and NEVER
+        # escalate, because some topics ARE subscribed (the connection is alive).
+        resub, rebuilds, m = self._drive(
+            all_topics=["t/good1", "t/good2", "t/bad"],
+            healthy_topics=["t/good1", "t/good2"],
+            ticks=_MAX_RESUBSCRIBE_FAILURES + 5,
+        )
+        self.assertEqual(len(rebuilds), 0)  # never escalated: healthy subs preserved
+        self.assertGreaterEqual(len(resub), 1)  # kept retrying the missing topic
+        # The healthy subscriptions survived every tick (never dropped by a rebuild).
+        self.assertEqual(m._subscribed_topics_set, {"t/good1", "t/good2"})
+
+    def test_total_blackout_escalates_after_cap(self) -> None:
+        from custom_components.addhon.client.transport.mqtt import (
+            _MAX_RESUBSCRIBE_FAILURES,
+        )
+
+        # NOTHING ever subscribes (healthy_topics empty) = dead connection: after
+        # _MAX_RESUBSCRIBE_FAILURES blackout ticks the watchdog DOES escalate to a full
+        # rebuild (today's behavior preserved). Give it enough ticks for the escalation.
+        resub, rebuilds, _ = self._drive(
+            all_topics=["t/a", "t/b"],
+            healthy_topics=[],
+            ticks=_MAX_RESUBSCRIBE_FAILURES + 2,
+        )
+        self.assertGreaterEqual(len(rebuilds), 1)  # blackout escalated to a rebuild
+        # The blackout re-subscribe was attempted up to the cap before escalating.
+        self.assertGreaterEqual(len(resub), _MAX_RESUBSCRIBE_FAILURES)
+
+
+class WatchdogDisconnectMidSubscribeClearsSetTest(unittest.TestCase):
+    """A disconnect landing mid-subscribe must clear the set (no 'healthy on a dropped
+    session'), driven through the REAL lifecycle callback rather than a hand-set flag."""
+
+    def test_disconnect_callback_mid_subscribe_clears_committed_set(self) -> None:
+        import custom_components.addhon.client.transport.mqtt as mod
+
+        app = MultiTopicAppliance(["t/x"])
+        m = NativeMqttClient(FakeHon([app]), "MID")
+        m._generation = 1
+        m._connection = True
+        seq = [True]  # one tick: connected, topic missing
+        rebuilds = []
+
+        async def fake_start():
+            rebuilds.append(True)
+            m._subscribed_topics_set = set()
+            m._connection = True
+
+        async def subscribe_then_disconnect():
+            # A REAL awscrt disconnection callback fires mid-await on the current
+            # generation (clears _connection and rebinds the set to empty), then a LATE
+            # SUBACK lands and re-adds the topic AFTER the rebind. The set is now non-empty
+            # on a DROPPED session, so the ONLY thing that can discard it is the watchdog's
+            # post-await guard (the _connection/generation re-check). If that guard is
+            # removed, the stale topic survives -> "healthy on a dropped session". This
+            # ordering makes the assertion genuinely depend on the guard (the callback
+            # alone leaving the set empty would pass vacuously).
+            m._on_lifecycle_disconnection(None, generation=1)
+            m._subscribed_topics_set.add("t/x")
+
+        async def fake_sleep(_interval):
+            if not seq:
+                raise asyncio.CancelledError
+            seq.pop(0)
+            m._connection = True
+            m._subscribed_topics_set = set()
+
+        m._start = fake_start  # type: ignore[assignment]
+        m._subscribe_missing = subscribe_then_disconnect  # type: ignore[assignment]
+        real_sleep = mod.asyncio.sleep
+        mod.asyncio.sleep = fake_sleep
+        try:
+            loop = asyncio.new_event_loop()
+            try:
+                loop.run_until_complete(m._watchdog())
+            except asyncio.CancelledError:
+                pass
+            finally:
+                loop.close()
+        finally:
+            mod.asyncio.sleep = real_sleep
+
+        self.assertFalse(m._connection)             # the disconnect stuck
+        self.assertEqual(m._subscribed_topics_set, set())  # set cleared, not trusted
+        self.assertEqual(len(rebuilds), 0)          # one tick: no rebuild yet
 
 
 if __name__ == "__main__":
