@@ -272,7 +272,29 @@ class NativeMqttClient:
                     "MQTT: topic with no matching appliance: %s", redact_topic(topic)
                 )
                 return
-            if topic and "appliancestatus" in topic:
+            if topic and topic.startswith("$aws/events/presence/"):
+                # AWS-IoT SESSION presence of OUR MQTT client (clientId-scoped; payload
+                # carries clientId/sessionIdentifier/principalIdentifier). It is matched to
+                # whichever single appliance subscribes the topic but says NOTHING about
+                # that appliance's connectivity. It must NOT arm (connected) NOR clear
+                # (disconnected) the appliance's stale-disconnect protection: our client
+                # reconnects/drops on its own schedule, so arming would pin a genuinely
+                # offline appliance online on every reconnect, and clearing would knock a
+                # live, streaming appliance offline on a transient session blip (both
+                # non-self-correcting while the cloud's lastConnEvent stays stale).
+                # Appliance connectivity comes only from device-scoped events
+                # (haier/things/<mac>/event/...) and the REST lastConnEvent.
+                _LOGGER.debug(
+                    "MQTT: client session presence on %s, ignored for connectivity",
+                    redact_topic(topic),
+                )
+            elif topic and "appliancestatus" in topic:
+                # Realtime traffic is authoritative connectivity evidence (the hOn app
+                # trusts it): mark the appliance connected and remember WHEN, using the
+                # cloud-stamped payload `timestamp` (skew-free vs lastConnEvent), BEFORE
+                # parsing parameters so the liveness is recorded even if a later param is
+                # dirty. mark_realtime_seen is positive-only and never raises.
+                appliance.mark_realtime_seen(payload.get("timestamp"))
                 params = appliance.attributes.get("parameters", {})
                 raw_params = payload.get("parameters")
                 if not isinstance(raw_params, list):
@@ -313,8 +335,27 @@ class NativeMqttClient:
                     redact_id(appliance.nick_name),
                     payload.get("disconnectReason"),
                 )
-                appliance.connection = False
+                # Device-scoped disconnect (haier/things/<mac>/event/disconnected): the
+                # APPLIANCE itself reports offline -- authoritative. Session-presence
+                # disconnects ($aws/events/presence/...) were already intercepted above, so
+                # this never fires on OUR client's session drop. Route through
+                # mark_realtime_disconnected so it CLEARS the realtime liveness marks too --
+                # otherwise a stale REST lastConnEvent=DISCONNECTED (older than the last
+                # traffic) would resurrect the appliance at the next poll. Falls back to the
+                # plain setter for any appliance object that predates the method.
+                mark = getattr(appliance, "mark_realtime_disconnected", None)
+                if callable(mark):
+                    mark()
+                else:  # pragma: no cover - production appliances have the method
+                    appliance.connection = False
             elif topic and "connected" in topic:
+                # Device-scoped connect (haier/things/<mac>/event/connected): the appliance
+                # reports online. Session-presence connects ($aws/events/presence/...) were
+                # intercepted above, so this is not OUR client's session event. Keep the
+                # transient behavior (connection True, self-corrected at the next REST poll);
+                # we deliberately do NOT arm the realtime liveness here -- only true
+                # mac-scoped `appliancestatus` traffic records liveness, so a bare connect
+                # event cannot over-extend the stale-disconnect protection window.
                 appliance.connection = True
                 _LOGGER.info("Connected %s", redact_id(appliance.nick_name))
             elif topic and "discovery" in topic:

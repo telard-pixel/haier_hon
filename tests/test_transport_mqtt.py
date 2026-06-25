@@ -78,9 +78,24 @@ class FakeAppliance:
         self.nick_name = "Nick"
         self.connection = True
         self.synced = []
+        # Mirrors HonAppliance.mark_realtime_seen book-keeping so the transport tests
+        # can assert the liveness time the handler records.
+        self.realtime_seen = []
+        self.disconnected_calls = 0
 
     def sync_params_to_command(self, name: str) -> None:
         self.synced.append(name)
+
+    def mark_realtime_seen(self, timestamp=None) -> None:
+        # Positive-only, mirroring the engine: realtime traffic -> connected, and the
+        # cloud timestamp is remembered for the test to inspect.
+        self.connection = True
+        self.realtime_seen.append(timestamp)
+
+    def mark_realtime_disconnected(self) -> None:
+        # Mirrors the engine: explicit negative evidence clears the liveness marks.
+        self.connection = False
+        self.disconnected_calls += 1
 
 
 class FakeHon:
@@ -483,6 +498,35 @@ class PublishReceivedTest(unittest.TestCase):
                          {"parName": "temp", "parValue": "9"})
         self.assertEqual(hon.notified, 1)
 
+    def test_appliancestatus_marks_realtime_seen_with_payload_timestamp(self) -> None:
+        # Realtime traffic is authoritative connectivity evidence: the handler must mark
+        # the appliance live and pass the CLOUD payload `timestamp` (not wall-clock) to
+        # mark_realtime_seen, so the engine can reconcile it against a stale lastConnEvent.
+        topic = "haier/things/MAC/event/appliancestatus/update"
+        app = FakeAppliance(topic)
+        app.connection = False  # previously reported offline (stale REST disconnect)
+        m, hon = self._client(app)
+        ts = "2026-06-25T16:04:21.1Z"
+        m._on_publish_received(_packet(topic, {
+            "timestamp": ts,
+            "parameters": [{"parName": "temp", "parValue": "5"}],
+        }))
+        self.assertEqual(app.realtime_seen, [ts])   # cloud timestamp forwarded
+        self.assertTrue(app.connection)             # marked live again
+        self.assertEqual(hon.notified, 1)
+
+    def test_appliancestatus_marks_realtime_seen_even_without_timestamp(self) -> None:
+        # No payload timestamp: the message itself is still evidence -> mark_realtime_seen
+        # is called (with None) so connection is set live; the engine then declines the
+        # stale-disconnect protection for lack of an orderable time.
+        topic = "haier/things/MAC/event/appliancestatus/update"
+        app = FakeAppliance(topic)
+        m, _ = self._client(app)
+        m._on_publish_received(_packet(topic, {
+            "parameters": [{"parName": "temp", "parValue": "5"}],
+        }))
+        self.assertEqual(app.realtime_seen, [None])
+
     def test_disconnected_sets_connection_false(self) -> None:
         topic = "haier/things/MAC/event/disconnected"
         app = FakeAppliance(topic)
@@ -498,6 +542,42 @@ class PublishReceivedTest(unittest.TestCase):
         m, _ = self._client(app)
         m._on_publish_received(_packet(topic, {}))
         self.assertTrue(app.connection)
+
+    def test_session_presence_connected_does_not_touch_connectivity(self) -> None:
+        # `$aws/events/presence/connected/<clientId>` is OUR client's session presence, not
+        # the appliance's connectivity: it must NOT arm liveness NOR even set connection.
+        topic = "$aws/events/presence/connected/myclient"
+        app = FakeAppliance(topic)
+        app.connection = False  # genuinely offline
+        m, _ = self._client(app)
+        m._on_publish_received(_packet(topic, {"clientId": "myclient", "eventType": "connected"}))
+        self.assertFalse(app.connection)        # not pinned online by our session
+        self.assertEqual(app.realtime_seen, [])  # liveness not armed
+
+    def test_session_presence_disconnected_does_not_clobber_live_appliance(self) -> None:
+        # `$aws/events/presence/disconnected/<clientId>` is OUR client's session blip; it
+        # must NOT clear the appliance's liveness marks (which would knock a live, streaming
+        # appliance offline non-self-correcting while the cloud lastConnEvent stays stale).
+        topic = "$aws/events/presence/disconnected/myclient"
+        app = FakeAppliance(topic)
+        app.connection = True  # appliance is live (streaming appliancestatus)
+        m, _ = self._client(app)
+        m._on_publish_received(_packet(topic, {"clientId": "myclient", "eventType": "disconnected"}))
+        self.assertTrue(app.connection)          # still live
+        self.assertEqual(app.disconnected_calls, 0)  # marks NOT cleared
+
+    def test_connected_does_not_arm_realtime_liveness(self) -> None:
+        # The presence "connected" event is OUR client's AWS-IoT session presence, not the
+        # appliance's connectivity. It must set connection True (transient, self-corrected
+        # at the next poll) but must NOT record realtime liveness -- otherwise periodic
+        # client reconnects would pin a genuinely offline appliance online indefinitely.
+        topic = "haier/things/MAC/event/connected"
+        app = FakeAppliance(topic)
+        app.connection = False
+        m, _ = self._client(app)
+        m._on_publish_received(_packet(topic, {"timestamp": "2026-06-25T16:04:16Z"}))
+        self.assertTrue(app.connection)
+        self.assertEqual(app.realtime_seen, [])  # liveness NOT armed by presence
 
     def test_unknown_topic_no_crash_no_notify(self) -> None:
         # topic that matches no appliance -> exits without crashing (defensive:

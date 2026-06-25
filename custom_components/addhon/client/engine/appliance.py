@@ -15,6 +15,7 @@ import re
 from datetime import datetime, timedelta
 from typing import Any, Optional
 
+from ..helpers import parse_cloud_timestamp
 from .appliances import registry as _native_appliances
 from .attributes import HonAttribute
 from .command_loader import HonCommandLoader
@@ -27,6 +28,15 @@ _LOGGER = logging.getLogger(__name__)
 
 class HonAppliance:
     _MINIMAL_UPDATE_INTERVAL = 5  # seconds
+    # Realtime liveness is authoritative only while RECENT: a realtime message overrides
+    # a STALE REST DISCONNECTED only if received within this wall-clock window. Without
+    # the bound, a once-seen realtime time would keep a silently-dead appliance online
+    # FOREVER, because the cloud's lastConnEvent can stay frozen at an OLD disconnect
+    # indefinitely (observed: frozen ~2.5h) and never emit a disconnect newer than the
+    # last traffic. After the window we defer to the REST lastConnEvent. 5 poll cycles:
+    # long enough to avoid flicker for a connected-but-quiet device, short enough to
+    # recover a dead one promptly.
+    _REALTIME_LIVENESS_TTL = 300  # seconds
 
     def __init__(self, api: Any, info: dict[str, Any], zone: int = 0) -> None:
         if attributes := info.get("attributes"):
@@ -45,6 +55,19 @@ class HonAppliance:
             not self._attributes.get("lastConnEvent", {}).get("category", "")
             == "DISCONNECTED"
         )
+        # Most recent CLOUD-stamped time at which we saw realtime MQTT traffic from this
+        # appliance (None until the first push). Realtime traffic is positive evidence of
+        # connectivity (the hOn app trusts it): it sets `_connection` True and is compared
+        # against `lastConnEvent` so a STALE REST disconnect cannot clobber a live device
+        # back offline at the next 60s poll. Cloud-stamped (not wall-clock) so the
+        # comparison against the cloud-stamped lastConnEvent is skew-free. See
+        # mark_realtime_seen and load_attributes.
+        self._last_realtime_ts: Optional[datetime] = None
+        # Local (wall-clock) receipt time of the last realtime message. Used ONLY for the
+        # freshness bound (_REALTIME_LIVENESS_TTL) -- a local-vs-local comparison, so it
+        # is skew-free; distinct from _last_realtime_ts, which is the CLOUD timestamp used
+        # for ordering against the cloud-stamped lastConnEvent.
+        self._last_realtime_local: Optional[datetime] = None
         # Per-type layer (resolved via the static registry).
         self._extra = _native_appliances.get_extra(self)
 
@@ -146,6 +169,58 @@ class HonAppliance:
     def connection(self, connection: bool) -> None:
         self._connection = connection
 
+    def mark_realtime_seen(self, timestamp: Any = None) -> None:
+        """Record positive realtime evidence: this appliance just sent MQTT traffic.
+
+        Called from the MQTT transport for any thing-scoped realtime message. It is
+        POSITIVE-ONLY: it sets `connection` True and remembers WHEN (the cloud-stamped
+        message `timestamp`, not local wall-clock, to stay comparable with
+        `lastConnEvent` and skew-free). It NEVER sets False -- absence of traffic stays
+        the job of the REST lastConnEvent / disconnect events / watchdog.
+
+        Defensive (runs on the awscrt callback thread, must never raise): a
+        missing/garbage/None timestamp is tolerated -- we still mark connected (the
+        message itself is the evidence) but, lacking a usable time, do NOT advance
+        `_last_realtime_ts`, so reconciliation falls back to the REST-only behavior for
+        that appliance rather than asserting a bogus ordering. The recorded time only
+        ever moves FORWARD (max), so an out-of-order older message cannot rewind it.
+
+        `available` is mirrored onto the cached attribute dict (not just `_connection`)
+        because the entities read the RAW `available` key: the connectivity
+        binary_sensor (attr_key="available") and the availability gate
+        (base_entity: `_attributes.get("available")`). `attributes` returns the cached
+        dict WITHOUT recomputing from `connection`, so without this the sensor would
+        only flip at the next 60s poll instead of the instant the MQTT proof arrives.
+        """
+        self._connection = True
+        self._attributes["available"] = True
+        # Wall-clock receipt time for the freshness bound (see load_attributes). Recorded
+        # unconditionally -- even a timestamp-less message proves the appliance is live
+        # NOW -- and only ever moves forward.
+        local_now = datetime.now()
+        if self._last_realtime_local is None or local_now > self._last_realtime_local:
+            self._last_realtime_local = local_now
+        ts = parse_cloud_timestamp(timestamp)
+        if ts is not None and (
+            self._last_realtime_ts is None or ts > self._last_realtime_ts
+        ):
+            self._last_realtime_ts = ts
+
+    def mark_realtime_disconnected(self) -> None:
+        """Record EXPLICIT negative realtime evidence (MQTT `disconnected` / presence).
+
+        An explicit disconnect is authoritative: the appliance is offline NOW. Beyond
+        setting `connection`/`available` False, it CLEARS the realtime liveness marks so a
+        subsequent STALE REST `lastConnEvent=DISCONNECTED` (whose timestamp may predate
+        the last realtime traffic) cannot resurrect the appliance at the next poll. Like
+        mark_realtime_seen it mirrors onto the cached `available` attribute so the
+        connectivity binary_sensor reflects the disconnect immediately, not a poll later.
+        """
+        self._connection = False
+        self._attributes["available"] = False
+        self._last_realtime_ts = None
+        self._last_realtime_local = None
+
     # --- loading ---
     async def load_commands(self) -> None:
         command_loader = HonCommandLoader(self.api, self)
@@ -174,7 +249,40 @@ class HonAppliance:
         # absent, malformed, or a dict without `category`, keep the (MQTT-derived) state
         # rather than forcing it True.
         if isinstance(lce, dict) and "category" in lce:
-            self._connection = lce["category"] != "DISCONNECTED"
+            if lce["category"] != "DISCONNECTED":
+                # A non-DISCONNECTED (e.g. CONNECTED) REST event is itself positive
+                # cloud evidence -> connected, unchanged behavior.
+                self._connection = True
+            else:
+                # DISCONNECTED from REST. Realtime MQTT traffic is also authoritative
+                # connectivity evidence, so a STALE disconnect must NOT clobber a device
+                # we KNOW is live. We keep it online only when the realtime evidence is
+                # BOTH:
+                #   * NEWER than this disconnect event (cloud-vs-cloud ordering, so a
+                #     genuinely later disconnect wins -> self-correcting); AND
+                #   * RECENT in wall-clock terms (within _REALTIME_LIVENESS_TTL), so a
+                #     once-seen realtime time cannot pin a now-silent appliance online
+                #     forever while the cloud's lastConnEvent stays frozen in the past
+                #     (the exact failure the washer's frozen 13:35 disconnect would cause
+                #     after the device stops talking). Past the window we defer to REST.
+                # If either timestamp is missing/unparseable we cannot order -> honor the
+                # DISCONNECTED (prior REST-only behavior). Prefer epoch-ms `timestampEvent`;
+                # fall back to ISO `instantTime` when absent OR explicitly null.
+                disconnect_ts = parse_cloud_timestamp(lce.get("timestampEvent"))
+                if disconnect_ts is None:
+                    disconnect_ts = parse_cloud_timestamp(lce.get("instantTime"))
+                realtime_ts = self._last_realtime_ts
+                realtime_newer = (
+                    realtime_ts is not None
+                    and disconnect_ts is not None
+                    and realtime_ts > disconnect_ts
+                )
+                realtime_fresh = self._last_realtime_local is not None and (
+                    datetime.now() - self._last_realtime_local
+                    < timedelta(seconds=self._REALTIME_LIVENESS_TTL)
+                )
+                # Newer-than-disconnect AND still fresh -> trust realtime; else offline.
+                self._connection = realtime_newer and realtime_fresh
         # `available` UNIVERSAL (even for types without a per-type layer, e.g. AC):
         # connectivity is first-class as in the app. The per-type layer re-sets it (same value).
         self._attributes["available"] = self._connection
