@@ -28,6 +28,7 @@ from .const import (
     DOMAIN,
     PLATFORMS,
     SCAN_INTERVAL,
+    SERVICE_REFRESH,
     SERVICE_SET_LOG_LEVEL,
     SERVICE_SET_MQTT_LOG_LEVEL,
 )
@@ -57,7 +58,8 @@ def _async_register_services(hass: HomeAssistant) -> None:
     """
     mqtt_service_exists = hass.services.has_service(DOMAIN, SERVICE_SET_MQTT_LOG_LEVEL)
     log_service_exists = hass.services.has_service(DOMAIN, SERVICE_SET_LOG_LEVEL)
-    if mqtt_service_exists and log_service_exists:
+    refresh_service_exists = hass.services.has_service(DOMAIN, SERVICE_REFRESH)
+    if mqtt_service_exists and log_service_exists and refresh_service_exists:
         return
 
     import voluptuous as vol
@@ -82,6 +84,41 @@ def _async_register_services(hass: HomeAssistant) -> None:
             "Haier hOn diagnostic log level set to %s", level_name.upper()
         )
 
+    async def _handle_refresh(call: ServiceCall) -> None:
+        """Force an immediate cloud poll on every loaded config entry.
+
+        Domain-wide equivalent of the per-device "Refresh now" button: it reads
+        hass.data live at call time and asks each loaded coordinator for a
+        debounced refresh (async_request_refresh, like the button). Per-entry
+        failures are isolated (asyncio.gather(..., return_exceptions=True)) and
+        logged at warning; the service NEVER re-raises to the caller, so one
+        unhealthy account does not break an automation refreshing the others.
+        """
+        coordinators = [
+            entry_data["coordinator"]
+            for entry_data in hass.data.get(DOMAIN, {}).values()
+            if isinstance(entry_data, dict) and entry_data.get("coordinator") is not None
+        ]
+        _LOGGER.debug(
+            "Refresh service: requesting refresh on %d coordinator(s)",
+            len(coordinators),
+        )
+
+        async def _refresh_one(coordinator) -> None:
+            # Wrap the call INSIDE a coroutine so even a SYNCHRONOUS raise from
+            # async_request_refresh (e.g. a future refactor storing a wrapper /
+            # wrong-typed object) is captured by gather(return_exceptions=True)
+            # instead of escaping the generator and aborting the other refreshes.
+            await coordinator.async_request_refresh()
+
+        results = await asyncio.gather(
+            *(_refresh_one(coordinator) for coordinator in coordinators),
+            return_exceptions=True,
+        )
+        for result in results:
+            if isinstance(result, Exception):
+                _LOGGER.warning("Refresh service: a coordinator refresh failed: %s", result)
+
     level_schema = vol.Schema(
         {vol.Required(ATTR_LEVEL, default="debug"): vol.In(tuple(MQTT_LOG_LEVELS))}
     )
@@ -100,6 +137,14 @@ def _async_register_services(hass: HomeAssistant) -> None:
             SERVICE_SET_LOG_LEVEL,
             _handle_set_log_level,
             schema=level_schema,
+        )
+
+    if not refresh_service_exists:
+        # No schema: the service takes no fields and no target (domain-wide).
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_REFRESH,
+            _handle_refresh,
         )
 
 
@@ -545,7 +590,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER.debug("Unload debug: no HonClient to close for entry=%s", entry.entry_id)
         # Last entry removed: remove the global debug services.
         if not hass.data.get(DOMAIN):
-            for service in (SERVICE_SET_MQTT_LOG_LEVEL, SERVICE_SET_LOG_LEVEL):
+            for service in (SERVICE_SET_MQTT_LOG_LEVEL, SERVICE_SET_LOG_LEVEL, SERVICE_REFRESH):
                 if hass.services.has_service(DOMAIN, service):
                     hass.services.async_remove(DOMAIN, service)
                     _LOGGER.debug("Unload debug: removed service %s", service)

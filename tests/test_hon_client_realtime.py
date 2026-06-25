@@ -502,7 +502,17 @@ class RealtimeWiringSourceGuard(unittest.TestCase):
         # The realtime publish must use the snapshot, not async_request_refresh
         # (which would re-trigger the slow HTTP poll on every push).
         self.assertIn("build_realtime_snapshot", src)
-        self.assertNotIn("async_request_refresh", src)
+        # Scope the no-repoll guard to the realtime push wiring only: the
+        # domain-wide addhon.refresh service legitimately calls
+        # async_request_refresh elsewhere (the explicit "Refresh now" path), so a
+        # whole-file ban would be a false positive. The region is from the
+        # _publish_realtime definition up to the unload detachment that closes the
+        # realtime wiring -- exactly the push path that must never re-poll.
+        start = src.index("def _publish_realtime")
+        end = src.index("subscribe_updates(None)", start)
+        push_region = src[start:end]
+        self.assertIn("async_set_updated_data", push_region)
+        self.assertNotIn("async_request_refresh", push_region)
 
     def test_hon_client_exposes_realtime_api(self) -> None:
         src = (self._COMPONENT / "hon_client.py").read_text(encoding="utf-8")

@@ -72,6 +72,10 @@
     }
   },
   "services": {
+    "refresh": {
+      "name": "Refresh now",
+      "description": "Force an immediate cloud poll for all configured hOn accounts. The automation-callable equivalent of the per-device \"Refresh now\" button: it asks every loaded coordinator to fetch fresh data right away, instead of waiting for the next scheduled poll. Takes no options and applies to the whole integration."
+    },
     "set_log_level": {
       "name": "Set diagnostic log level",
       "description": "Change the log level of the Haier hOn integration and the native hOn client loggers used to diagnose login, device discovery, reauth and polling. Use \"debug\" when devices do not appear, then return to \"warning\" to reduce noise. Does not enable MQTT realtime noise: for that use the dedicated set_mqtt_log_level service.",

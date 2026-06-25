@@ -1,3 +1,5 @@
+refresh:
+
 set_log_level:
   fields:
     level:
