@@ -42,10 +42,11 @@ class CoordinatorConfigEntryTest(unittest.TestCase):
 
     def test_refresh_token_read_and_persisted(self) -> None:
         # 2FA: async_setup_entry must (a) read the persisted refresh_token from the entry
-        # and pass it to HonClient, and (b) write back a ROTATED token, guarded so it
-        # only writes on a real change (no entry churn / reload storm). A behavioral test
-        # is infeasible with the stub harness, so guard the source. These are the paths
-        # that let an email-OTP account skip the 2FA prompt across restarts.
+        # and pass it to HonClient, and (b) write back a ROTATED token via the single
+        # _persist_refresh_token helper, guarded so it only writes on a real change (no
+        # entry churn). The helper is called BOTH at setup and on the coordinator path so a
+        # token rotated later survives a restart. A behavioral test of the closure is
+        # infeasible with the stub harness, so guard the source/AST.
         source = INIT.read_text(encoding="utf-8")
         self.assertIn('entry.data.get("refresh_token"', source,
                       "must read the persisted refresh_token from the entry")
@@ -53,10 +54,30 @@ class CoordinatorConfigEntryTest(unittest.TestCase):
                       "must pass the refresh_token to HonClient")
         self.assertIn("hon_client.refresh_token", source,
                       "must read back the (possibly rotated) refresh_token")
-        # the write is conditional on a genuine change (truthy AND different)
-        self.assertIn("new_refresh_token and new_refresh_token != refresh_token", source,
+        # the helper's write is conditional on a genuine change (truthy AND different)
+        self.assertIn("new_token and new_token != stored", source,
                       "the persist must be gated so it never wipes a token or churns")
         self.assertIn("async_update_entry", source)
+        self.assertIn("def _persist_refresh_token", source,
+                      "the persist logic must live in one helper (deduped)")
+        # the helper must be CALLED at >=2 sites (setup + coordinator path), and at least
+        # one call inside async_update_data -- AST so a comment/whitespace can't fool it.
+        tree = ast.parse(source)
+        calls = [
+            n for n in ast.walk(tree)
+            if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+            and n.func.id == "_persist_refresh_token"
+        ]
+        self.assertGreaterEqual(len(calls), 2, "persist helper must run at setup AND on update")
+        in_update = False
+        for fn in ast.walk(tree):
+            if isinstance(fn, ast.AsyncFunctionDef) and fn.name == "async_update_data":
+                in_update = any(
+                    isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                    and n.func.id == "_persist_refresh_token"
+                    for n in ast.walk(fn)
+                )
+        self.assertTrue(in_update, "coordinator update must persist a rotated token")
 
     def test_coordinator_summary_redacts_mac(self) -> None:
         # #24: the per-device debug summary must not log the raw MAC (a behavioral

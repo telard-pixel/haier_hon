@@ -141,6 +141,109 @@ class HonClientRealtimeTest(unittest.TestCase):
             if orig_create is not None:
                 factory.create_session = orig_create
 
+    def test_setup_sync_syncs_refresh_token_seed(self) -> None:
+        # #1: a fresh login started with seed "" must adopt the live token after setup so a
+        # later _async_reauth()/restart re-seeds from it (no full login / 2FA re-prompt).
+        import custom_components.addhon.client.factory as factory
+        sess = FakeSession([])
+        sess.refresh_token = "RT_LIVE"
+        orig_create = getattr(factory, "create_session", None)
+        factory.create_session = lambda email, password, **kw: sess
+        try:
+            c = HonClient(email="e@x", password="p", refresh_token="")
+            c._start_hon_loop = lambda: None  # type: ignore[assignment]
+            c._run_on_hon_loop = lambda coro: coro.close()  # type: ignore[assignment]
+            self.assertEqual("", c._refresh_token)
+            c.setup_sync()
+            self.assertEqual("RT_LIVE", c._refresh_token)  # seed adopted the live token
+        finally:
+            if orig_create is not None:
+                factory.create_session = orig_create
+
+    def test_setup_sync_failure_does_not_wipe_seed(self) -> None:
+        # The seed-sync line is after __aenter__ success; a failed setup must NOT overwrite
+        # a good seed with "".
+        import custom_components.addhon.client.factory as factory
+        boom = FakeSession([])
+        async def _boom():
+            raise RuntimeError("login down")
+        boom.__aenter__ = _boom  # type: ignore[assignment]
+        orig_create = getattr(factory, "create_session", None)
+        factory.create_session = lambda email, password, **kw: boom
+        try:
+            c = HonClient(email="e@x", password="p", refresh_token="RT_OLD")
+            c._start_hon_loop = lambda: None  # type: ignore[assignment]
+            c._run_on_hon_loop = lambda coro: asyncio.run(coro)  # type: ignore[assignment]
+            with self.assertRaises(Exception):
+                c.setup_sync()
+            self.assertEqual("RT_OLD", c._refresh_token)  # seed preserved on failure
+        finally:
+            if orig_create is not None:
+                factory.create_session = orig_create
+
+    def test_setup_sync_seeds_next_create_with_live_token(self) -> None:
+        # #1 end-to-end: the SEED synced after the 1st login must be CONSUMED by the next
+        # session build (the reauth re-seed). Capture the refresh_token kwarg passed to
+        # create_session across two setup_sync calls on one client.
+        import custom_components.addhon.client.factory as factory
+        s1, s2 = FakeSession([]), FakeSession([])
+        s1.refresh_token = "RT1"
+        s2.refresh_token = "RT2"
+        seen, it = [], iter([s1, s2])
+        def _create(email, password, **kw):
+            seen.append(kw.get("refresh_token"))
+            return next(it)
+        orig_create = getattr(factory, "create_session", None)
+        factory.create_session = _create
+        try:
+            c = HonClient(email="e@x", password="p", refresh_token="")
+            c._start_hon_loop = lambda: None  # type: ignore[assignment]
+            c._run_on_hon_loop = lambda coro: coro.close()  # type: ignore[assignment]
+            c.setup_sync()  # build #1 seeded with ""
+            c.setup_sync()  # build #2 must be seeded with RT1 (the 1st session's token)
+            self.assertEqual(["", "RT1"], seen)
+        finally:
+            if orig_create is not None:
+                factory.create_session = orig_create
+
+    def test_setup_sync_empty_live_token_keeps_seed(self) -> None:
+        # The `or self._refresh_token` fallback: if the live token reads "" after setup, a
+        # good existing seed must be preserved (never wiped).
+        import custom_components.addhon.client.factory as factory
+        sess = FakeSession([])  # no refresh_token attr -> property returns ""
+        orig_create = getattr(factory, "create_session", None)
+        factory.create_session = lambda email, password, **kw: sess
+        try:
+            c = HonClient(email="e@x", password="p", refresh_token="RT_OLD")
+            c._start_hon_loop = lambda: None  # type: ignore[assignment]
+            c._run_on_hon_loop = lambda coro: coro.close()  # type: ignore[assignment]
+            c.setup_sync()
+            self.assertEqual("RT_OLD", c._refresh_token)  # fallback kept the good seed
+        finally:
+            if orig_create is not None:
+                factory.create_session = orig_create
+
+    def test_poll_syncs_seed_on_mid_life_rotation(self) -> None:
+        # #5: a runtime token rotation during a poll must be captured into the seed at the
+        # poll boundary, so a later _async_reauth() re-seeds from the current token.
+        c = HonClient(email="e@x", password="p", refresh_token="RT0")
+        sess = FakeSession([])
+        sess.refresh_token = "RTn"  # rotated mid-life
+        c._api = sess
+        c._hon_instance = sess
+        asyncio.run(c.async_get_appliances_data())
+        self.assertEqual("RTn", c._refresh_token)
+
+    def test_poll_empty_live_token_keeps_seed(self) -> None:
+        # The poll-path `or self._refresh_token` fallback must not wipe a good seed if the
+        # live token momentarily reads "" (pins the poll-boundary wipe-protection).
+        c = HonClient(email="e@x", password="p", refresh_token="RT_OLD")
+        sess = FakeSession([])  # no refresh_token attr -> property returns ""
+        c._api = sess
+        c._hon_instance = sess
+        asyncio.run(c.async_get_appliances_data())
+        self.assertEqual("RT_OLD", c._refresh_token)
+
     def test_setup_sync_without_subscribe_does_not_crash(self) -> None:
         # The constructor MUST init _notify_function: setup_sync runs at initial
         # setup BEFORE subscribe_updates is ever called, and reads it for the

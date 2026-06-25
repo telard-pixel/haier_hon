@@ -182,6 +182,25 @@ async def _async_close_client(client) -> None:
         _LOGGER.warning("Error closing HonClient: %s", err)
 
 
+@callback
+def _persist_refresh_token(hass: HomeAssistant, entry: ConfigEntry, hon_client) -> None:
+    """Copy a rotated refresh token into entry.data, once, only on a real change.
+
+    Single source of truth for the write rule, used by BOTH the initial setup and the
+    coordinator update path, so a token rotated later (a runtime `auth.refresh()` or a
+    background `_async_reauth()`) still reaches `entry.data` and survives a restart -- not
+    just the first login. The non-empty AND changed guard reads `entry.data` live each
+    call, so it never wipes a good token and never writes on an unchanged poll (no entry
+    churn). HA-loop only (`@callback`). NEVER logs the token value."""
+    new_token = hon_client.refresh_token
+    stored = entry.data.get("refresh_token", "")
+    if new_token and new_token != stored:
+        _LOGGER.debug("Persisting rotated refresh token")
+        hass.config_entries.async_update_entry(
+            entry, data={**entry.data, "refresh_token": new_token}
+        )
+
+
 def _raise_setup_error(err: Exception) -> NoReturn:
     """Classify a SETUP failure and raise the matching HA exception.
 
@@ -345,19 +364,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _raise_setup_error(err)
 
     # Persist a rotated refresh token so the next restart keeps skipping the full login
-    # (and the 2FA prompt). Only writes when it actually changed, to avoid entry churn.
-    new_refresh_token = hon_client.refresh_token
-    if new_refresh_token and new_refresh_token != refresh_token:
-        _LOGGER.debug("Setup debug: persisting rotated refresh token")
-        hass.config_entries.async_update_entry(
-            entry, data={**entry.data, "refresh_token": new_refresh_token}
-        )
+    # (and the 2FA prompt). Single helper, change-guarded (see _persist_refresh_token).
+    _persist_refresh_token(hass, entry, hon_client)
 
     async def async_update_data() -> dict:
         """Fetch the updated data from all the hOn devices."""
         try:
             _LOGGER.debug("Coordinator debug: starting hOn data update")
             data = await hon_client.async_get_appliances_data()
+            # A runtime token refresh / background re-auth may have rotated the refresh
+            # token during this fetch; persist it (only on a real change) so it survives a
+            # restart -- not just the initial setup.
+            _persist_refresh_token(hass, entry, hon_client)
             summary = [
                 {
                     "id": redact_mac(appliance_id),

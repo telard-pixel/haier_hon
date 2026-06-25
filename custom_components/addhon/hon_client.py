@@ -545,6 +545,11 @@ class HonClient:
                 # without this the MQTT push is a permanent no-op after a re-auth (#20).
                 if self._notify_function is not None:
                     self._hon_instance.subscribe_updates(self._notify_function)
+                # Sync the SEED to the live (possibly just-minted/rotated) token so a later
+                # _async_reauth()/restart re-seeds the new session from the current token
+                # instead of the stale one -> no needless full login / 2FA re-prompt; also
+                # keeps diagnostics had_refresh_token accurate. (#1)
+                self._refresh_token = self.refresh_token or self._refresh_token
             except MFAChallengeRequired as err:
                 # 2FA email-OTP challenge: KEEP the dedicated loop + half-open session
                 # alive so submit_mfa_code_sync() can resume on the SAME session. Do NOT
@@ -605,6 +610,9 @@ class HonClient:
             self.last_error_code = None
             self.last_error_phase = None
             self.last_mfa_summary = None
+            # Sync the seed to the token just minted by the 2FA flow so a later reauth/
+            # restart does not re-trigger the OTP (#1).
+            self._refresh_token = self.refresh_token or self._refresh_token
             _LOGGER.info("hOn 2FA verification succeeded for %s", redact_email(self._email))
             # Re-apply the realtime notify callback to the now-completed session (#20).
             if self._notify_function is not None:
@@ -968,6 +976,13 @@ class HonClient:
                 )
 
             _LOGGER.info("Loaded %d hOn devices with data", len(data))
+            # Keep the SEED current with a mid-life token rotation (a runtime auth.refresh()
+            # during this poll rotates the live token but not the seed): without this, an
+            # _async_reauth() that fires after a rotation would re-seed the new session from
+            # a consumed token and fall back to a full login / 2FA re-prompt. The restart
+            # path is already covered by entry.data persistence; this covers in-process
+            # reauth after a rotation. (#1 residual)
+            self._refresh_token = self.refresh_token or self._refresh_token
             # From now on the poll is resilient (skip a failed appliance, keep the rest):
             # all entities have been created from this first complete snapshot.
             self._first_poll_done = True
