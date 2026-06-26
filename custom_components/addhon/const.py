@@ -63,6 +63,11 @@ SERVICE_SET_MQTT_LOG_LEVEL = "set_mqtt_log_level"
 SERVICE_SET_LOG_LEVEL = "set_log_level"
 ATTR_LEVEL = "level"
 
+# Domain-wide service that forces an immediate cloud poll for ALL loaded config
+# entries: the automation-callable equivalent of the per-device "Refresh now"
+# button. Global to the domain (no target, no fields), registered once.
+SERVICE_REFRESH = "refresh"
+
 # Option keys (entry.options) of the two debug toggles exposed in the
 # Configure/Options screen of the integration. They persist across restarts and
 # are applied on the fly (see _apply_debug_options in __init__). enable_debug ->

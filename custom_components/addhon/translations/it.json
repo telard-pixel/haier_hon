@@ -72,6 +72,10 @@
     }
   },
   "services": {
+    "refresh": {
+      "name": "Aggiorna ora",
+      "description": "Forza un polling immediato dal cloud per tutti gli account hOn configurati. L'equivalente richiamabile da automazione del pulsante \"Aggiorna ora\" per dispositivo: chiede a ogni coordinator caricato di recuperare subito i dati aggiornati, senza attendere il prossimo polling pianificato. Non richiede opzioni e si applica all'intera integrazione."
+    },
     "set_log_level": {
       "name": "Imposta livello log diagnostico",
       "description": "Cambia il livello di log dell'integrazione Haier hOn e dei logger del client hOn nativo utili a diagnosticare login, discovery dispositivi, reauth e polling. Usa \"debug\" quando i dispositivi non appaiono, poi torna a \"warning\" per ridurre il rumore. Non abilita il rumore MQTT realtime: per quello usa il service dedicato set_mqtt_log_level.",

@@ -12,6 +12,14 @@ entity-layer + diagnostics + mqtt logs (all simple `%s, <ref>` forms). It delibe
 does NOT cover hon_client.py, whose identity passes through helper calls and f-strings
 (`_get_name(a)`, `f"name={...}"`) that a top-level check can't reason about; those are
 covered behaviorally by test_hon_client_realtime.DiscoveryLogRedactionTest.
+
+Beyond bare Name/Attribute refs, a second check (`_identity_call_offender`) forbids the
+appliance NAME/NICKNAME being resolved inline for a NON-gated log: `<x>.get("name")` /
+`_get_name(...)` passed to `_LOGGER.info/.warning/.error/.exception/.critical`. That is
+the exact leak class found on v5.2.0 (the nickname reached home-assistant.log at INFO,
+which the debug toggles do not gate). The SAME pattern at `_LOGGER.debug` is allowed on
+purpose (debug is gated), so this check is level-aware and skips `.debug`. A redacted
+form `redact_id(_get_name(a))` is a `redact_*` Call at the top level and is not flagged.
 """
 from __future__ import annotations
 
@@ -22,6 +30,11 @@ from pathlib import Path
 COMPONENT = Path(__file__).resolve().parents[1] / "custom_components" / "addhon"
 
 _LOG_METHODS = {"debug", "info", "warning", "error", "exception", "critical", "log"}
+
+# Dict keys / helpers that resolve the appliance nickname (identity). _get_name()
+# in hon_client.py prefers nick_name/nickName, and coordinator data["name"] is that
+# same nickname; logging either in clear at a non-gated level is a leak.
+_IDENTITY_GET_KEYS = frozenset({"name", "nick_name", "nickName", "nickname"})
 
 # Entity layer: the appliance id (MAC/serial/code), the entity unique_id, and the
 # raw device-identity attributes a future log line might reach for directly.
@@ -34,6 +47,7 @@ _ENTITY_ATTRS = frozenset(
         "serial_number",
         "_serial",
         "nick_name",
+        "nickName",  # camelCase sibling of nick_name (_get_name reads both via getattr)
     }
 )
 
@@ -47,6 +61,14 @@ _FILES = {
     "sensor.py": (_ENTITY_NAMES, _ENTITY_ATTRS),
     "binary_sensor.py": (_ENTITY_NAMES, _ENTITY_ATTRS),
     "climate.py": (_ENTITY_NAMES, _ENTITY_ATTRS),
+    # Setup orchestration: the legacy-entity cleanup logs a registry entry's
+    # entity_id (object_id = nickname slug) / unique_id (MAC-derived). They must go
+    # through redact_id(...). The 2026-06-25 INFO leak was a bare reg_entry.entity_id
+    # here; this registration (absent before) gives forward protection.
+    "__init__.py": (
+        _ENTITY_NAMES,
+        _ENTITY_ATTRS | frozenset({"entity_id", "unique_id"}),
+    ),
     "diagnostics.py": (frozenset({"appliance_id"}), frozenset()),
     # Setup orchestration: the raw cloud appliance dict (CR#2 malformed-appliance
     # log). It must never be passed bare to _LOGGER -- key-name redaction cannot mask
@@ -126,6 +148,30 @@ def _dict_dump_offender(arg: ast.AST) -> str | None:
     return None
 
 
+def _identity_call_offender(arg: ast.AST) -> str | None:
+    """Label the arg if it resolves the appliance NAME/NICKNAME inline, else None.
+
+    Catches `<x>.get("name"|"nick_name"|...)` and `_get_name(...)` -- the nickname
+    leak class. The caller applies this ONLY to non-gated logs (everything but
+    `_LOGGER.debug`): the nickname in clear is acceptable at DEBUG (gated by the
+    toggles) but not at INFO+ (always in home-assistant.log). A redacted form like
+    `redact_id(_get_name(a))` has `redact_id(...)` as its TOP-LEVEL node, so it is
+    not flagged (only the outermost call is inspected, as everywhere in this guard)."""
+    if not isinstance(arg, ast.Call):
+        return None
+    if isinstance(arg.func, ast.Name) and arg.func.id == "_get_name":
+        return "_get_name(...)"
+    if (
+        isinstance(arg.func, ast.Attribute)
+        and arg.func.attr == "get"
+        and arg.args
+        and isinstance(arg.args[0], ast.Constant)
+        and arg.args[0].value in _IDENTITY_GET_KEYS
+    ):
+        return f'.get("{arg.args[0].value}")'
+    return None
+
+
 class LogIdentityRedactionTest(unittest.TestCase):
     def test_no_raw_identity_in_logger_calls(self) -> None:
         offenders: list[str] = []
@@ -136,8 +182,14 @@ class LogIdentityRedactionTest(unittest.TestCase):
             for node in ast.walk(tree):
                 if not _is_logger_call(node):
                     continue
+                # Nickname in clear is allowed at DEBUG (gated by the toggles), not at
+                # INFO+ (always written). The bare Name/Attr and dict-dump checks apply
+                # at every level (a raw id must never be logged, even at debug).
+                gated = node.func.attr == "debug"
                 for arg in node.args:
                     label = _bare_offender(arg, names, attrs) or _dict_dump_offender(arg)
+                    if not label and not gated:
+                        label = _identity_call_offender(arg)
                     if label:
                         offenders.append(f"{rel}:{node.lineno}: raw {label}")
         self.assertEqual(
@@ -168,6 +220,28 @@ class LogIdentityRedactionTest(unittest.TestCase):
         self.assertIsNone(_dict_dump_offender(safe.args[1]))
         literal = ast.parse('_LOGGER.debug("x %s", {"k": v})').body[0].value
         self.assertIsNone(_dict_dump_offender(literal.args[1]))
+
+    def test_guard_detects_identity_call_leak(self) -> None:
+        # Meta: the nickname-resolving call class is caught, while a redacted form,
+        # a non-identity key, and a non-call arg are not.
+        get_leak = ast.parse('_LOGGER.info("x %s", data.get("name"))').body[0].value
+        self.assertEqual(_identity_call_offender(get_leak.args[1]), '.get("name")')
+        nick_leak = ast.parse('_LOGGER.warning("x %s", a.get("nick_name"))').body[0].value
+        self.assertEqual(_identity_call_offender(nick_leak.args[1]), '.get("nick_name")')
+        fn_leak = ast.parse('_LOGGER.error("x %s", _get_name(a))').body[0].value
+        self.assertEqual(_identity_call_offender(fn_leak.args[1]), "_get_name(...)")
+        safe = ast.parse('_LOGGER.info("x %s", redact_id(_get_name(a)))').body[0].value
+        self.assertIsNone(_identity_call_offender(safe.args[1]))
+        benign = ast.parse('_LOGGER.info("x %s", d.get("count"))').body[0].value
+        self.assertIsNone(_identity_call_offender(benign.args[1]))
+
+    def test_nickname_call_allowed_at_debug_not_at_info(self) -> None:
+        # Meta: the level gate. The SAME data.get("name") arg is a leak at INFO but
+        # allowed at DEBUG (gated). Mirrors the loop's `gated = attr == "debug"`.
+        for method, gated in (("debug", True), ("info", False), ("warning", False)):
+            call = ast.parse(f'_LOGGER.{method}("x %s", data.get("name"))').body[0].value
+            flagged = (not gated) and _identity_call_offender(call.args[1]) is not None
+            self.assertEqual(flagged, not gated, f"method={method}")
 
 
 if __name__ == "__main__":

@@ -26,6 +26,8 @@
 - **Asyncio optimization** — dedicated background loop for reliable API communication
 - **Smart attribute mapping** — device-specific attribute keys extracted from real diagnostics
 - **Full Lovelace support** — integrates seamlessly with Home Assistant UI and automations
+- **Two-factor authentication (2FA)** — Two-factor authentication during the login process is supported
+- **Multilingual integration** — Currently available in Italian and English, with additional languages available upon request.
 
 ## Installation
 
@@ -88,97 +90,6 @@ controls where they have been mapped.
 
 Other hOn-compatible Haier appliances should work; feel free to test and report.
 
-## Localization
-
-The user interface is multi-language. Entity names, the config and options
-screens, service names and descriptions, and user-facing error messages are
-provided as translations (currently English and Italian) and follow Home
-Assistant's configured language. The code, comments and log messages are
-English-only.
-
-## How It Works
-
-The integration operates in three layers:
-
-### 1. Home Assistant Integration Layer
-
-Handles entity discovery, service calls, and data updates. On initialization, it queries your Haier account for all paired devices and creates Home Assistant entities for each one.
-
-### 2. Native hOn Client
-
-A self-contained Python client (`custom_components/addhon/client/`), with no
-third-party hOn library vendored in. It manages:
-- **Authentication**: Salesforce OAuth login exchanging credentials for the
-  Cognito/id tokens the API expects (`client/transport/auth.py`)
-- **Device enumeration**: fetches the full device list and metadata, including
-  offline appliances (`client/transport/api.py`)
-- **Command routing**: builds and sends control commands (startProgram,
-  settings, stopProgram) with their parameters and rules (`client/engine/`)
-- **State polling and real-time updates**: HTTP polling plus an AWS IoT MQTT
-  stream for live state (`client/transport/mqtt.py`)
-
-### 3. Haier Cloud API (hOn)
-
-The backend cloud service that handles:
-- Token exchange and session management
-- Command execution on your physical devices
-- Real-time state synchronization
-- Device pairing and account management
-
-## Entities
-
-Each discovered appliance becomes a Home Assistant **device**; the entities it
-exposes depend on its type. A **connectivity** binary sensor is always present and
-stays available even when the appliance is offline, so you can tell whether it is
-reachable (all other entities become *unavailable* while it is offline).
-
-### Climate (AC)
-
-- **HVAC modes:** off, auto, cool, dry, heat, fan_only
-- **Fan modes:** auto, low, medium, high
-- **Swing:** off / on (vertical swing), when the device exposes it
-- **Temperature:** current temperature and target set point (16-30 °C)
-
-### Laundry (washing machine, tumble dryer, washer-dryer)
-
-- **Sensors:** state, program name, program phase, remaining time and, depending
-  on the model, wash temperature, spin speed, dry level, delay time, plus energy
-  and water counters
-- **Controls:** start/stop and the available programs and options, via switch,
-  select, number and button entities
-
-### Other appliances
-
-Refrigerators, ovens, dishwashers, water heaters, robot vacuums and the remaining
-types are exposed mainly through sensors (and a few controls where they have been
-mapped).
-
-## Services
-
-Device control is done through the normal entities (climate, switch, number,
-select, button), not through a service call. The integration exposes only two
-diagnostic services (also available from Developer Tools → Actions):
-
-### `addhon.set_log_level`
-
-Set the integration's diagnostic log level at runtime.
-
-```yaml
-action: addhon.set_log_level
-data:
-  level: debug   # one of: debug, info, warning, error
-```
-
-### `addhon.set_mqtt_log_level`
-
-Set the verbosity of the realtime MQTT stream logger at runtime.
-
-```yaml
-action: addhon.set_mqtt_log_level
-data:
-  level: warning   # one of: debug, info, warning, error
-```
-
 ## Troubleshooting
 
 ### Capture debug logs
@@ -233,16 +144,11 @@ To add support for a new Haier device:
 3. Add or extend the relevant platform file (`sensor.py`, `binary_sensor.py`, `number.py`, `select.py`, `switch.py`, ...) and, if the device type needs it, its capability map
 4. Test with your device, then open a pull request (or an issue with the captured diagnostics)
 
-## License
-
-MIT License — see LICENSE file for details.
-
 ## Contributing
 
 Issues and pull requests are welcome! Please include:
 - Home Assistant version
 - Device model number
-- Debug logs (see [`docs/discovery-debugging.md`](docs/discovery-debugging.md))
 - Steps to reproduce
 
 ## Support
