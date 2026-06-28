@@ -300,11 +300,25 @@ class CatalogPinTest(unittest.TestCase):
         self.assertNotEqual(dry[0].label_map["1"], dry[1].label_map["1"])
 
     def test_catalog_keys_and_params_unique_within_type(self) -> None:
-        # No two controls of the same appliance type may share a param (would write
-        # the same option twice) or a unique_id suffix collision.
+        # No two controls of the same appliance type may share a param (would write the
+        # same option twice). And within a PLATFORM no two may share a key: the entity
+        # unique_id is f"{appliance_id}_opt_{key}" scoped per platform, so a same-key
+        # collision in one platform clashes (cross-platform reuse is fine -- different
+        # entity domains). This is the unique_id-suffix guard the comment promised.
         for app_type in (APPLIANCE_WM, APPLIANCE_WD, APPLIANCE_TD):
             params = [p for p, _ in _catalog_entries(app_type)]
             self.assertEqual(len(params), len(set(params)), f"{app_type}: duplicate catalog param")
+            for platform, catalog in (
+                ("switch", switch._PROGRAM_OPTION_SWITCHES),
+                ("select", select._PROGRAM_OPTION_SELECTS),
+                ("number", number._PROGRAM_OPTION_NUMBERS),
+            ):
+                keys = [d.key for d in catalog if app_type in d.types]
+                self.assertEqual(
+                    len(keys),
+                    len(set(keys)),
+                    f"{app_type}/{platform}: duplicate catalog key (unique_id collision)",
+                )
 
 
 if __name__ == "__main__":
