@@ -263,12 +263,21 @@ class HonProgramCommandButton(HonBaseEntity, ButtonEntity):
                     redact_store(store),
                 )
             # (c) Clear the buffered options on a successful startProgram send (#35).
-            # Gated on the command name, NOT on pending_program: the options must be
-            # cleared even when only options changed and no program was re-selected. On a
-            # failure the buffer is kept (the whole try aborts before here), so a retry
-            # re-sends the same options.
+            # Gated on the command name, NOT on pending_program: options are cleared even
+            # when only options changed and no program was re-selected. Clear ONLY the keys
+            # we actually SENT (the pre-send snapshot) whose current store value still equals
+            # what we sent, so an option the user (re)wrote AFTER the snapshot but before this
+            # clear survives for the next Start (PR #38 / CodeRabbit). Pop the appliance entry
+            # only once empty. On a failure the try aborts before here -> the whole buffer is
+            # kept and a retry re-sends it.
             if self._command_name == "startProgram":
-                options_store.pop(self._appliance_id, None)
+                current = options_store.get(self._appliance_id)
+                if isinstance(current, dict):
+                    for opt_name, opt_value in pending_options.items():
+                        if current.get(opt_name) == opt_value:
+                            current.pop(opt_name, None)
+                    if not current:
+                        options_store.pop(self._appliance_id, None)
                 _LOGGER.debug(
                     "Button debug: pending options cleared, store=%s",
                     redact_store(options_store),

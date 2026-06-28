@@ -251,6 +251,20 @@ class HonProgramOptionEntity(HonBaseEntity):
             return raw
         return self._get_attr(f"{STARTPROGRAM_COMMAND}.{self._param}")
 
+    def _active_option_param(self):
+        """Resolve this param off the ACTIVE startProgram command's parameters only.
+
+        Program-accurate (and cheap) vs the cached ``_option_param`` (the merged-across-
+        categories superset): selecting a program SWAPS the active ``startProgram`` command,
+        so a per-program range/value must come from the current command, not the merged
+        cache (PR #38 / Greptile P2). Never calls ``available_settings`` (no range
+        enumeration). Returns None if the command/param is absent."""
+        command = startprogram_command(self._appliance)
+        params = getattr(command, "parameters", None) if command is not None else None
+        if isinstance(params, dict):
+            return params.get(self._param)
+        return None
+
     @property
     def available(self) -> bool:
         # Base connection+present check, NO remoteCtrValid gate (see class docstring).

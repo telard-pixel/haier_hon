@@ -493,9 +493,15 @@ class HonProgramOptionNumber(HonProgramOptionEntity, NumberEntity):
 
     @property
     def _live_range(self) -> tuple[float, float, float]:
-        # Read live min/max/step off the cached param (cheap: no per-read available_settings
-        # re-resolution across program categories). Falls back if the param is unavailable.
-        rng = option_range(self._option_param) if self._option_param is not None else None
+        # Read live min/max/step from the ACTIVE startProgram command first, so the range
+        # tracks the SELECTED program (the cached _option_param is the merged superset across
+        # categories, which would validate too permissively after a program swap -- PR #38).
+        # Both are cheap single-object reads (no available_settings). Fall back to the cached
+        # merged param, then to the static fallback range.
+        active = self._active_option_param()
+        rng = option_range(active) if active is not None else None
+        if rng is None and self._option_param is not None:
+            rng = option_range(self._option_param)
         return rng or self._fallback_range
 
     @property

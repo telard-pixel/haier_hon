@@ -655,5 +655,173 @@ class TypeGateDryLevelTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(["iron_dry", "ready_to_wear", "cupboard"], entity._attr_options)
 
 
+class ProgramDependencyTest(unittest.IsolatedAsyncioTestCase):
+    """PR#38 reviewer findings: stale options across programs (#1) and a cached
+    range that outlives the program after a swap (#3)."""
+
+    def _attach(self, entity) -> None:
+        entity.hass = FakeHass()
+
+    async def test_changing_program_clears_pending_options(self) -> None:
+        # FIX#1 (Greptile P1): selecting a DIFFERENT program clears THIS appliance's
+        # buffered options (they were chosen for the previous program), and selecting
+        # never sends a command.
+        from custom_components.addhon.select import HonProgramSelect
+
+        start = RecordingCommand({"program": Param(values={"1": "Cotone", "2": "Sintetici"})})
+        coordinator = FakeCoordinator(_washer({"startProgram": start}))
+        # Options chosen in the context of the CURRENT program.
+        coordinator.pending_options = {"washer-1": {"spinSpeed": "1200"}}
+
+        entity = HonProgramSelect(coordinator, "washer-1", FakeClient())
+        self._attach(entity)
+
+        await entity.async_select_option("Sintetici")
+
+        # The new program is recorded; selecting does NOT start the appliance.
+        self.assertEqual({"washer-1": "2"}, coordinator.pending_programs)
+        self.assertEqual(0, start.send_calls)
+        self.assertEqual(0, coordinator.refreshes)
+        # The stale options from the previous program are gone (entry dropped).
+        self.assertNotIn("washer-1", coordinator.pending_options)
+        self.assertEqual({}, coordinator.pending_options)
+
+    async def test_reselecting_same_program_keeps_pending_options(self) -> None:
+        # FIX#1 guard: re-selecting the SAME program is not a change, so the buffered
+        # options (chosen for that very program) are PRESERVED, not wiped.
+        from custom_components.addhon.select import HonProgramSelect
+
+        start = RecordingCommand({"program": Param(values={"1": "Cotone", "2": "Sintetici"})})
+        coordinator = FakeCoordinator(_washer({"startProgram": start}))
+        coordinator.pending_programs = {"washer-1": "2"}  # already on Sintetici
+        coordinator.pending_options = {"washer-1": {"spinSpeed": "1200"}}
+
+        entity = HonProgramSelect(coordinator, "washer-1", FakeClient())
+        self._attach(entity)
+
+        await entity.async_select_option("Sintetici")  # the SAME program
+
+        self.assertEqual({"washer-1": "2"}, coordinator.pending_programs)
+        self.assertEqual({"washer-1": {"spinSpeed": "1200"}}, coordinator.pending_options)
+        self.assertEqual(0, start.send_calls)
+
+    async def test_number_range_follows_active_program_after_swap(self) -> None:
+        # FIX#3 (Greptile P2): after a program swap the number's range must follow the
+        # ACTIVE program, NOT the merged superset cached at __init__. Mutation-proof: if
+        # _live_range read the cached merged param, native_max_value would be 1410 and the
+        # 240 write would be accepted -- both assertions below would then fail.
+        from homeassistant.exceptions import HomeAssistantError
+        from custom_components.addhon import number
+
+        # Two program categories with DIFFERENT delayTime ranges. The merged param the
+        # mixin caches at __init__ is the wide one (the initial active command).
+        wide = RecordingCommand({"delayTime": RangeParam(0, 1410, 30)})
+        narrow = RecordingCommand({"delayTime": RangeParam(0, 180, 30)})
+        appliance = types.SimpleNamespace(commands={"startProgram": wide})
+        coordinator = FakeCoordinator(
+            {"washer-1": {"type": "WM", "name": "W", "appliance": appliance,
+                          "attributes": {}, "settings": {}}}
+        )
+        desc = number.HonProgramOptionNumberDescription(
+            key="delay_time", param="delayTime", translation_key="delay_time",
+            types=("WM", "WD", "TD"),
+        )
+        entity = number.HonProgramOptionNumber(coordinator, "washer-1", desc, FakeClient())
+        self._attach(entity)
+
+        # Initially the active command is the wide category.
+        self.assertEqual(1410, entity.native_max_value)
+
+        # Program swap: the active startProgram command becomes the narrow category.
+        appliance.commands["startProgram"] = narrow
+        self.assertEqual(180, entity.native_max_value)
+        self.assertEqual(0, entity.native_min_value)
+        self.assertEqual(30, entity.native_step)
+
+        # A value valid for the merged superset (240) but NOT the active program is rejected.
+        with self.assertRaises(HomeAssistantError) as ctx:
+            await entity.async_set_native_value(240)
+        self.assertEqual("invalid_setpoint", ctx.exception.translation_key)
+
+        # A value valid for the ACTIVE program is buffered.
+        await entity.async_set_native_value(150)
+        self.assertEqual("150", coordinator.pending_options["washer-1"]["delayTime"])
+        self.assertEqual(0, narrow.send_calls)
+
+    async def test_number_range_falls_back_to_cached_param_when_active_absent(self) -> None:
+        # FIX#3 fallback: if the active command no longer exposes the param, the range
+        # falls back to the cached merged param read LIVE, never to a fabricated default.
+        from custom_components.addhon import number
+
+        cached_param = RangeParam(0, 1410, 30)
+        wide = RecordingCommand({"delayTime": cached_param})
+        appliance = types.SimpleNamespace(commands={"startProgram": wide})
+        coordinator = FakeCoordinator(
+            {"washer-1": {"type": "WM", "name": "W", "appliance": appliance,
+                          "attributes": {}, "settings": {}}}
+        )
+        desc = number.HonProgramOptionNumberDescription(
+            key="delay_time", param="delayTime", translation_key="delay_time",
+            types=("WM", "WD", "TD"),
+        )
+        entity = number.HonProgramOptionNumber(coordinator, "washer-1", desc, FakeClient())
+        self._attach(entity)
+
+        # Mutate the cached merged param AFTER __init__ so its LIVE range (600) differs from
+        # the _fallback_range snapshot captured at __init__ (1410): this isolates the
+        # cached-param branch of _live_range from the static fallback (without this, both
+        # paths would coincidentally return 1410 and the branch would be untested).
+        cached_param.max = 600
+        # The active command swaps to one WITHOUT delayTime -> _live_range must read the
+        # cached merged param LIVE (600), not the __init__ snapshot (1410) nor a default.
+        appliance.commands["startProgram"] = RecordingCommand({"onOffStatus": Param("1")})
+        self.assertEqual(600, entity.native_max_value)
+
+
+class OptionClearSurvivesNewerWriteTest(unittest.IsolatedAsyncioTestCase):
+    """PR#38 FIX#2 (CodeRabbit Major): the post-send clear must drop only the
+    actually-sent option values, leaving a newer/changed (unsent) write intact."""
+
+    def _attach(self, entity) -> None:
+        entity.hass = FakeHass()
+
+    async def test_newer_write_after_snapshot_survives_clear(self) -> None:
+        from custom_components.addhon.button import HonProgramCommandButton
+
+        start = RecordingCommand({"spinSpeed": Param("0"), "temp": Param("0")})
+        coordinator = FakeCoordinator(_washer({"startProgram": start}))
+        # Snapshot (taken before the executor job) will be {spinSpeed:1200, temp:40}.
+        coordinator.pending_options = {"washer-1": {"spinSpeed": "1200", "temp": "40"}}
+
+        # Simulate a NEW option write landing AFTER the snapshot but BEFORE the clear:
+        # hook send() to add a brand-new key and to CHANGE one of the sent values.
+        orig_send = start.send
+
+        async def send_then_buffer_new() -> None:
+            await orig_send()
+            store = coordinator.pending_options["washer-1"]
+            store["delayTime"] = "240"   # brand-new, never sent
+            store["spinSpeed"] = "800"   # changed AFTER we sent "1200"
+
+        start.send = send_then_buffer_new
+
+        button = HonProgramCommandButton(
+            coordinator, "washer-1", FakeClient(),
+            command_name="startProgram", unique_suffix="start_program",
+            translation_key="start_program", icon="mdi:play-circle",
+        )
+        self._attach(button)
+
+        await button.async_press()
+
+        # temp was sent ("40") and unchanged -> cleared. spinSpeed changed after the send
+        # ("800") -> kept. delayTime is new/unsent -> kept. The entry is NOT popped.
+        self.assertEqual(
+            {"washer-1": {"spinSpeed": "800", "delayTime": "240"}},
+            coordinator.pending_options,
+        )
+        self.assertEqual(1, start.send_calls)
+
+
 if __name__ == "__main__":
     unittest.main()

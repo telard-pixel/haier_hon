@@ -22,6 +22,7 @@ from .const import (
     DRY_LEVEL_LABELS_WM,
     DRY_LEVEL_SENTINELS,
     PROGRAM_PARAM_NAMES,
+    PROGRAM_PENDING_OPTIONS,
     PROGRAM_PENDING_STORE,
     STEAM_LEVEL_LABELS,
     TEMP_LEVEL_LABELS,
@@ -394,6 +395,7 @@ class HonProgramSelect(HonBaseEntity, SelectEntity):
         # with the "Avvia programma" button, which reads this pending program and
         # applies it to the startProgram command.
         store = self._coordinator_store(PROGRAM_PENDING_STORE)
+        previous_code = store.get(self._appliance_id)
         _LOGGER.debug(
             "Select debug: before selection option=%s code=%s store=%s",
             option,
@@ -401,10 +403,25 @@ class HonProgramSelect(HonBaseEntity, SelectEntity):
             redact_store(store),
         )
         store[self._appliance_id] = code
+        # Changing the program invalidates any buffered program OPTIONS: they were chosen
+        # for the previous program and must not silently carry into the new one at Start
+        # (PR #38 / Greptile P1). Clear them ONLY on an actual program change, so
+        # re-selecting the SAME program keeps the user's buffered options.
+        cleared = (
+            self._coordinator_store(PROGRAM_PENDING_OPTIONS).pop(self._appliance_id, None)
+            if previous_code != code
+            else None
+        )
         _LOGGER.info(
             "Select: program '%s' (code=%s) set; start it with 'Avvia programma'",
             option, code,
         )
+        if cleared:
+            _LOGGER.debug(
+                "Select debug: program change id=%s cleared pending options=%s",
+                redact_id(self._appliance_id),
+                sorted(cleared) if isinstance(cleared, dict) else None,
+            )
         _LOGGER.debug("Select debug: after selection store=%s", redact_store(store))
         self.async_write_ha_state()
 
