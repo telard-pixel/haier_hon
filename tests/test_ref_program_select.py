@@ -231,6 +231,66 @@ class RefProgramSelectBehaviourTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(1, new_cmd.send_calls)  # swapped command sent
         self.assertEqual(0, old_cmd.send_calls)  # stale one NOT sent
 
+    async def test_send_failure_rolls_back_swap_and_program(self) -> None:
+        # If startProgram.send() fails AFTER the category swap, async_send_program must
+        # restore the pre-swap command object AND the program param value, so no unsent
+        # local mutation leaks into later interactions.
+        from homeassistant.exceptions import HomeAssistantError
+        from custom_components.addhon.select import HonRefProgramSelect
+
+        appliance = types.SimpleNamespace(commands={})
+
+        class FailingCommand(RecordingCommand):
+            async def send(self) -> None:
+                self.send_calls += 1
+                raise RuntimeError("cloud rejected")
+
+        new_cmd = FailingCommand({"program": Param("super_cool")})
+
+        class ProgramSwapParam:
+            def __init__(self, values) -> None:
+                self._value = "ORIG"
+                self.values = values
+
+            @property
+            def value(self):
+                return self._value
+
+            @value.setter
+            def value(self, v) -> None:
+                self._value = v
+                appliance.commands["startProgram"] = new_cmd  # category swap
+
+        swap_param = ProgramSwapParam(["super_cool", "holiday"])
+        old_cmd = RecordingCommand({"program": swap_param})
+        appliance.commands["startProgram"] = old_cmd
+        appliance.commands["stopProgram"] = RecordingCommand(
+            {"holidayMode": Param("0", values=["0"])}
+        )
+
+        coordinator = FakeCoordinator(
+            {
+                "ref-1": {
+                    "type": "REF",
+                    "name": "Fridge",
+                    "appliance": appliance,
+                    "attributes": {},
+                    "settings": {},
+                }
+            }
+        )
+        entity = HonRefProgramSelect(coordinator, "ref-1", FakeClient())
+        entity.hass = FakeHass()
+
+        with self.assertRaises(HomeAssistantError) as ctx:
+            await entity.async_select_option("super_cool")
+        self.assertEqual("command_error", ctx.exception.translation_key)
+        self.assertEqual(1, new_cmd.send_calls)  # send was attempted
+        # Rollback: the swap was undone and the staged program value reverted.
+        self.assertIs(old_cmd, appliance.commands["startProgram"])
+        self.assertEqual("ORIG", swap_param.value)
+        self.assertEqual(0, coordinator.refreshes)  # no refresh on failed send
+
     async def test_invalid_option_raises(self) -> None:
         from homeassistant.exceptions import HomeAssistantError
 

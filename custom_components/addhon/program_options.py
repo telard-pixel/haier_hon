@@ -81,27 +81,55 @@ async def async_send_program(hass, client, appliance, program_code: str) -> None
                 )
             params = getattr(command, "parameters", None)
             params = params if isinstance(params, dict) else {}
-            applied = False
-            for pname in PROGRAM_PARAM_NAMES:
-                if pname in params:
-                    params[pname].value = program_code
-                    applied = True
-                    break
-            if not applied:
-                raise RuntimeError(
-                    f"startProgram has no program parameter {PROGRAM_PARAM_NAMES} "
-                    f"among {sorted(params)}"
-                )
-            # Re-read after the category swap so send() targets the SELECTED program's
-            # command (carrying its fixed ancillaries), not the stale pre-swap object.
-            refreshed = commands.get(STARTPROGRAM_COMMAND)
-            if refreshed is not None and refreshed is not command:
-                _LOGGER.debug(
-                    "ProgramSend debug: startProgram swapped after program apply (%s)",
-                    program_code,
-                )
-                command = refreshed
-            await command.send()
+            # Snapshot for rollback (mirrors async_send_command). Applying the program
+            # SWAPS appliance.commands[startProgram] to the selected category (a
+            # HonParameterProgram setter does command.category=code; the param's own
+            # __dict__ is untouched). A prCode/enum-typed program param instead mutates its
+            # own value. If send() then fails we must undo BOTH possibilities, otherwise
+            # select.py (which skips the refresh on error) would keep running against a
+            # local command/category the cloud never accepted, until the next coordinator
+            # poll. The command-pointer reset below is the load-bearing undo for the swap;
+            # the param-__dict__ restore covers the value-mutating (prCode) case.
+            original_command = command
+            snapshots: dict = {
+                key: dict(attr.__dict__)
+                for key, attr in params.items()
+                if hasattr(attr, "__dict__")
+            }
+            try:
+                applied = False
+                for pname in PROGRAM_PARAM_NAMES:
+                    if pname in params:
+                        params[pname].value = program_code
+                        applied = True
+                        break
+                if not applied:
+                    raise RuntimeError(
+                        f"startProgram has no program parameter {PROGRAM_PARAM_NAMES} "
+                        f"among {sorted(params)}"
+                    )
+                # Re-read after the category swap so send() targets the SELECTED program's
+                # command (carrying its fixed ancillaries), not the stale pre-swap object.
+                refreshed = commands.get(STARTPROGRAM_COMMAND)
+                if refreshed is not None and refreshed is not command:
+                    _LOGGER.debug(
+                        "ProgramSend debug: startProgram swapped after program apply (%s)",
+                        program_code,
+                    )
+                    command = refreshed
+                await command.send()
+            except Exception:
+                # Restore the pre-swap parameter state (copy __dict__ directly, bypassing
+                # the setters so a value-mutating param does not re-fire its rules) and
+                # reset the swapped command pointer to the original.
+                for key, snap in snapshots.items():
+                    attr = params.get(key)
+                    if attr is None or not hasattr(attr, "__dict__"):
+                        continue
+                    attr.__dict__.clear()
+                    attr.__dict__.update(snap)
+                commands[STARTPROGRAM_COMMAND] = original_command
+                raise
             _LOGGER.debug(
                 "ProgramSend debug: startProgram '%s' send completed id=%s",
                 program_code,
