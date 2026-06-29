@@ -414,15 +414,51 @@ class RefProgramSelectBehaviourTest(unittest.IsolatedAsyncioTestCase):
         entity, _ = self._entity(commands, {"intelligenceMode": "1"})
         self.assertEqual("auto_set", entity.current_option)
 
-    async def test_iot_preset_reads_back_off(self) -> None:
-        # iot_* presets set no mode flag, so after applying they read back as off (the
-        # documented limitation; their effect shows on the temperature numbers instead).
+    async def test_select_iot_preset_sends_program(self) -> None:
         commands = _ref_commands()
         entity, _ = self._entity(commands)
         await entity.async_select_option("iot_extra_cold")
-        self.assertEqual("iot_extra_cold", commands["startProgram"].parameters["program"].value)
-        # No flag set -> current_option is off.
+        self.assertEqual(
+            "iot_extra_cold", commands["startProgram"].parameters["program"].value
+        )
+
+    async def test_current_option_reads_iot_preset_from_programname(self) -> None:
+        # iot_* presets set NO mode flag, but the cloud persists the active program in
+        # programName (often as an i18n key); current_option reflects it from that real
+        # feedback, both as a bare code and as a dotted i18n key.
+        for raw in ("iot_extra_cold", "PROGRAMS.REF.IOT_EXTRA_COLD"):
+            entity, _ = self._entity(_ref_commands(), {"programName": raw})
+            self.assertEqual("iot_extra_cold", entity.current_option, raw)
+
+    async def test_current_option_programname_via_prstr_and_case(self) -> None:
+        # prStr is an accepted source too; matching is case-insensitive.
+        entity, _ = self._entity(_ref_commands(), {"prStr": "Super_Cool"})
+        self.assertEqual("super_cool", entity.current_option)
+
+    async def test_current_option_off_without_feedback(self) -> None:
+        # No flag and an idle programName -> off (nothing active).
+        entity, _ = self._entity(_ref_commands(), {"programName": "No Program"})
         self.assertEqual("off", entity.current_option)
+
+    async def test_current_option_numeric_prcode_is_harmless(self) -> None:
+        # prCode is consulted but is an int needing a device map we do not have; a numeric
+        # value must never false-match a snake_case code -> off (safe, not a wrong program).
+        for raw in (3, "5", 0):
+            entity, _ = self._entity(_ref_commands(), {"prCode": raw})
+            self.assertEqual("off", entity.current_option, raw)
+
+    async def test_current_option_programname_no_fuzzy_match(self) -> None:
+        # A program name that is not EXACTLY an offered code must not be force-matched.
+        entity, _ = self._entity(_ref_commands(), {"programName": "extra_cold"})
+        self.assertEqual("off", entity.current_option)
+
+    async def test_flag_wins_over_programname(self) -> None:
+        # A live flag takes precedence (boost modes are the most reliable signal).
+        entity, _ = self._entity(
+            _ref_commands(),
+            {"quickModeZ1": "1", "programName": "PROGRAMS.REF.IOT_DAILY_USE"},
+        )
+        self.assertEqual("super_cool", entity.current_option)
 
 
 class RefProgramStateTranslationTest(unittest.TestCase):

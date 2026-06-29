@@ -542,9 +542,11 @@ class HonRefProgramSelect(HonBaseEntity, SelectEntity):
     select. Options are ``off`` plus the device's LIVE ``startProgram.program`` enum
     (capability-gated, never hard-coded). Unlike the washer select, selecting here sends
     IMMEDIATELY (no buffer/Start-button cycle): a program -> ``startProgram(program=X)``,
-    ``off`` -> ``stopProgram``. ``current_option`` is derived from the live device mode
-    FLAGS, NOT from ``startProgram.program`` (which only carries the recovered default
-    category and would otherwise pin a phantom mode forever)."""
+    ``off`` -> ``stopProgram``. ``current_option`` is derived from REAL device feedback:
+    first the live mode FLAGS (boost modes), then the cloud-persisted active-program field
+    ``programName``/``prStr``/``prCode`` (covers the iot_* presets, which set no flag) -
+    never optimistic state and never ``startProgram.program`` (the recovered default
+    category, which would otherwise pin a phantom mode forever)."""
 
     _attr_icon = "mdi:snowflake"
 
@@ -612,10 +614,15 @@ class HonRefProgramSelect(HonBaseEntity, SelectEntity):
         command, param_name = resolved
         return bool(HonProgramSelect._program_values(command, param_name))
 
+    # Shadow attributes carrying the ACTIVE program identity (cloud-persisted: what the
+    # official app reads to show the running program, e.g. after an app reinstall). NOT
+    # startProgram.program, which is only the recovered default category.
+    _REF_ACTIVE_PROGRAM_ATTRS = ("programName", "prStr", "prCode")
+
     @property
     def current_option(self) -> str | None:
-        # Device truth from the mode FLAGS (double-gated: the code must also be a live
-        # program option). No mode set -> off. Deliberately ignores startProgram.program.
+        # 1) Boost/special modes from the live device FLAGS (the most reliable signal,
+        #    zeroed by stopProgram). Double-gated: the code must be an offered option.
         for flag, code in _REF_MODE_FLAG_TO_PROGRAM.items():
             if code in self._program_codes and str(self._get_attr(flag)) == "1":
                 _LOGGER.debug(
@@ -623,7 +630,41 @@ class HonRefProgramSelect(HonBaseEntity, SelectEntity):
                     redact_id(self._appliance_id), flag, code,
                 )
                 return code
+        # 2) Any other active program (e.g. the iot_* download presets, which set no
+        #    flag) from the cloud-persisted programName/prStr/prCode. Real device
+        #    feedback, NOT optimistic "remember what was clicked" state.
+        matched = self._active_program_code()
+        if matched is not None:
+            return matched
+        # 3) Nothing active.
         return REF_PROGRAM_OFF
+
+    def _active_program_code(self) -> str | None:
+        """Match the cloud's active-program field to a live option code, or None.
+
+        programName/prStr ship as i18n keys (e.g. ``PROGRAMS.REF.IOT_EXTRA_COLD``), so we
+        compare both the whole token and its last dotted segment, case-insensitively, and
+        accept ONLY an exact match against an offered code (no fuzzy/substring match, to
+        never report the wrong program). This is what reflects the iot_* presets, which
+        set no mode flag. ``startProgram.program`` is deliberately NOT consulted (it is the
+        recovered default category, not the running program)."""
+        by_lower = {code.lower(): code for code in self._program_codes}
+        for attr in self._REF_ACTIVE_PROGRAM_ATTRS:
+            raw = self._get_attr(attr)
+            if raw is None:
+                continue
+            token = str(raw).strip().lower()
+            if not token:
+                continue
+            for candidate in (token, token.rsplit(".", 1)[-1]):
+                code = by_lower.get(candidate)
+                if code is not None:
+                    _LOGGER.debug(
+                        "Select debug: REF current_option id=%s programName=%r -> %s",
+                        redact_id(self._appliance_id), raw, code,
+                    )
+                    return code
+        return None
 
     async def async_select_option(self, option: str) -> None:
         if option not in self._attr_options:
