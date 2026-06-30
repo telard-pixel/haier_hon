@@ -12,6 +12,11 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .base_entity import HonBaseEntity
 from .const import (
+    AC_ATTR_SWING_H,
+    AC_ATTR_SWING_V,
+    AC_SWING_H_PARAM,
+    AC_SWING_V_PARAM,
+    APPLIANCE_AC,
     APPLIANCE_FR,
     APPLIANCE_FRE,
     APPLIANCE_REF,
@@ -24,6 +29,8 @@ from .const import (
     DRY_LEVEL_LABELS_TD,
     DRY_LEVEL_LABELS_WM,
     DRY_LEVEL_SENTINELS,
+    FAN_DIR_H_LABELS,
+    FAN_DIR_V_LABELS,
     PROGRAM_PARAM_NAMES,
     PROGRAM_PENDING_OPTIONS,
     PROGRAM_PENDING_STORE,
@@ -32,6 +39,7 @@ from .const import (
 )
 from .debug_utils import redact_id, redact_store
 from .hon_commands import async_send_command
+from .ac_command import async_send_settings, param_allowed_values, settings_param
 from .program_options import (
     HonProgramOptionEntity,
     async_send_program,
@@ -118,6 +126,66 @@ _PROGRAM_OPTION_SELECTS: tuple[HonProgramOptionSelectDescription, ...] = (
     ),
 )
 
+@dataclass(frozen=True, kw_only=True)
+class HonAcDirectionSelectDescription:
+    """A manual AC fan-direction (louver position) select (#37).
+
+    ``param`` is the settings-command parameter to WRITE (windDirectionVertical /
+    windDirectionHorizontal); ``attr`` is the dotted READ path of the live value;
+    ``label_map`` is the SUPERSET raw-value -> option-key map (offered options are the
+    live per-model enum mapped through it, with the raw number as a forward-safe
+    fallback for an unmapped value). Vertical and horizontal carry distinct
+    translation_keys so their overlapping numbers never collide.
+    """
+
+    key: str
+    param: str
+    attr: str
+    translation_key: str
+    label_map: dict[str, str]
+    icon: str
+
+
+# Candidate AC fan-direction selects, capability-gated per device by
+# _supports_direction_select on the LIVE settings enum. Vertical value 8 = swing,
+# which coexists by design with the climate swing_mode (on/off) entity (both write the
+# SAME windDirectionVertical param).
+_AC_DIRECTION_SELECTS: tuple[HonAcDirectionSelectDescription, ...] = (
+    HonAcDirectionSelectDescription(
+        key="fan_direction_vertical",
+        param=AC_SWING_V_PARAM,
+        attr=AC_ATTR_SWING_V,
+        translation_key="fan_direction_vertical",
+        label_map=FAN_DIR_V_LABELS,
+        icon="mdi:arrow-up-down",
+    ),
+    HonAcDirectionSelectDescription(
+        key="fan_direction_horizontal",
+        param=AC_SWING_H_PARAM,
+        attr=AC_ATTR_SWING_H,
+        translation_key="fan_direction_horizontal",
+        label_map=FAN_DIR_H_LABELS,
+        icon="mdi:arrow-left-right",
+    ),
+)
+
+
+def _supports_direction_select(param) -> bool:
+    """True iff ``param`` is a real, adjustable position control.
+
+    A manual fan-direction control exists only when the settings param is a WRITABLE
+    enum with more than one option. The fixed-typology trap is excluded explicitly
+    (AS68PDAHRA horizontal: typology=fixed, enum=[0]) so a non-adjustable louver is
+    never surfaced; the >1 guard also drops a degenerate single-value enum. The enum
+    itself is always read live (param_allowed_values), never hard-coded.
+    """
+    if param is None:
+        return False
+    if getattr(param, "typology", "") == "fixed":
+        return False
+    return len(param_allowed_values(param)) > 1
+
+
 # "Safe" commands (they do not start a cycle) to read/write the program from.
 PROGRAM_SELECT_COMMANDS = ("settings", "setProgram", "setProgramme", "programSettings")
 # Commands to DRAW the program list from. We also include startProgram as a
@@ -169,6 +237,33 @@ async def async_setup_entry(
                     "needs startProgram(program enum) + stopProgram",
                     data.get("name"),
                     redact_id(appliance_id),
+                )
+            continue
+        if app_type == APPLIANCE_AC:
+            # Manual fan-direction position selects (#37), capability-gated on the
+            # live per-model settings enum (vertical and/or horizontal independently).
+            # AC falls through here today with no select; the climate swing_mode
+            # (on/off) entity is intentionally left untouched (coexistence by design).
+            created_dirs: list[str] = []
+            for desc in _AC_DIRECTION_SELECTS:
+                if not _supports_direction_select(settings_param(appliance, desc.param)):
+                    continue
+                entities.append(
+                    HonAcDirectionSelect(coordinator, appliance_id, desc, client)
+                )
+                created_dirs.append(desc.key)
+            if created_dirs:
+                _LOGGER.info(
+                    "Added %d AC fan-direction selects: id=%s -> %s",
+                    len(created_dirs),
+                    redact_id(appliance_id),
+                    created_dirs,
+                )
+            else:
+                _LOGGER.debug(
+                    "Select debug: no AC fan-direction selects for id=%s type=%s",
+                    redact_id(appliance_id),
+                    app_type,
                 )
             continue
         if app_type not in APPLIANCE_WASH_GROUP:
@@ -731,3 +826,104 @@ class HonRefProgramSelect(HonBaseEntity, SelectEntity):
                 translation_placeholders={"error": str(err)},
             ) from err
         await self._async_request_command_refresh()
+
+
+class HonAcDirectionSelect(HonBaseEntity, SelectEntity):
+    """Manual fan-direction (louver position) select for air conditioners (#37).
+
+    One entity per axis (vertical / horizontal). Options come from the device's LIVE
+    per-model settings enum (windDirectionVertical / windDirectionHorizontal), never
+    hard-coded, mapped to stable bilingual option keys. Selecting sends IMMEDIATELY
+    through ac_command.async_send_settings -- the SAME sanitizer-guarded path the
+    climate swing uses -- so a requested position survives the windDirection sanitizer
+    (it is applied AFTER the pre_send hook and therefore wins). current_option maps the
+    live reading to an offered key and returns None when the firmware reports a value
+    outside the offered enum (e.g. 0 when off, or a value the setter enum excludes): HA
+    shows unknown, never a false map, never a raise. Coexists by design with the climate
+    swing_mode (on/off) entity: both it and this vertical select write
+    windDirectionVertical (value 8 = swing).
+    """
+
+    def __init__(
+        self,
+        coordinator,
+        appliance_id: str,
+        description: HonAcDirectionSelectDescription,
+        client=None,
+    ) -> None:
+        super().__init__(coordinator, appliance_id, client)
+        self._desc = description
+        self._attr_translation_key = description.translation_key
+        self._attr_unique_id = f"{appliance_id}_{description.key}"
+        self._attr_icon = description.icon
+        label_map = description.label_map
+        param = settings_param(self._appliance, description.param)
+        # Offer the LIVE per-model enum values, mapped to stable option keys (raw number
+        # as a forward-safe fallback for an unmapped value); order follows the device
+        # enum. param_allowed_values([]/None) yields {} (gated-out params never reach
+        # here). Mirrors HonProgramOptionSelect.
+        self._raw_to_key: dict[str, str] = {
+            raw: label_map.get(raw, raw) for raw in param_allowed_values(param)
+        }
+        self._key_to_raw: dict[str, str] = {
+            key: raw for raw, key in self._raw_to_key.items()
+        }
+        self._attr_options = list(self._raw_to_key.values())
+        _LOGGER.debug(
+            "Select debug: init AC direction select '%s' id=%s param=%s options=%s",
+            redact_id(self._attr_unique_id, appliance_id),
+            redact_id(appliance_id),
+            description.param,
+            self._attr_options,
+        )
+
+    @property
+    def current_option(self) -> str | None:
+        # Map the LIVE windDirection value to an offered key. Out-of-enum reads (0 when
+        # off, or e.g. horizontal 2 outside the setter enum) -> None: never raise, never
+        # false-map.
+        raw = self._get_attr(self._desc.attr)
+        if raw is None:
+            return None
+        return self._raw_to_key.get(normalize_code(raw))
+
+    async def async_select_option(self, option: str) -> None:
+        raw = self._key_to_raw.get(option)
+        if raw is None:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_setpoint",
+                translation_placeholders={
+                    "value": option,
+                    "allowed": ", ".join(self._attr_options),
+                },
+            )
+        appliance = self._appliance
+        client = self._hon_client
+        if not appliance or not client:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="appliance_or_client_unavailable",
+            )
+        try:
+            _LOGGER.info(
+                "Select: AC %s -> %s=%s id=%s",
+                self._desc.key,
+                self._desc.param,
+                raw,
+                redact_id(self._appliance_id),
+            )
+            await async_send_settings(self.hass, client, appliance, {self._desc.param: raw})
+            await self._async_request_command_refresh()
+        except HomeAssistantError:
+            raise
+        except Exception as err:
+            _LOGGER.error(
+                "Select: AC %s set error %s=%s: %s",
+                self._desc.key, self._desc.param, raw, err, exc_info=True,
+            )
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="command_error",
+                translation_placeholders={"error": str(err)},
+            ) from err

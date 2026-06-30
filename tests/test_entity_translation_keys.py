@@ -215,10 +215,12 @@ def _collect_code_keys() -> dict[str, set[str]]:
         | {"pause", "debug_logging", "mqtt_realtime_debug"}
     )
     # Program select (fixed key) + the REF program/mode select (#40) + the
-    # program-option selects (#35).
-    used["select"] = {"program", "ref_program"} | {
-        d.translation_key for d in select._PROGRAM_OPTION_SELECTS
-    }
+    # program-option selects (#35) + the AC fan-direction selects (#37).
+    used["select"] = (
+        {"program", "ref_program"}
+        | {d.translation_key for d in select._PROGRAM_OPTION_SELECTS}
+        | {d.translation_key for d in select._AC_DIRECTION_SELECTS}
+    )
     used["button"] = {"start_program", "stop_program", "force_refresh", "reset_debug"}
     return used
 
@@ -441,7 +443,7 @@ def _collect_select_state_keys() -> dict[str, set[str]]:
     from custom_components.addhon import select
 
     by_tk: dict[str, set[str]] = {}
-    for d in select._PROGRAM_OPTION_SELECTS:
+    for d in (*select._PROGRAM_OPTION_SELECTS, *select._AC_DIRECTION_SELECTS):
         label_map = getattr(d, "label_map", None)
         if not label_map:
             continue

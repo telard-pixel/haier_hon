@@ -176,6 +176,40 @@ AC_FAN_MAP = {
 }
 AC_FAN_MAP_REVERSE = {v: k for k, v in AC_FAN_MAP.items()}
 
+# --- AC fan-direction position selects (discussion #37) -----------------------
+# windDirectionVertical / windDirectionHorizontal are PER-MODEL position ENUMS
+# (2,4,5,6,7 = fixed louver angles, vertical 8 = SWING/oscillation; horizontal 0 =
+# neutral). The official app collapses every fixed angle to a single "fixed" caption
+# (getVerticalFanDirectionLabel, decomp.txt:2533064-2533104; horizontal label fn
+# decomp.txt:2532971-2532976), so it cannot supply a per-angle label; we mint our own
+# STABLE per-value keys, keeping the one named semantic the app exposes: vertical 8 =
+# swing (decomp.txt:2533095). These are LABEL maps ONLY (raw firmware value -> machine
+# key for the select state translations); the LEGAL value set is ALWAYS read live from
+# the per-model enum, never hard-coded (AS68PDAHRA vertical=[2,4,5,6,7,8] but
+# AS35RBAHRA-3=[2,4,5,6,8] -- no 7; AS68PDAHRA horizontal is typology=fixed [0] = no
+# control). The maps are a SUPERSET: only keys whose raw value is in the live enum
+# become options, and a live value absent from the map falls back to its raw number
+# (forward-safe, mirrors HonProgramOptionSelect). Values 1/3 (HEALTH_AIR_FLOW,
+# decomp.txt:2533101) are intentionally absent: not in the vertical setter enum on any
+# observed model. Vertical and horizontal use SEPARATE translation_keys so the
+# overlapping numbers 4/5/6/7 live in disjoint state blocks and never collide.
+FAN_DIR_V_LABELS = {
+    "2": "position_2",
+    "4": "position_4",
+    "5": "position_5",
+    "6": "position_6",
+    "7": "position_7",
+    "8": "swing",
+}
+FAN_DIR_H_LABELS = {
+    "0": "position_0",
+    "3": "position_3",
+    "4": "position_4",
+    "5": "position_5",
+    "6": "position_6",
+    "7": "position_7",
+}
+
 # --- Washing machine attributes -----------------------------------------------
 # Confirmed from the diagnostics of the HW80-B14959TU1IT device
 WM_ATTR_STATUS        = "machMode"

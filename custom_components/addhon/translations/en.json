@@ -763,6 +763,28 @@
           "delicate": "Delicate",
           "synthetic": "Synthetic"
         }
+      },
+      "fan_direction_vertical": {
+        "name": "Vertical fan direction",
+        "state": {
+          "position_2": "Position 2",
+          "position_4": "Position 4",
+          "position_5": "Position 5",
+          "position_6": "Position 6",
+          "position_7": "Position 7",
+          "swing": "Swing"
+        }
+      },
+      "fan_direction_horizontal": {
+        "name": "Horizontal fan direction",
+        "state": {
+          "position_0": "Position 0",
+          "position_3": "Position 3",
+          "position_4": "Position 4",
+          "position_5": "Position 5",
+          "position_6": "Position 6",
+          "position_7": "Position 7"
+        }
       }
     },
     "button": {

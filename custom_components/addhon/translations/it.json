@@ -763,6 +763,28 @@
           "delicate": "Delicati",
           "synthetic": "Sintetici"
         }
+      },
+      "fan_direction_vertical": {
+        "name": "Direzione aria verticale",
+        "state": {
+          "position_2": "Posizione 2",
+          "position_4": "Posizione 4",
+          "position_5": "Posizione 5",
+          "position_6": "Posizione 6",
+          "position_7": "Posizione 7",
+          "swing": "Oscillazione"
+        }
+      },
+      "fan_direction_horizontal": {
+        "name": "Direzione aria orizzontale",
+        "state": {
+          "position_0": "Posizione 0",
+          "position_3": "Posizione 3",
+          "position_4": "Posizione 4",
+          "position_5": "Posizione 5",
+          "position_6": "Posizione 6",
+          "position_7": "Posizione 7"
+        }
       }
     },
     "button": {
