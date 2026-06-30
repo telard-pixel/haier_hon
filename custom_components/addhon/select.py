@@ -147,9 +147,11 @@ class HonAcDirectionSelectDescription:
 
 
 # Candidate AC fan-direction selects, capability-gated per device by
-# _supports_direction_select on the LIVE settings enum. Vertical value 8 = swing,
-# which coexists by design with the climate swing_mode (on/off) entity (both write the
-# SAME windDirectionVertical param).
+# _supports_direction_select on the LIVE settings enum. The two axes are SYMMETRIC (see
+# FAN_DIR_*_LABELS): each exposes fixed louver positions plus exactly one swing value --
+# value 8 on the vertical axis, value 7 on the horizontal axis. The vertical 8=swing
+# coexists by design with the climate swing_mode (on/off) entity (both write the SAME
+# windDirectionVertical param).
 _AC_DIRECTION_SELECTS: tuple[HonAcDirectionSelectDescription, ...] = (
     HonAcDirectionSelectDescription(
         key="fan_direction_vertical",

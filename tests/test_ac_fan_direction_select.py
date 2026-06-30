@@ -126,11 +126,15 @@ class AcFanDirectionSelectTest(unittest.IsolatedAsyncioTestCase):
             }
         )
         h = self._by_key(added, "fan_direction_horizontal")
+        # Horizontal mirrors vertical: fixed positions (0,3,4,5,6) plus exactly one swing
+        # value, which on the horizontal axis is 7 (FAN_DIR_H_LABELS); order follows the
+        # device enum, so "swing" (7) lands last.
         self.assertEqual(
-            ["position_0", "position_3", "position_4", "position_5", "position_6", "position_7"],
+            ["position_0", "position_3", "position_4", "position_5", "position_6", "swing"],
             h._attr_options,
         )
-        self.assertNotIn("swing", h._attr_options)
+        self.assertNotIn("position_7", h._attr_options)   # 7 is swing, not a position
+        self.assertIn("swing", h._attr_options)
 
     async def test_both_created_for_enum_model(self) -> None:
         added, _, _ = await self._setup(
@@ -178,8 +182,19 @@ class AcFanDirectionSelectTest(unittest.IsolatedAsyncioTestCase):
             {"windDirectionHorizontal": DirParam("5", values=H_ENUM)},
             attributes={"settings.windDirectionHorizontal": "5"},
         )
+        # 5 is a fixed horizontal position -> position_5.
         self.assertEqual(
             "position_5", self._by_key(added, "fan_direction_horizontal").current_option
+        )
+
+    async def test_current_option_horizontal_swing(self) -> None:
+        # 7 is the ONE horizontal swing value -> "swing" (mirror of vertical 8).
+        added, _, _ = await self._setup(
+            {"windDirectionHorizontal": DirParam("7", values=H_ENUM)},
+            attributes={"settings.windDirectionHorizontal": "7"},
+        )
+        self.assertEqual(
+            "swing", self._by_key(added, "fan_direction_horizontal").current_option
         )
 
     async def test_current_option_swing(self) -> None:
@@ -240,6 +255,16 @@ class AcFanDirectionSelectTest(unittest.IsolatedAsyncioTestCase):
         await self._by_key(added, "fan_direction_horizontal").async_select_option("position_5")
         self.assertEqual("5", settings.sent["windDirectionHorizontal"])
 
+    async def test_select_horizontal_swing_sends_7(self) -> None:
+        added, settings, _ = await self._setup(
+            {
+                "windDirectionVertical": DirParam("5", values=V_FULL),
+                "windDirectionHorizontal": DirParam("0", values=H_ENUM),
+            }
+        )
+        await self._by_key(added, "fan_direction_horizontal").async_select_option("swing")
+        self.assertEqual("7", settings.sent["windDirectionHorizontal"])
+
     async def test_requested_position_wins_over_sanitizer(self) -> None:
         added, settings, _ = await self._setup(
             {
@@ -288,10 +313,26 @@ class AcFanDirectionI18nTest(unittest.TestCase):
                 self.assertIn(opt_key, it_state, f"it missing {key}.{opt_key}")
             self.assertEqual(en_state, it_state, f"en/it parity {key}")
 
-    def test_swing_only_on_vertical(self) -> None:
-        en = self._select("en")
-        self.assertIn("swing", en["fan_direction_vertical"]["state"])
-        self.assertNotIn("swing", en["fan_direction_horizontal"]["state"])
+    def test_each_axis_has_one_swing_key(self) -> None:
+        # The two axes are symmetric: each carries exactly one "swing" key (vertical value
+        # 8, horizontal value 7) plus fixed "position_N" keys; no "fixed" key on either.
+        # Holds in both languages.
+        for lang in ("en", "it"):
+            sel = self._select(lang)
+            v_state = sel["fan_direction_vertical"]["state"]
+            h_state = sel["fan_direction_horizontal"]["state"]
+            self.assertIn("swing", v_state)
+            self.assertIn("swing", h_state)
+            self.assertNotIn("fixed", v_state)
+            self.assertNotIn("fixed", h_state)
+            self.assertTrue(
+                all(k == "swing" or k.startswith("position_") for k in v_state),
+                f"{lang}: vertical keys must be swing or position_N",
+            )
+            self.assertTrue(
+                all(k == "swing" or k.startswith("position_") for k in h_state),
+                f"{lang}: horizontal keys must be swing or position_N",
+            )
 
 
 if __name__ == "__main__":
