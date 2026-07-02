@@ -8,6 +8,7 @@ min..max in steps of step (index-based, bounded).
 """
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 
 from ...helpers import str_to_float
@@ -102,15 +103,15 @@ class HonParameterRange(HonParameter):
         path (climate.py setpoint / number.py), which the entities read as a failed set
         and SILENTLY roll the user's value back.
 
-        Instead snap to the nearest grid index and accept when the value is within a
-        tolerance of that grid point. The tolerance is program_options' 1e-9 float-drift
-        epsilon scaled by the operand magnitude, so it always dominates the
-        ~1e-15 * magnitude rounding error of ``min + n * step`` yet stays orders of
-        magnitude below any real off-grid distance (a genuine off-grid value is at least a
-        fraction of a step away). It is decimal-agnostic (any number of decimals). An
-        exact fractions.Fraction oracle over the realistic parameter space gives 0 false
-        negatives and 0 false positives, and the integer-step ranges of the golden fridge
-        dump validate exactly as before.
+        Instead snap to the nearest grid index and accept when the value is within
+        ``_grid_eps`` of that grid point. The tolerance is program_options' 1e-9
+        float-drift epsilon scaled by the operand magnitude AND capped to step/4, so it
+        dominates the ~1e-15 * magnitude rounding error of ``min + n * step`` yet stays
+        strictly below the half-step off-grid distance even on absurd schemas. It is
+        decimal-agnostic (any number of decimals). An exact fractions.Fraction oracle over
+        the realistic AND the extreme parameter space gives 0 false negatives and 0 false
+        positives, and the integer-step ranges of the golden fridge dump validate exactly
+        as before.
         """
         if not self.min <= value <= self.max:
             return False
@@ -123,29 +124,103 @@ class HonParameterRange(HonParameter):
             # only fires for a genuinely negative step.
             return True
         index = round((value - self.min) / step)
-        tolerance = 1e-9 * max(1.0, abs(self.min), abs(self.max), abs(step))
-        return abs(self.min + index * step - value) <= tolerance
+        return abs(self.min + index * step - value) <= self._grid_eps(step)
+
+    def _grid_eps(self, step: float) -> float:
+        """Snap/enumeration tolerance for the min/step grid, capped to a fraction of step.
+
+        The base epsilon is program_options' 1e-9 float-drift value scaled by the operand
+        magnitude, so it always dominates the ~1e-15 * magnitude rounding error of
+        ``min + n * step``. On its own that magnitude term can EXCEED half a step on a
+        pathological schema (min 0, max 1_000_000, step 0.001 -> 1e-3 > step/2 = 5e-4),
+        which would accept an off-grid value and violate the setter's off-grid -> ValueError
+        contract (the rollback depends on it). Capping at ``step / 4`` keeps the epsilon
+        strictly below the half-step distance in EVERY schema while staying orders of
+        magnitude above the real rounding error, so it adds no false negative on any
+        realistic range. The SAME epsilon backs _on_grid, option_count() and values(), so
+        acceptance and enumeration can never disagree. Callers pass the resolved POSITIVE
+        step (this is only reached after the step <= 0 guard). Proven with a
+        fractions.Fraction oracle: 0 false negatives / 0 false positives on the realistic
+        space and on the 1e6 / 0.001 extreme.
+        """
+        return min(1e-9 * max(1.0, abs(self.min), abs(self.max), abs(step)), step / 4)
+
+    @staticmethod
+    def _decimals(number: float) -> int:
+        """Fractional-digit count of a parsed numeric value (0.1 -> 1, 0.125 -> 3, 1 -> 0).
+
+        Uses ``Decimal(str(number))``: str() is the float's shortest round-tripping repr
+        (Python guarantees str(0.1) == "0.1", and a decimal-comma "5,5" is already the
+        float 5.5 via str_to_float), and normalize() drops an integer's trailing zeros
+        (1.0 / 100 -> 0). Only ever used to format values() output, never the stored value.
+        """
+        exponent = Decimal(str(number)).normalize().as_tuple().exponent
+        return -exponent if isinstance(exponent, int) and exponent < 0 else 0
+
+    def _grid_ndigits(self) -> int:
+        """Rounding precision for values() output = max(decimals(step), decimals(min)).
+
+        A grid point ``min + i*step`` carries at most max(decimals(min), decimals(step))
+        decimals, so rounding to this precision is exact: it removes float drift without
+        ever collapsing a distinct point (e.g. min=16.5 step=1 keeps 16.5, 17.5, ...).
+        Cosmetic only -- it formats values() and never touches the setter/intern_value.
+        """
+        return max(self._decimals(self.step), self._decimals(self.min))
+
+    def _grid_count(self, step: float) -> int:
+        """Reachable grid-point count for step > 0, bounded by _MAX_RANGE_VALUES.
+
+        Computed ARITHMETICALLY so option_count() and values() never materialize the value
+        strings just to measure them. int() floors ``(max + eps - min) / step``; the two
+        short reconcile loops pin the result to the exact per-index predicate values() uses
+        (``min + i*step <= max + eps``), so a one-ULP disagreement between the float
+        division and the iteration cannot make option_count() drift from len(values()) and
+        no phantom point past max is emitted. Returns 0 for an inverted range (max < min).
+        Callers pass the resolved POSITIVE step.
+        """
+        eps = self._grid_eps(step)
+        limit = self.max + eps
+        count = int((limit - self.min) / step) + 1
+        if count < 0:
+            count = 0
+        while count > 0 and self.min + (count - 1) * step > limit:
+            count -= 1
+        while self.min + count * step <= limit:
+            count += 1
+        return min(count, _MAX_RANGE_VALUES)
+
+    def option_count(self) -> int:
+        """Reachable ``values`` count WITHOUT materializing the strings (F2).
+
+        Arithmetic equivalent of ``len(self.values)`` (same capped epsilon and
+        _MAX_RANGE_VALUES cap), so the two are equal by construction -- values() builds
+        ``range(self._grid_count(step))``. Lets HonCommand._more_options compare cardinality
+        while merging available_settings without allocating up to _MAX_RANGE_VALUES strings.
+        """
+        step = self.step
+        if step <= 0:
+            return 1  # values() returns the single [str(self.min)]
+        return self._grid_count(step)
 
     @property
     def values(self) -> list[str]:
         # Index-based enumeration (min + i*step), NOT a ``+= step`` accumulator: the old
         # accumulator compounded float error on decimal steps ("20.700000000000003") and
         # could DROP the final grid point (24.9.. + 0.1 overshoots max) or, on a malformed
-        # range, loop forever (commands.py _more_options calls this to compare lengths).
-        # Bounded by _MAX_RANGE_VALUES and an epsilon on the max bound (1e-9 * magnitude,
-        # NOT step/2, so an overshooting step cannot add a phantom point past max). Keeps
-        # the previous ``str()`` formatting, so integer-step ranges (all real fridge
-        # params) render byte-for-byte as before (golden-verified).
+        # range, loop forever. The point count comes from _grid_count (shared with
+        # option_count -- same capped epsilon + _MAX_RANGE_VALUES bound), so
+        # len(values) == option_count() by construction. Each value is ROUNDED to the
+        # step/min decimal precision before str() (F3), which cleans decimal drift
+        # ("24.200000000000003" -> "24.2") WITHOUT reformatting integers: an integer step
+        # rounds to 0 decimals and str(round(int, 0)) stays the bare integer, so
+        # integer-step ranges (all real fridge params) render byte-for-byte as before
+        # (golden-verified). Rounding is cosmetic; the stored value / intern_value are set
+        # by the setter and are never touched here.
         step = self.step
         if step <= 0:
             return [str(self.min)]
-        result: list[str] = []
-        index = 0
-        tolerance = 1e-9 * max(1.0, abs(self.min), abs(self.max), abs(step))
-        while index < _MAX_RANGE_VALUES:
-            current = self.min + index * step
-            if current > self.max + tolerance:
-                break
-            result.append(str(current))
-            index += 1
-        return result
+        ndigits = self._grid_ndigits()
+        return [
+            str(round(self.min + index * step, ndigits))
+            for index in range(self._grid_count(step))
+        ]

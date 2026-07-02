@@ -195,7 +195,7 @@ class HonCommand:
             second, HonParameterFixed
         ):
             return second
-        if len(second.values) > len(first.values):
+        if second.option_count() > first.option_count():
             return second
         return first
 
