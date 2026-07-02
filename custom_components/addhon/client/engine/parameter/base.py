@@ -49,6 +49,16 @@ class HonParameter:
     def values(self) -> list[str]:
         return [str(self.value)]
 
+    def option_count(self) -> int:
+        """Cheap count of selectable ``values``.
+
+        Default = len of the (already small) materialized list, correct for
+        enum/fixed/program. HonParameterRange overrides it to count the min..max grid
+        ARITHMETICALLY, so HonCommand._more_options can compare cardinality on a merge
+        without materializing a range of up to _MAX_RANGE_VALUES strings.
+        """
+        return len(self.values)
+
     @property
     def category(self) -> str:
         return self._category
